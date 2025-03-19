@@ -1,2 +1,4 @@
 exclude:
   - node_modules
+  - Back-End/node_modules
+  - vendor
