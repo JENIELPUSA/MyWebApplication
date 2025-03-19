@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  base: "/EquipmentMaintenance/", // Adjust ito base sa repository name mo
   plugins: [react()],
   server: {
     proxy: {
