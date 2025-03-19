@@ -18,6 +18,9 @@ const messageSchema = new mongoose.Schema({
       required: true,
     },
   ],
+  To:{
+    type:String
+  },
   RequestID: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "RequestMaintenances", // Reference to the
