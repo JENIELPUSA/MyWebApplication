@@ -74,25 +74,26 @@ exports.signup = AsyncErrorHandler(async (req, res, next) => {
 
 
 exports.login = AsyncErrorHandler(async (req, res, next) => {
-    console.log("🔐 Login route hit");
-    console.log("🟡 Email:", req.body.email);
-    console.log("🟡 Password:", req.body.password);
-  
     const { email, password } = req.body;
   
+    // Find user by email and explicitly select the password field
     const user = await User.findOne({ email }).select('+password');
+  
+    // Check if the user exists
     if (!user) {
-      console.log("❌ No user found");
       return next(new CustomError('Incorrect email or password', 400));
     }
   
+    // Verify password
     const isPasswordCorrect = await user.comparePasswordInDb(password, user.password);
     if (!isPasswordCorrect) {
-      console.log("❌ Incorrect password");
       return next(new CustomError('Incorrect email or password', 400));
     }
   
+    // Generate JWT token after ensuring user and password are correct
     const token = signToken(user._id);
+  
+    // Save user info in session
     req.session.userId = user._id;
     req.session.isLoggedIn = true;
     req.session.user = {
@@ -103,17 +104,14 @@ exports.login = AsyncErrorHandler(async (req, res, next) => {
       role: user.role,
     };
   
-    console.log("✅ Login success");
-  
     return res.status(200).send({
       status: 'Success',
-      userId: user._id,
+      userId: user._id,  // Include User ID
       role: user.role,
       token,
-      email,
+      email
     });
   });
-  
   
 
 
