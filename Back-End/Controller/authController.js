@@ -74,6 +74,8 @@ exports.signup = AsyncErrorHandler(async (req, res, next) => {
 
 
 exports.login = AsyncErrorHandler(async (req, res, next) => {
+    console.log("Login attempt:", req.body);
+
     const { email, password } = req.body;
   
     // Find user by email and explicitly select the password field
