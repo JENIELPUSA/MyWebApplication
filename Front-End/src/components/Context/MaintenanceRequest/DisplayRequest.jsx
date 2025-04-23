@@ -2,29 +2,35 @@ import React, { createContext, useState, useEffect,useContext } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
-
+import socket from "../../../../../Back-End/Utils/socket";
+import { PostEmailContext} from "../EmailContext/SendNotificationContext";
 export const RequestDisplayContext = createContext();
 
 export const DisplayRequestProvider = ({ children }) => {
+  const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
   const { authToken,role,userId } = useContext(AuthContext); // Retrieve token from AuthContext
   const [request, setRequest] = useState([]); // Initialize equipment state
   const [loading, setLoading] = useState(true); // Initialize loading state
   const [error, setError] = useState(null); // Initialize error state
   const [currentPage, setCurrentPage] = useState(1);
   const [unread, setunread] = useState([]);
+  const [isNewData,setNewData]=useState()
   const [requestPerPages, setRequestPerPage] = useState(6);
   const [unreadcount, setcountunread] = useState([0])
   const [CountSpecificData, setCountSpecificData]=useState([])
+  const [AdminMsg,setAdminMsg]=useState([])
+  const [view,setView]=useState()
   useEffect(() => {
     if (!authToken) {
         setRequest(null);
       setLoading(false); // Stop loading when there is no token
       return;
-    }
-    fetchunreadRequestData();
+    }   
     fetchRequestData();
   }, [authToken]); // Dependencies to trigger effect when page or items per page change
-
+  const handlesend=()=>{
+    triggerSendEmail("Please check your dashboard. A new maintenance request has been submitted and requires your attention.")
+  }
   const fetchRequestData = async () => {
     setLoading(true); // Set loading to true before fetching data
     try {
@@ -33,8 +39,11 @@ export const DisplayRequestProvider = ({ children }) => {
       });
   
       const requestData = res.data?.data || []; // Ensure it's always an array
+      setView(requestData)
       if (role === "admin") {
+        const specificAdminMsg = requestData.filter((msg) => msg?.read ===false);
         setRequest(requestData);
+        setAdminMsg(specificAdminMsg.length)
       } else if (role === "Technician"||role === "user" ) {
         const specificMessages = requestData.filter((msg) => msg?.UserId === userId);
         const CountSpecifiData = requestData.filter((msg)=> msg.Status==="Pending" && msg.UserId===userId)
@@ -50,33 +59,58 @@ export const DisplayRequestProvider = ({ children }) => {
     }
   };
   
-  const fetchunreadRequestData = async () => {
-    setLoading(true); // Set loading to true before fetching data
+  const addDescription = async (Description, equipment, Laboratory, department) => {
+   console.log("TEST CHECK")
     try {
-      const res = await axios.get(`http://127.0.0.1:3000/api/v1/MaintenanceRequest/unreadnotification`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      const response = await axios.post(
+        "http://127.0.0.1:3000/api/v1/MaintenanceRequest",
+        {
+          Description: Description,
+          Equipments: equipment,
+          Department: department,
+          Laboratory: Laboratory,
+          Status: "Pending",
+        },
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+  
+      console.log("Response from server:", response);
+  
+      if (response.data && response.data.status === "success") {
+        
+        setToAdmin(response.data);
+        handlesend();
+        toast.success("Description sent successfully");
+        fetchRequestData();
+        console.log("gegerg",response.data.data)
+        socket.emit("newRequest", {
+          message: "A new maintenance !",
+          data: response.data.data,
+        });
 
-      if(role=="admin"){
-        const unreads=res.data.data
-        setunread(unreads)
-        setcountunread(res.data.totalUnreadRequests)  
-
+        console.log("TEST #")
+  
+        setNewData(response.data.data);
+      } else {
+        console.error("Failed to add description. Server response:", response);
+        toast.error("Failed to add description");
       }
-
     } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error("Failed to fetch data. Please try again later.");
-      setError("Failed to fetch data");
-    } finally {
-      setLoading(false); // Set loading to false after data fetching is complete
+      console.error("Error:", error);
+      toast.error("An unexpected error occurred.");
     }
   };
-
+  
+  
+  
   
   return (
     <RequestDisplayContext.Provider
       value={{
+        view,
+        isNewData,
+        addDescription,
+        AdminMsg,
         CountSpecificData,
         request,
         loading,
@@ -87,7 +121,6 @@ export const DisplayRequestProvider = ({ children }) => {
         setCurrentPage,
         setRequest,
         fetchRequestData,
-        fetchunreadRequestData,
         unread,
         unreadcount
       }}

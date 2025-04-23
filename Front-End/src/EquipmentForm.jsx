@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
-import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
-import EquipmentTable from './components/Equipment/EquipmentTable';
 import Equipment from './components/Equipment/Equipment'; // Adjusted the path to ensure correct import
 
 function EquipmentForm() {

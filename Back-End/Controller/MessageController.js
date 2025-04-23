@@ -1,6 +1,7 @@
 const AsyncErrorHandler = require('../Utils/AsyncErrorHandler');
 const message = require('../Models/Message');
 const Apifeatures = require('./../Utils/ApiFeatures');
+const sendEmail = require('../Utils/email')
 
 exports.AddMessage = AsyncErrorHandler(async (req, res) => {
     // Create the AssignEquipment document
@@ -109,7 +110,9 @@ exports.DisplayMessage = AsyncErrorHandler(async (req, res) => {
         message: 1,
         Status:1,
         read: 1,
+        role:1,
         DateTime: 1,
+        readonUser:1,
         Equipment: { $ifNull: ["$EquipmentsInfo._id", "N/A"] },
         RequestID: { $ifNull: ["$RequestMaintenanceInfo._id", "N/A"] },
         Ref: { $ifNull: ["$RequestMaintenanceInfo.Ref", "N/A"] },
@@ -133,7 +136,7 @@ exports.DisplayMessage = AsyncErrorHandler(async (req, res) => {
 exports.UpdateSendMSG =AsyncErrorHandler(async (req,res,next) =>{
   const updatedata = await message.findByIdAndUpdate(
     req.params.id,
-    { ...req.body}, // ✅ Ensure read is updated to true
+    { ...req.body}, // Ensure read is updated to true
     { new: true }
 );
 
@@ -143,4 +146,60 @@ exports.UpdateSendMSG =AsyncErrorHandler(async (req,res,next) =>{
     updatedata
  }); 
 })
+
+exports.UpdateAllStatus = AsyncErrorHandler(async (req, res, next) => {
+  try {
+    const { laboratoryIds, readonUpdate } = req.body;
+
+    // Hanapin muna kung may unread messages
+    const unreadMessages = await message.countDocuments({
+      _id: { $in: laboratoryIds },
+      readonUser: false,
+    });
+
+    if (unreadMessages === 0) {
+      return res.status(200).json({
+        status: "info",
+      });
+    }
+
+    // Update only unread messages
+    const updatedMessages = await message.updateMany(
+      { _id: { $in: laboratoryIds }, readonUser: false },
+      { $set: { readonUser: readonUpdate } }
+    );
+
+    res.status(200).json({
+      status: "success",
+      updatedCount: updatedMessages.modifiedCount,
+      message: "Unread messages updated successfully!",
+    });
+
+  } catch (error) {
+    console.error("Error updating messages:", error);
+    res.status(500).json({ status: "error", message: "Internal Server Error" });
+  }
+});
+
+
+exports.EmailNotification =AsyncErrorHandler(async(req,res,next)=>{
+  const { emails, message } = req.body;
+  
+
+  try {
+      // Ipadala ang email gamit ang message mula sa database
+      await sendEmail({
+          email:emails,
+          subject: 'New Notification',
+          text: message  // Gamitin ang message content mula sa database
+      });
+
+      res.status(200).json({ message: 'Email sent successfully' });
+  } catch (error) {
+      res.status(500).json({ message: 'Failed to send email', error });
+  }
+});
+
+
+
 

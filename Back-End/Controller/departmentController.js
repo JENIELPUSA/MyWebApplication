@@ -48,9 +48,9 @@ exports.Updatedepartment =AsyncErrorHandler(async (req,res,next) =>{
 
     res.status(200).json({
         status:'success',
-        data:{
-            department: null
-        } 
+        data:
+            null
+        
      });
   })
 

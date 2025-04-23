@@ -1,19 +1,22 @@
 import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
+import { FaPlus } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate } from "react-router-dom";
-import {LaboratoryDisplayContext} from "../Context/Laboratory/Display"
+import { LaboratoryDisplayContext } from "../Context/Laboratory/Display";
 import { AssignContext } from "../Context/DisplayAssignContext.jsx";
+import { motion } from "framer-motion";
 function LaboratoryForm({
   onClose,
   laboratory,
   onAddLaboratory,
   OnEditLaboratory,
 }) {
-
-  const {fetchAssignData}=useContext(AssignContext);
-  const {fetchLaboratoryData} = useContext(LaboratoryDisplayContext)
+  const [animateExit, setAnimateExit] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const { fetchAssignData } = useContext(AssignContext);
+  const { UpdateLaboratory,AddedLaboratory,customError } = useContext(LaboratoryDisplayContext);
   const navigate = useNavigate();
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false); // Separate state for Department dropdown
   const [enchargeDropdownOpen, setEnchargeDropdownOpen] = useState(false); // Separate state for Encharge dropdown
@@ -53,6 +56,7 @@ function LaboratoryForm({
 
   // Fetch departments and encharges on component mount
   useEffect(() => {
+    setTimeout(() => setIsVisible(true), 70);
     Checklaboratories();
     if (laboratory) {
       setValues({
@@ -113,83 +117,63 @@ function LaboratoryForm({
 
   // Add new laboratory
   const addLaboratory = async () => {
-    try {
-      const response = await axios.post(
-        "http://127.0.0.1:3000/api/v1/laboratory",
-        {
-          department: values.department,
-          Encharge: values.Encharge,
-          LaboratoryName: values.LaboratoryName,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data?.status === "success") {
-        toast.success("Laboratory added successfully");
-        onAddLaboratory(response.data.data);
-        setValues({ DepartmentId: "", EnchargeId: "", LaboratoryName: "" });
-      } else {
-        toast.error("Failed to add  ");
+      const result=await AddedLaboratory(values)
+      if(result?.success===true){
+        onAddLaboratory(result.data[0])
       }
-    } catch (error) {
-      console.error("Error adding laboratory:", error);
-      toast.error("Error submitting form");
-    }
   };
 
   // Edit existing laboratory
   const editLaboratory = async () => {
-    try {
-      const response = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/laboratory/${laboratory._id}`,
-        {
-          department: values.department,
-          Encharge: values.Encharge,
-          LaboratoryName: values.LaboratoryName,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data?.status === "success") {
-        toast.success("Laboratory updated successfully");
-        fetchLaboratoryData();
-        fetchAssignData();
-        setValues({
-          DepartmentId: "",
-          LaboratoryName: "",
-          EnchargeId: "",
-        });
-      } else {
-        toast.error(response.data?.message || "Failed to update laboratory");
+      const result=await UpdateLaboratory(laboratory._id,values)
+      if(result?.success===true){
+        console.log(result)
+        OnEditLaboratory(result.data);
       }
-    } catch (error) {
-      console.error("Error updating laboratory:", error);
-      toast.error(
-        error.response?.data?.message ||
-          "Error submitting form. Please try again."
-      );
-    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="flex flex-col relative rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg">
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 text-xl text-gray-500 hover:text-gray-700 transition"
-          aria-label="Close"
+     <motion.div
+        className="fixed inset-0 flex items-center justify-center z-50 px-4 overflow-y-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <motion.div
+          className="relative flex flex-col rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg"
+          initial={{ opacity: 0, y: -50 }}
+          animate={animateExit ? { opacity: 0, y: -50 } : { opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
         >
-          <i className="fas fa-times"></i>
-        </button>
+          {/* Close Icon */}
+          <motion.button
+            className="absolute top-2 right-2 text-xl text-gray-500 hover:text-gray-700 transition"
+            aria-label="Close"
+            whileTap={{ scale: 0.8 }} // Shrinks on click
+            whileHover={{ scale: 1.1 }} // Enlarges on hover
+            transition={{ duration: 0.3, ease: "easeInOut" }} // Defines the duration of the scale animations
+            onClick={() => {
+              setAnimateExit(true); // Set the animation state to trigger upward motion
+              setTimeout(onClose, 500); // Close after 500ms to match the animation duration
+            }}
+          >
+            <i className="fas fa-times"></i>
+          </motion.button>
 
-        <h4 className="block text-2xl font-medium text-slate-800 mb-2">
+        <h4 className="xs:text-lg sm:text-sm lg:text-2xl block text-2xl font-medium text-slate-800 mb-2">
           {laboratory ? "Edit Laboratory" : "Create Laboratory"}
         </h4>
-        <p className="text-slate-500 font-light mb-6">
+        <p className="xs:text-sm sm:text-sm lg:text-2xl text-slate-500 font-light mb-6">
           {laboratory
             ? "Update the laboratory details"
             : "Enter laboratory details to register."}
         </p>
+        {customError && (
+          <div className="mb-4 px-4 py-2 text-sm text-red-700 bg-red-100 border border-red-400 rounded">
+            {customError}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-2 flex flex-col gap-4">
@@ -339,10 +323,10 @@ function LaboratoryForm({
             {isLoading ? "Submitting..." : laboratory ? "Update" : "Create"}
           </button>
         </form>
-      </div>
+      </motion.div>
 
       <ToastContainer />
-    </div>
+    </motion.div>
   );
 }
 

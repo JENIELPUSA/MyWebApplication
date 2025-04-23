@@ -1,37 +1,113 @@
-import React, { useState, useEffect, useContext} from "react";
-import { useLocation } from "react-router-dom";
-import DashboardCard from "./components/DashboardCard";
+import React, { useState, useEffect, useContext, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { io } from "socket.io-client";
+
 import Navbar from "./components/Navbar";
+import DashboardCard from "./components/DashboardCard";
 import AssignLab from "./components/Assign/AssignLab";
 import DashboardPieChart from "./components/DashboarPieChart";
-import { useNavigate } from "react-router-dom";
 import Laboratory from "./components/Assign/Laboratory";
-import axios from "axios";
-import TechnicianTable from "./components/Technician/TechnicianTable"
-import { io } from "socket.io-client";
+import TechnicianTable from "./components/Technician/TechnicianTable";
+
 import { AuthContext } from "./components/Context/AuthContext";
-import {LaboratoryDisplayContext} from './components/Context/Laboratory/Display'
+import { LaboratoryDisplayContext } from "./components/Context/Laboratory/Display";
 import { FilterSpecificAssignContext } from "./components/Context/AssignContext/FilterSpecificAssign";
-function DashboardFinal({specificData}) {
-  const {laboratoryData}=useContext(FilterSpecificAssignContext)
-  const {laboratories} = useContext(LaboratoryDisplayContext)
+import { IncomingDisplayContext } from "./components/Context/ProcessIncomingRequest/IncomingRequestContext";
+import { motion, useInView } from "framer-motion";
+function DashboardFinal({ specificData }) {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true });
+  const { laboratoryData } = useContext(FilterSpecificAssignContext);
+  const { laboratories } = useContext(LaboratoryDisplayContext);
+  const { authToken, role } = useContext(AuthContext);
+  const { fetchIncomingData } = useContext(IncomingDisplayContext);
   const location = useLocation();
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const socketRef = useRef(null);
 
   const laboratory = location.state?.laboratory;
   const [data, setData] = useState([]);
-
   const [error, setError] = useState(null);
-  const [isNewRequest, setIsNewRequest] = useState(false);
-
-  const { authToken, role} = useContext(AuthContext);
-  const socket = io("http://localhost:3000");
+  
 
   const handleSelectDisplay = (selectedAssignEquipment) => {
-    console.log("Selected Lab:", selectedAssignEquipment);
-    navigate("/RequestMaintenances", { state: { selectedAssignEquipment } }); // Send data to another route
+    navigate("/RequestMaintenances", { state: { selectedAssignEquipment } });
   };
-  /* Laboratory View (Now Accepts `laboratory` as a Prop) */
+
+  // Fetch department data if laboratory is present
+  useEffect(() => {
+    if (!laboratory?._id || !authToken) return;
+
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          "http://127.0.0.1:3000/api/v1/departments",
+          {
+            headers: { Authorization: `Bearer ${authToken}` },
+          }
+        );
+
+        if (Array.isArray(response.data?.data)) {
+          setData(response.data.data);
+        } else {
+          setError("Unexpected data format from API.");
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setError("Failed to fetch department data.");
+      }
+    };
+    if (role == "admin") {
+      fetchIncomingData();
+    }
+    fetchData();
+  }, [laboratory?._id, authToken]);
+
+  return (
+    <div className="w-full bg-gray-300 flex flex-col min-h-screen">
+      <div className="top-0 left-0 w-full shadow-md bg-white z-50">
+        <Navbar />
+      </div>
+
+      <motion.main
+        ref={ref}
+        initial={{ opacity: 0, y: 50 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="
+    w-full
+    flex-1
+    px-2
+    2xs:px-3
+    xs:px-4
+    xm:px-6
+    sm:px-10
+    md:px-16
+    lg:px-20
+    xl:px-40
+    mx-auto
+    py-4
+  "
+      >
+        {laboratory ? (
+          <LaboratoryView laboratory={laboratory} />
+        ) : (
+          <DashboardView
+            role={role}
+            laboratoryData={laboratoryData}
+            onSelect={handleSelectDisplay}
+          />
+        )}
+      </motion.main>
+    </div>
+  );
+}
+
+export default DashboardFinal;
+
+/* === Separated components below === */
+
 const LaboratoryView = ({ laboratory }) => (
   <div className="mx-10 my-6 px-4 sm:px-10 flex-grow flex flex-col gap-4 sm:gap-10">
     <DashboardHeader title="Laboratories" />
@@ -43,40 +119,33 @@ const LaboratoryView = ({ laboratory }) => (
   </div>
 );
 
-/* Dashboard View (Now Accepts `role` as a Prop) */
-const DashboardView = ({ role }) => (
+const DashboardView = ({ role, laboratoryData, onSelect }) => (
   <div className="flex-1 flex flex-col relative z-10 bg-gray-300">
-    <div className="mx-10 my-6 px-4 sm:px-10 flex-grow flex flex-col gap-4 sm:gap-10">
-      {role==="admin"?(
-
-<DashboardHeader title="Dashboard" />
-      ):role=="user"?(
-        <DashboardHeader title="In-Charge" />
-
-      ):role==="Technician"?(
-        <DashboardHeader title="Technician" />
-      ):null}
-      <DashboardContent role={role} />
+    <div className="sm:px-10 flex-grow flex flex-col gap-4 sm:gap-10">
+      <DashboardHeader title={getDashboardTitle(role)} />
+      <DashboardContent
+        role={role}
+        laboratoryData={laboratoryData}
+        onSelect={onSelect}
+      />
     </div>
   </div>
 );
 
-/* Dashboard Header with Breadcrumbs */
 const DashboardHeader = ({ title }) => (
   <div className="flex justify-between items-center py-4 border-b border-gray-200">
-    <div className="text-3xl font-bold text-blue-600">{title}</div>
+    <div className="sm:text-lg xs:text-lg text-3xl font-bold text-blue-600">{title}</div>
     <Breadcrumbs current={title} />
   </div>
 );
 
-/* Breadcrumbs Component */
 const Breadcrumbs = ({ current }) => (
-  <nav className="bg-transparent text-black py-2 px-4">
+  <nav className="bg-transparent text-black py-2 px-4 2xs:px-3 xs:px-4 xs-max:px-6 xm:px-8 sm:px-10 md:px-20 lg:px-40">
     <ol className="list-reset flex">
       <li className="mr-4">
         <a
           href="#"
-          className="text-blue-600 hover:text-blue-800 transition-colors"
+          className="text-blue-600 hover:text-blue-800 transition-colors text-sm"
         >
           Home
         </a>
@@ -85,7 +154,7 @@ const Breadcrumbs = ({ current }) => (
       <li className="mr-4">
         <a
           href="#"
-          className="text-blue-600 hover:text-blue-800 transition-colors"
+          className="text-blue-600 hover:text-blue-800 transition-colors text-sm"
         >
           {current}
         </a>
@@ -94,140 +163,60 @@ const Breadcrumbs = ({ current }) => (
   </nav>
 );
 
-/* Dashboard Content (Now Accepts `role` as a Prop) */
-/*make a Condition like if else 
-  {role === "admin" ? <AdminDashboard /> : <UserDashboard />}
-*/
-const DashboardContent = ({ role, laboratoryData }) => (
+const DashboardContent = ({ role, laboratoryData, onSelect }) => (
   <div className="gap-6">
     <DashboardCard Laboratory={laboratoryData} />
-    {role === "admin" ? <AdminDashboard /> :role==="user"?<UserDashboard /> : role === "Technician"?<TechnicianDashboard/>:null}
+    {role === "admin" && <AdminDashboard />}
+    {role === "user" && (
+      <UserDashboard onSelect={onSelect} laboratoryData={laboratoryData} />
+    )}
+    {role === "Technician" && <TechnicianDashboard />}
   </div>
 );
 
-/* Admin Dashboard (Pie Chart + Assign Lab) */
 const AdminDashboard = () => (
   <div className="flex flex-col lg:flex-row gap-6">
-    <div className="p-6 rounded-lg flex-[1]">
+    {/*purpose nito hidden md:block tinatago ang DashboardPieChart if tapos na sa tablet pababa*/}
+    <div className="p-6 rounded-lg flex-[1] hidden md:block">
       <DashboardPieChart />
     </div>
-    <div className="p-6 mb-auto rounded-lg shadow-lg flex-[2] bg-white">
+    <div className="xs:mx-2 xs:p-4 mb-auto rounded-lg shadow-lg flex-[2] bg-white">
       <AssignLab />
     </div>
   </div>
 );
 
-/* User Dashboard (Go to Equipment Button) */
-const UserDashboard = () => (
-
-    <div className=" mx-10">
-      <button 
-      onClick={() => handleSelectDisplay(laboratoryData)}
-
-      className="w-1/2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white py-3 rounded-lg hover:shadow-lg transition-transform transform hover:scale-105">
-        Go to List Equipments
-      </button>
-  
+const UserDashboard = ({ onSelect, laboratoryData }) => (
+  <div className="mx-10">
+    <button
+      onClick={() => onSelect(laboratoryData)}
+      className="sm:text-sm w-1/2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white py-3 rounded-lg hover:shadow-lg transition-transform transform hover:scale-105"
+    >
+      Go to List Equipments
+    </button>
   </div>
 );
 
 const TechnicianDashboard = () => (
-
-<div className="flex flex-col lg:flex-row gap-6 px-10">
-  {/* Pie Chart Section (1/4 width on large screens) */}
-  <div className="rounded-lg bg-transparent lg:w-1/4 w-full min-w-[300px]">
-    <DashboardPieChart />
-  </div>
-
-  {/* Technician Table Section (3/4 width on large screens) */}
-  <div className="mb-auto rounded-lg shadow-lg bg-white lg:w-3/4 w-full">
-    <div className="w-full overflow-x-auto">
-        <TechnicianTable />
+  <div className="xs:px-2 flex flex-col lg:flex-row gap-6 px-10">
+    <div className="rounded-lg bg-transparent lg:w-1/4 w-full min-w-[300px] hidden md:block">
+      <DashboardPieChart />
     </div>
+      <div className="w-full overflow-x-auto">
+        <TechnicianTable />
+      </div>
   </div>
-</div>
-
-
-
-
-
-
-
 );
 
-/* New Request Notification */
 const NewRequestNotification = () => (
   <div className="fixed bottom-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-md">
     <p>New Maintenance Request Received!</p>
   </div>
 );
 
-
-
-
-  useEffect(() => {
-    socket.on("maintenanceRequestAdded", (data) => {
-      console.log("📢 Maintenance Request Received:", data);
-      setIsNewRequest(true);
-      alert(data.message);
-    });
-
-    return () => {
-      socket.off("maintenanceRequestAdded");
-    };
-  }, []);
-
-  
-
-  useEffect(() => {
-    if (laboratory && laboratory._id) {
-      const fetchData = async () => {
-        try {
-          const response = await axios.get(
-            `http://127.0.0.1:3000/api/v1/departments`,
-            {
-              headers: { Authorization: `Bearer ${authToken}` },
-            }
-          );
-          if (response.data && Array.isArray(response.data.data)) {
-            setData(response.data.data);
-            console.log(response.data.data);
-          } else {
-            setError("Unexpected data format from the API.");
-          }
-        } catch (err) {
-          console.error("Error fetching data:", err);
-          setError("Failed to fetch data. Please try again later.");
-        }
-      };
-
-      fetchData();
-    }
-  }, [laboratory, authToken]);
-
-
-
-  return (
-    
-    <div className="w-full bg-dark-300 flex flex-col min-h-screen">
-      {/* Navbar */}
-      <div className="top-0 left-0 w-full shadow-md bg-white z-50">
-        <Navbar />
-      </div>
-
-      {/* Main Content */}
-      {laboratory ? (
-        <LaboratoryView laboratory={laboratory} />
-      ) : (
-        <DashboardView role={role} />
-      )}
-
-      {/* New Request Notification */}
-      {isNewRequest && <NewRequestNotification />}
-    </div>
-  );
-}
-
-
-
-export default DashboardFinal;
+const getDashboardTitle = (role) => {
+  if (role === "admin") return "Dashboard";
+  if (role === "user") return "In-Charge";
+  if (role === "Technician") return "Technician";
+  return "Dashboard";
+};

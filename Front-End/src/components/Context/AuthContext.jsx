@@ -1,9 +1,10 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
-
+import io from "socket.io-client";
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const socket = io("http://127.0.0.1:3000"); // Connect to your Socket.io server
   const [authToken, setAuthToken] = useState(
     localStorage.getItem("token") || null
   ); // Get token from localStorage
@@ -18,6 +19,20 @@ export const AuthProvider = ({ children }) => {
       delete axios.defaults.headers["Authorization"];
     }
   }, [authToken]);
+
+    // Handle socket connection and registering the user ID
+    useEffect(() => {
+      if (userId) {
+        socket.emit("register-user", userId,role); // Send the userId to the server on socket connection
+        console.log(`Socket registered for userId: ${userId}`);
+      }
+  
+      // Cleanup on disconnect
+      return () => {
+        socket.disconnect();
+      };
+    }, [userId]);
+  
 
   // Login function
   const login = async (email, password) => {

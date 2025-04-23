@@ -4,6 +4,7 @@ import { ToastContainer, toast } from "react-toastify";
 import { io } from "socket.io-client";
 import "react-toastify/dist/ReactToastify.css";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
+import { motion } from "framer-motion";
 
 function AddRequest({
   DepartmentID,
@@ -14,13 +15,12 @@ function AddRequest({
   isOpen,
   onAddRequest,
 }) {
-  const { fetchRequestData } = useContext(RequestDisplayContext);
+  const { fetchRequestData, addDescription, isNewData } = useContext(
+    RequestDisplayContext
+  );
 
   if (!isOpen) return null;
-
-  const token = localStorage.getItem("token");
-  const socket = io("http://localhost:3000"); // Connect to the backend server
-
+  const [animateExit, setAnimateExit] = useState(false);
   const [values, setValues] = useState({
     Description: "",
   });
@@ -33,43 +33,20 @@ function AddRequest({
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Emit 'newRequest' event after successful request creation
   const addDepartment = async () => {
-    try {
-      const response = await axios.post(
-        "http://127.0.0.1:3000/api/v1/MaintenanceRequest",
-        {
-          Description: values.Description,
-          Equipments: EquipmentID,
-          Department: DepartmentID,
-          Laboratory: LaboratoryID,
-          Status:"Pending"
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data && response.data.status === "success") {
-        toast.success("Description sent successfully");
-
-        // Emit a socket event to notify the admin
-        socket.emit("newRequest", {
-          message: "A new maintenance request has been added!",
-          data: response.data.data, // Pass request data
-        });
-
-        
-        console.log(response.data.data);
-
-        onAddRequest(response.data.data);
-        fetchRequestData();
-        setValues({ Description: "" }); // Clear form fields
-      } else {
-        toast.error("Failed to add description");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("An unexpected error occurred.");
-    }
+    // Ensure addDescription is called and awaited first
+    await addDescription(
+      values.Description,
+      EquipmentID,
+      LaboratoryID,
+      DepartmentID
+    );
+    resetForm();
+    // Close the modal after a short delay
+    setTimeout(() => {
+      onClose();
+    }, 2000);
+  
   };
 
   const handleInput = (event) => {
@@ -93,15 +70,33 @@ function AddRequest({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="relative flex flex-col rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg">
-        <button
-          onClick={onClose}
+    <motion.div
+      className="fixed inset-0 flex items-center justify-center z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="relative flex flex-col rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg"
+        initial={{ opacity: 0, y: -50 }}
+        animate={animateExit ? { opacity: 0, y: -50 } : { opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -50 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
+        {/* Close Icon */}
+        <motion.button
           className="absolute top-2 right-2 text-xl text-gray-500 hover:text-gray-700 transition"
           aria-label="Close"
+          whileTap={{ scale: 0.8 }} // Shrinks on click
+          whileHover={{ scale: 1.1 }} // Enlarges on hover
+          transition={{ duration: 0.3, ease: "easeInOut" }} // Defines the duration of the scale animations
+          onClick={() => {
+            setAnimateExit(true); // Set the animation state to trigger upward motion
+            setTimeout(onClose, 500); // Close after 500ms to match the animation duration
+          }}
         >
           <i className="fas fa-times"></i>
-        </button>
+        </motion.button>
 
         <h4 className="block text-2xl font-medium text-slate-800 mb-2">
           {description ? "Edit Description" : "Input Description"}
@@ -145,8 +140,8 @@ function AddRequest({
 
           <ToastContainer />
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

@@ -7,11 +7,11 @@ const categorySchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Laboratory',  // Reference to the Laboratory model
       },
-    Equipments: [{
+    Equipments: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Equipment',  // Reference to the Equipment model
         required: true
-    }]
+    }
 });
 
 // Pre-hook for validating equipment availability before saving

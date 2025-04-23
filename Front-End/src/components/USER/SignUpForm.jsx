@@ -1,11 +1,16 @@
-import React, { useState, useEffect,useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { UserContext } from "../CountContext";
-function SignUpForm({ onClose,isOpen, user, onUpdate, onAddUser }) {
+import { motion } from "framer-motion";
+import { UserDisplayContext } from "../Context/User/DisplayUser";
+
+function SignUpForm({ onClose, isOpen, user, onUpdate, onAddUser }) {
   const token = localStorage.getItem("token");
-  if (!isOpen) return null;
+  const [animateExit, setAnimateExit] = useState(false);
+  const [customError, setCustomError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+const {AddUser,UpdateUser}=useContext(UserDisplayContext)
   const [values, setValues] = useState({
     FirstName: "",
     Middle: "",
@@ -14,19 +19,6 @@ function SignUpForm({ onClose,isOpen, user, onUpdate, onAddUser }) {
     password: "",
     confirmPassword: "",
   });
-
-  const resetForm = () => {
-    setValues({
-      FirstName: "",
-      Middle: "",
-      LastName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    });
-  };
-
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     setValues({
@@ -39,6 +31,17 @@ function SignUpForm({ onClose,isOpen, user, onUpdate, onAddUser }) {
     });
   }, [user]);
 
+  const resetForm = () => {
+    setValues({
+      FirstName: "",
+      Middle: "",
+      LastName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    });
+  };
+
   const handleInput = (event) => {
     const { name, value } = event.target;
     setValues({ ...values, [name]: value });
@@ -46,264 +49,209 @@ function SignUpForm({ onClose,isOpen, user, onUpdate, onAddUser }) {
 
   const handleValidation = () => {
     const { FirstName, LastName, email, password, confirmPassword } = values;
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    // Check for empty fields
-    if (!FirstName || !LastName || !email) {
-      toast.error("Please fill in all required fields.");
+    if (!FirstName || !LastName || !email || (!user && !password)) {
+      setCustomError("Please fill in all required fields.");
       return false;
     }
 
-    // Email validation regex pattern
-    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
-    // Validate email format
     if (!emailPattern.test(email)) {
-      toast.error("Please enter a valid email address.");
+      setCustomError("Please enter a valid email address.");
       return false;
     }
 
-    // If in edit mode, skip password validation
-    if (!user) {
-      // Only validate password if not in edit mode
-      if (!password) {
-        toast.error("Password is required.");
-        return false;
-      }
-
-      if (password !== confirmPassword) {
-        toast.error("Passwords do not match.");
-        return false;
-      }
+    if (!user && password !== confirmPassword) {
+      setCustomError("Passwords do not match.");
+      return false;
     }
 
-    return true; // All validations passed
+    setCustomError(""); // Clear previous errors
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     toast.dismiss();
-
     if (!handleValidation()) return;
 
     setIsLoading(true);
-    try {
+
       if (user) {
         await editUser();
       } else {
         await signUpUser();
       }
-    } catch (error) {
-      console.error("There was an error:", error);
-      toast.error(
-        error.response?.data?.message || "Operation failed. Please try again."
-      );
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const editUser = async () => {
-    try {
-      // Prepare the data to send, omitting password if it's not provided
-      const dataToSend = {
-        FirstName: values.FirstName,
-        Middle: values.Middle,
-        LastName: values.LastName,
-        email: values.email,
-      };
-
-      // Include password only if it's provided and not empty
-      if (values.password) {
-        dataToSend.password = values.password;
-      }
-
-      const res = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/users/${user._id}`,
-        dataToSend,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (res.data.status === "success") {
-        toast.success("User successfully updated!");
-        resetForm();
-        onUpdate(res.data.data); // Pass updated user data to the parent
-      }
-    } catch (error) {
-      console.error("There was an error:", error);
-      toast.error(
-        error.response?.data?.message || "Operation failed. Please try again."
-      );
-    }
+   const result=await UpdateUser(user._id,values)
+   if(result?.success===true){
+    onUpdate(result.data)
+    resetForm();
+    onClose();
+  }  
   };
 
   const signUpUser = async () => {
-    try {
-      const res = await axios.post(
-        "http://127.0.0.1:3000/api/v1/users",
-        {
-          FirstName: values.FirstName,
-          Middle: values.Middle,
-          LastName: values.LastName,
-          email: values.email,
-          password: values.password,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (res.data.status === "success") {
-        toast.success("User successfully added!");
-        resetForm();
-      }
-    } catch (error) {
-      console.error("There was an error:", error);
-      toast.error(
-        error.response?.data?.message || "Operation failed. Please try again."
-      );
-    }
+    const result=await AddUser(values)
+    if(result?.success===true){
+      onAddUser(result.data)
+      resetForm();
+      onClose();
+    }  
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="flex flex-col relative rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
+    <motion.div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="relative flex flex-col rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg"
+        initial={{ opacity: 0, y: -50 }}
+        animate={animateExit ? { opacity: 0, y: -50 } : { opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -50 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
+        <motion.button
           className="absolute top-2 right-2 text-xl text-gray-500 hover:text-gray-700 transition"
           aria-label="Close"
+          onClick={() => {
+            setAnimateExit(true);
+            setTimeout(onClose, 500);
+          }}
         >
-          <i className="fas fa-times"></i>
-        </button>
-        <h4 className="block text-2xl font-medium text-slate-800 mb-2">
+          ✕
+        </motion.button>
+
+        <h4 className="xs:text-lg sm:text-sm lg:text-2xl text-2xl font-medium text-slate-800 mb-2">
           {user ? "Edit User" : "Sign Up"}
         </h4>
-        <p className="text-slate-500 font-light mb-6">
+        <p className="xs:text-sm sm:text-sm lg:text-sm text-slate-500 font-light mb-6">
           {user
             ? "Update the user details"
             : "Nice to meet you! Enter your details to register."}
         </p>
 
+        {customError && (
+          <div className="mb-4 px-4 py-2 text-sm text-red-700 bg-red-100 border border-red-400 rounded">
+            {customError}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
-          <div className="mb-2 flex flex-col gap-4">
+          <div className="mb-2 flex flex-col lg:gap-4  xs:gap-2">
             <div className="flex gap-3">
               <div className="w-1/2">
-                <label className="block mb-1 text-sm text-slate-600">
+                <label className="xs:text-xs  sm:text-sm lg:text-sm text-sm text-slate-600 mb-1 block">
                   First Name
                 </label>
                 <input
                   type="text"
-                  className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2"
-                  placeholder="Your First Name"
-                  autoComplete="off"
                   name="FirstName"
-                  onChange={handleInput}
                   value={values.FirstName}
+                  onChange={handleInput}
+                  placeholder="Your First Name"
+                  className="xs:text-xs  sm:text-sm lg:text-sm w-full text-sm border border-slate-200 rounded px-3 py-2"
                 />
               </div>
-
-              <div className="w-1/2">
-                <label className="block mb-1 text-sm text-slate-600">
+              <div className="w-1/2 ">
+                <label className="xs:text-xs  sm:text-sm lg:text-sm text-sm text-slate-600 mb-1 block">
                   Middle Name
                 </label>
                 <input
                   type="text"
-                  className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2"
-                  placeholder="Your Middle Name"
-                  autoComplete="off"
                   name="Middle"
-                  onChange={handleInput}
                   value={values.Middle}
+                  onChange={handleInput}
+                  placeholder="Your Middle Name"
+                  className="xs:text-xs  sm:text-sm lg:text-sm w-full text-sm border border-slate-200 rounded px-3 py-2"
                 />
               </div>
             </div>
-
-            <div className="w-full">
-              <label className="block mb-1 text-sm text-slate-600">
+            <div>
+              <label className="xs:text-xs  sm:text-sm lg:text-sm text-sm text-slate-600 mb-1 block">
                 Last Name
               </label>
               <input
                 type="text"
-                className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2"
-                placeholder="Your Last Name"
-                autoComplete="off"
                 name="LastName"
-                onChange={handleInput}
                 value={values.LastName}
+                onChange={handleInput}
+                placeholder="Your Last Name"
+                className="xs:text-xs  sm:text-sm lg:text-sm w-full text-sm border border-slate-200 rounded px-3 py-2"
               />
             </div>
-
-            <div className="w-full">
-              <label className="block mb-1 text-sm text-slate-600">Email</label>
+            <div>
+              <label className="xs:text-xs  sm:text-sm lg:text-sm text-sm text-slate-600 mb-1 block">Email</label>
               <input
                 type="email"
-                className="w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md px-3 py-2"
-                placeholder="Your Email"
-                autoComplete="off"
                 name="email"
-                onChange={handleInput}
                 value={values.email}
+                onChange={handleInput}
+                placeholder="Your Email"
+                className="xs:text-xs  sm:text-sm lg:text-sm w-full text-sm border border-slate-200 rounded px-3 py-2"
               />
             </div>
-
-            <div className="w-full">
-              <label className="block mb-1 text-sm text-slate-600">
+            <div>
+              <label className="xs:text-xs  sm:text-sm lg:text-sm text-sm text-slate-600 mb-1 block">
                 Password
               </label>
               <input
                 type="password"
-                className={`w-full placeholder:text-slate-400 text-sm border rounded-md px-3 py-2 ${
+                name="password"
+                value={values.password}
+                onChange={handleInput}
+                disabled={user}
+                placeholder={
+                  user ? "New Password (Optional)" : "Your Password"
+                }
+                className={`xs:text-xs  sm:text-sm lg:text-sm w-full text-sm border rounded px-3 py-2 ${
                   user
-                    ? "text-gray-500 border-gray-300 cursor-not-allowed"
+                    ? "text-gray-400 border-gray-300 bg-gray-50 cursor-not-allowed"
                     : "text-slate-700 border-slate-200"
                 }`}
-                placeholder={user ? "New Password (Optional)" : "Your Password"}
-                autoComplete="off"
-                name="password"
-                onChange={handleInput}
-                value={values.password}
-                disabled={user} // Disable input if in edit mode
               />
             </div>
-
-            <div className="w-full">
-              <label className="block mb-1 text-sm text-slate-600">
+            <div>
+              <label className="xs:text-xs  sm:text-sm lg:text-sm text-sm text-slate-600 mb-1 block">
                 Confirm Password
               </label>
               <input
                 type="password"
-                className={`w-full placeholder:text-slate-400 text-sm border rounded-md px-3 py-2 ${
+                name="confirmPassword"
+                value={values.confirmPassword}
+                onChange={handleInput}
+                disabled={user}
+                placeholder="Confirm Your Password"
+                className={`xs:text-xs  sm:text-sm lg:text-sm w-full text-sm border rounded px-3 py-2 ${
                   user
-                    ? "text-gray-500 border-gray-300 cursor-not-allowed"
+                    ? "text-gray-400 border-gray-300 bg-gray-50 cursor-not-allowed"
                     : "text-slate-700 border-slate-200"
                 }`}
-                placeholder="Confirm Your Password"
-                autoComplete="off"
-                name="confirmPassword"
-                onChange={handleInput}
-                value={values.confirmPassword}
-                disabled={user} // Disable input if in edit mode
               />
             </div>
           </div>
-
           <button
-            className={`mt-8 w-full rounded-md py-2 px-4 border border-transparent text-center text-sm text-white transition-all shadow-md ${
-              isLoading
-                ? "bg-gray-500"
-                : "bg-gradient-to-r from-blue-500 to-indigo-500"
-            }`}
             type="submit"
             disabled={isLoading}
+            className={`xs:text-xs  sm:text-sm lg:text-sm mt-6 w-full text-white text-sm rounded-md py-2 px-4 transition-all ${
+              isLoading
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-blue-500 to-indigo-500"
+            }`}
           >
             {user ? "Update User" : "Submit"}
           </button>
-            <ToastContainer />
         </form>
-      </div>
-    </div>
+        <ToastContainer />
+      </motion.div>
+    </motion.div>
   );
 }
 

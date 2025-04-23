@@ -1,4 +1,4 @@
-import React, { useState, useContext,useEffect } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
 import TechForm from "./TechnicianForm";
 import { ToastContainer, toast } from "react-toastify";
@@ -6,6 +6,7 @@ import axios from "axios";
 import { AuthContext } from "../Context/AuthContext";
 import { io } from "socket.io-client";
 import { MessagePOSTcontext } from "../Context/MessageContext/POSTmessage";
+import LoadingSpinner from "../ReusableComponent/loadingSpiner";
 import {
   FaClock,
   FaUserCheck,
@@ -14,24 +15,20 @@ import {
 } from "react-icons/fa";
 
 import socket from "../../../../Back-End/Utils/socket";
+import LoadingTableSpinner from "../ReusableComponent/loadingTableSpiner";
 function TechnicianTable() {
-
-
+  const [loadings, setLoading] = useState(false);
   const { authToken } = useContext(AuthContext);
-  const { request } = useContext(RequestDisplayContext);
+  const { request, loading } = useContext(RequestDisplayContext);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [senddata, setsenddata] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedLaboratory, setSelectedLaboratory] = useState(""); // ✅ New state for laboratory filter
   const [laboratoryOptions, setLaboratoryOptions] = useState([]); // ✅ Dynamic lab options
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 4;
   const { setSendPost } = useContext(MessagePOSTcontext);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-
   useEffect(() => {
     // Listen for WebSocket connection
     socket.on("connect", () => {
@@ -42,7 +39,7 @@ function TechnicianTable() {
       socket.off("connect"); // Cleanup event listener on unmount
     };
   }, []);
-  
+  console.log("pafej", request);
   // Mag uupdate ang dropdown kapag may seacrhQuery na nalagay
   //dito ipinapasa ang reference na na input sa search
   const handleSearchChange = (e) => {
@@ -88,11 +85,9 @@ function TechnicianTable() {
   const totalPages = Math.ceil(filteredRequests?.length / rowsPerPage);
 
   const handleAddRemarks = (remarksData) => {
-      setsenddata(remarksData);
-      setIsModalOpen(true);
-    
+    setsenddata(remarksData);
+    setIsModalOpen(true);
   };
-  
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -128,191 +123,198 @@ function TechnicianTable() {
     }
   };
 
+  const handleDone = async (item) => {
+    setLoading(true);
+    try {
+      await handleAccomplished(item);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="overflow-x-auto bg-white dark:bg-neutral-700 p-4 rounded-lg shadow-md">
-      {/* 🔍 Search and Filter Section */}
-      <div className="flex flex-wrap justify-between items-center mb-4">
+      {/* Search and Filter Section */}
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-between items-center mb-4">
         {/* 🔍 Search Bar */}
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <input
             type="text"
             placeholder="Search by Ref# or Description..."
-            className="block w-64 rounded-lg border dark:border-none dark:bg-neutral-100 py-2 pl-10 pr-4 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="block w-full max-w-xs sm:max-w-sm md:max-w-md rounded-lg border dark:border-none dark:bg-neutral-100 py-2 pl-10 pr-4 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
             onChange={handleSearchChange}
           />
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 transform">
-            🔍
-          </span>
         </div>
 
-        <select
-          className="block w-40 rounded-lg border dark:border-none dark:bg-neutral-100 p-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-          onChange={(e) => setSelectedStatus(e.target.value)}
-        >
-          <option value="">All Status</option>
-          <option value="Pending">Pending</option>
-          <option value="Under Maintenance">Under Maintenance</option>
-          <option value="Accomplished">Accomplished</option>
-        </select>
+        {/*Filter Dropdowns */}
+        <div className="flex flex-col xs:flex-row gap-2 w-full sm:w-auto">
+          {/* Status Filter */}
+          <select
+            className="w-full sm:w-40 rounded-lg border dark:border-none dark:bg-neutral-100 p-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            onChange={(e) => setSelectedStatus(e.target.value)}
+          >
+            <option value="">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Under Maintenance">Under Maintenance</option>
+            <option value="Success">Accomplished</option>
+          </select>
 
-        <select
-          className="block w-40 rounded-lg border dark:border-none dark:bg-neutral-100 p-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-          onChange={(e) => setSelectedLaboratory(e.target.value)}
-        >
-          <option value="">All Laboratories</option>
-          {laboratoryOptions.map((lab, index) => (
-            <option key={index} value={lab}>
-              {lab}
-            </option>
-          ))}
-        </select>
+          {/* Laboratory Filter */}
+          <select
+            className="w-full sm:w-40 rounded-lg border dark:border-none dark:bg-neutral-100 p-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            onChange={(e) => setSelectedLaboratory(e.target.value)}
+          >
+            <option value="">All Laboratories</option>
+            {laboratoryOptions.map((lab, index) => (
+              <option key={index} value={lab}>
+                {lab}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
-
-      {/* 🏷 Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-xs whitespace-nowrap border-collapse">
+      <div className="w-full overflow-x-auto rounded-lg">
+        <table className="xs:text-xs min-w-[700px] w-full text-left whitespace-nowrap border-collapse text-sm sm:text-base">
           <thead className="uppercase tracking-wider border-b-2 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-200">
             <tr>
-              <th className="px-6 py-4">Ref#</th>
-              <th className="px-6 py-4">Equipment</th>
-              <th className="px-6 py-4">Description</th>
-              <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">Department</th>
-              <th className="px-6 py-4">Laboratory</th>
-              <th className="px-6 py-4">Action</th>
+              <th className="xs:text-xs px-4 sm:px-6 py-3">Ref#</th>
+              <th className="xs:text-xs px-4 sm:px-6 py-3">Equipment</th>
+              <th className="xs:text-xs px-4 sm:px-6 py-3">Description</th>  
+              <th className="xs:text-xs px-4 sm:px-6 py-3">Status</th>
+              <th className="xs:text-xs px-4 sm:px-6 py-3">Department</th>
+              <th className="xs:text-xs px-4 sm:px-6 py-3">Laboratory</th>
+              <th className="xs:text-xs px-4 sm:px-6 py-3">Action</th>
             </tr>
           </thead>
           <tbody>
-            {currentRows?.map((item, index) => (
-              <tr
-                key={index}
-                className="border-b dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-300"
-              >
-                <th className="px-6 py-4">{item.Ref}</th>
-                <td className="px-6 py-4">{item.price}</td>
-                <td className="px-6 py-4">{item.Description}</td>
-                <td
-                  className={`px-6 py-4 flex items-center gap-2 ${
-                    item.Status === "Pending"
-                      ? "text-red-300"
-                      : item.Status === "Assigned"
-                      ? "text-orange-300"
-                      : item.Status === "Success"
-                      ? "text-green-500"
-                      : item.Status === "Under Maintenance"
-                      ? "text-red-600"
-                      : "text-gray-700"
-                  }`}
-                >
-                  {item.Status === "Pending" && (
-                    <FaClock className="text-red-500" />
-                  )}
-                  {item.Status === "Assigned" && (
-                    <FaUserCheck className="text-orange-300" />
-                  )}
-                  {item.Status === "Success" && (
-                    <FaCheckCircle className="text-green-500" />
-                  )}
-                  {item.Status === "Under Maintenance" && (
-                    <FaTimesCircle className="text-red-600" />
-                  )}
-                  {item.Status !== "Pending" &&
-                    item.Status !== "Assigned" &&
-                    item.Status !== "Under Maintenance" &&
-                    item.Status !== "Success" && (
-                      <FaTimesCircle className="text-gray-700" />
-                    )}
-
-                  {item.Status}
-                </td>
-
-                <td className="px-6 py-4">{item.Department}</td>
-                <td className="px-6 py-4">{item.laboratoryName}</td>
-
-                <td className="p-2 text-center text-sm">
-                  {item.Status === "Under Maintenance" &&
-                    item.remarksread === false &&
-                    //yang condition na yan ay kung mahide ang button kung mayloob na ang
-                    !item.Remarks && ( 
-                      <button
-                        onClick={() => handleAddRemarks(item)}
-                        className="text-white bg-blue-500 hover:bg-blue-600 font-medium rounded-lg px-3 py-2 flex items-center gap-2 transition duration-300"
-                      >
-                        <i className="fa fa-plus"></i>
-                        Add Remarks
-                      </button>
-                    )}
-
-                  {
-                    item.feedbackread === false &&
-                    item.remarksread === true && (
-                      <button
-                        onClick={() => handleAccomplished(item)}
-                        className="text-white bg-green-500 hover:bg-green-600 font-medium rounded-lg px-3 py-2 flex items-center gap-2 transition duration-300"
-                      >
-                        <i className="fa fa-check"></i>
-                        Done
-                      </button>
-                    )}
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="text-center p-4">
+                  <LoadingTableSpinner />
                 </td>
               </tr>
-            ))}
+            ) : currentRows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={7}
+                  className="border p-4 text-center text-gray-500"
+                >
+                  No Result Found
+                </td>
+              </tr>
+            ) : (
+              currentRows.map((item, index) => (
+                <tr
+                  key={index}
+                  className="border-b dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-300"
+                >
+                  <td className="px-4 sm:px-6 py-3 font-medium">{item.Ref}</td>
+                  <td className="px-4 sm:px-6 py-3">
+                    {item.EquipmentName} / {item.CategoryName}
+                  </td>
+                  <td className="px-4 sm:px-6 py-3">{item.Description}</td>
+                  <td
+                    className={`px-4 sm:px-6 py-3 flex items-center gap-2 ${
+                      item.Status === "Pending"
+                        ? "text-red-300"
+                        : item.Status === "Assigned"
+                        ? "text-orange-300"
+                        : item.Status === "Success"
+                        ? "text-green-500"
+                        : item.Status === "Under Maintenance"
+                        ? "text-red-600"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {item.Status === "Pending" && (
+                      <FaClock className="text-red-500" />
+                    )}
+                    {item.Status === "Assigned" && (
+                      <FaUserCheck className="text-orange-300" />
+                    )}
+                    {item.Status === "Success" && (
+                      <FaCheckCircle className="text-green-500" />
+                    )}
+                    {item.Status === "Under Maintenance" && (
+                      <FaTimesCircle className="text-red-600" />
+                    )}
+                    {item.Status !== "Pending" &&
+                      item.Status !== "Assigned" &&
+                      item.Status !== "Under Maintenance" &&
+                      item.Status !== "Success" && (
+                        <FaTimesCircle className="text-gray-700" />
+                      )}
+                    {item.Status}
+                  </td>
+                  <td className="px-4 sm:px-6 py-3">{item.Department}</td>
+                  <td className="px-4 sm:px-6 py-3">{item.laboratoryName}</td>
+                  <td className="px-4 sm:px-6 py-3 text-center">
+                    {item.Status === "Under Maintenance" &&
+                      item.remarksread === false &&
+                      !item.Remarks && (
+                        <button
+                          onClick={() => handleAddRemarks(item)}
+                          className="text-white bg-blue-500 hover:bg-blue-600 font-medium rounded-lg px-3 py-2 flex items-center gap-2 transition duration-300"
+                        >
+                          <i className="fa fa-plus"></i> Add Remarks
+                        </button>
+                      )}
+                    {item.feedbackread === false &&
+                      item.remarksread === true && (
+                        <button
+                          onClick={() => handleDone(item)}
+                          className="mt-3 flex items-center justify-center rounded-full w-full bg-green-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white transition duration-150 ease-in-out hover:bg-green-600 focus:outline-none h-10"
+                        >
+                          <i className="fa fa-check"></i>
+                          {loadings ? <LoadingSpinner /> : "Done"}
+                        </button>
+                      )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
-
-        <ToastContainer />
       </div>
 
-      {/* 📄 Pagination Controls */}
-      <div className="mt-5 flex items-center justify-between text-sm">
-        <p>
-          Showing{" "}
-          <strong>
-            {indexOfFirstRow + 1}-
-            {Math.min(indexOfLastRow, filteredRequests?.length)}
-          </strong>{" "}
-          of <strong>{filteredRequests?.length}</strong>
-        </p>
-        <div className="flex space-x-2">
-          <button
-            className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <button
-              key={i}
-              className={`px-3 py-1.5 text-sm rounded-lg ${
-                currentPage === i + 1
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-400 text-white hover:bg-gray-500"
-              }`}
-              onClick={() => setCurrentPage(i + 1)}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
-            //kung halimbawa equal na ang value sa currentPages at totalPages
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </button>
-        </div>
-        {isModalOpen && (
-          <TechForm
-            isOpen={isModalOpen}
-            remarkdata={senddata}
-            onClose={handleCloseModal}
-          />
-        )}
-      </div>
+      <div className="mt-5 flex items-center justify-between text-sm flex-wrap gap-3">
+  <p>
+    Showing{" "}
+    <strong>
+      {indexOfFirstRow + 1}-{Math.min(indexOfLastRow, filteredRequests?.length)}
+    </strong>{" "}
+    of <strong>{filteredRequests?.length}</strong>
+  </p>
+
+  <div className="flex space-x-2">
+    <button
+      className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
+      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+      disabled={currentPage === 1}
+    >
+      Previous
+    </button>
+
+    {/* 🔒 Page number buttons hidden */}
+
+    <button
+      className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
+      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+      disabled={currentPage === totalPages}
+    >
+      Next
+    </button>
+  </div>
+
+  {isModalOpen && (
+    <TechForm
+      isOpen={isModalOpen}
+      remarkdata={senddata}
+      onClose={handleCloseModal}
+    />
+  )}
+</div>
+
     </div>
   );
 }

@@ -19,6 +19,7 @@ class Apifeatures {
     }else if(queryObj.Equipments){
       queryObj['Equipments'] = new mongoose.Types.ObjectId(queryObj.Equipments); 
     }
+
     // Dynamically build the filter query
     this.query = this.query.find(queryObj);
   

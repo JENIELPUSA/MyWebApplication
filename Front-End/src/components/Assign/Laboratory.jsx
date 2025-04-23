@@ -1,9 +1,13 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext,useEffect} from "react";
 import { useLocation } from "react-router-dom";
 import { AssignContext } from "../Context/DisplayAssignContext.jsx";
+
 import AddFormModal from "../Laboratories/LaboratoryForm.jsx";
 import { useNavigate } from "react-router-dom";
+
 import { LaboratoryDisplayContext } from "../Context/Laboratory/Display.jsx";
+import { motion } from "framer-motion";
+
 const Laboratory = ({ onClose }) => {
   const location = useLocation();
   const selectedLabs = location.state?.selectedLab;
@@ -13,8 +17,10 @@ const Laboratory = ({ onClose }) => {
   const itemsPerPage = 6; // Items per page for pagination
   const [selectedLab, setSelectedLab] = useState(null);
   const navigate = useNavigate();
-  const { laboratories } = useContext(LaboratoryDisplayContext);
-  
+  const { laboratories, loading } = useContext(LaboratoryDisplayContext);
+
+
+
   // Filter the laboratories based on selectedLab
   const results = Array.isArray(Assignlaboratories)
     ? Assignlaboratories.filter((lab) =>
@@ -42,7 +48,6 @@ const Laboratory = ({ onClose }) => {
   const handleCloseModal = () => {
     setAddFormOpen(false);
   };
-  
 
   const onLabSelect = (laboratoryId) => {
     const Result = laboratories.find((lab) => lab._id === laboratoryId);
@@ -64,16 +69,24 @@ const Laboratory = ({ onClose }) => {
   //setSelectedLab(laboratory);
   //};
 
+  const pageVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+  };
+
   return (
-    <div>
+    <motion.div
+    initial="hidden" animate="visible" variants={pageVariants}
+    >
       {/* Rooms Section */}
-      <h2 className="text-xl font-medium text-gray-600 mb-4">Rooms</h2>
+      <h2 className="text-xl font-medium text-gray-600 mb-4 font-poppins">Rooms</h2>
 
       {/* Add vertical Line */}
       <hr className="border-t-2 border-gray-300 mb-4" />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {currentLabs.length === 0 ? (
+      <motion.div className="px-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 font-poppins"
+      initial="hidden" animate="visible" variants={pageVariants}>
+        { currentLabs.length === 0 ? (
           // No Data Available Message
           <div className="col-span-3 text-center h-64 flex items-center justify-center">
             <p className="text-gray-700 dark:text-gray-400 text-lg font-medium">
@@ -109,9 +122,10 @@ const Laboratory = ({ onClose }) => {
                 >
                   <i className="fas fa-pen"></i>
                 </button>
-                <button 
-                onClick={() => handleSelectDisplay(lab)}
-                className="flex justify-center items-center bg-blue-500 hover:bg-blue-600 w-12 h-12 rounded-md">
+                <button
+                  onClick={() => handleSelectDisplay(lab)}
+                  className="flex justify-center items-center bg-blue-500 hover:bg-blue-600 w-12 h-12 rounded-md"
+                >
                   <i className="fas fa-desktop"></i>
                 </button>
                 <button className="flex justify-center items-center bg-blue-500 hover:bg-blue-600 w-12 h-12 rounded-md">
@@ -121,7 +135,7 @@ const Laboratory = ({ onClose }) => {
             </div>
           ))
         )}
-      </div>
+      </motion.div>
 
       {/* Pagination Controls */}
       {showPagination && (
@@ -161,7 +175,7 @@ const Laboratory = ({ onClose }) => {
           onClose={handleCloseModal}
         />
       )}
-    </div>
+    </motion.div>
   );
 };
 

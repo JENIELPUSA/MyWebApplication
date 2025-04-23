@@ -29,7 +29,14 @@ const messageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User", // Reference to the
   },
+  role: { 
+    type: String, 
+    enum: ["admin", "user", "Technician"], 
+    default: "user",
+    required: true 
+  }, 
   read: { type: Boolean, default: false },
+  readonUser:{ type: Boolean, default: false },
 });
 
 const Messages = mongoose.model("Message", messageSchema);

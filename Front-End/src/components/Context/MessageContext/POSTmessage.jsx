@@ -34,15 +34,15 @@ export const MessagePostProvider = ({ children }) => {
     }
   }, [sendMsg]);
 
-  // 🔹 Function to send a new maintenance request
+  // Function to send a new maintenance request
   const fetchsendPost = async () => {
     if (!SendPost) return;
-
     try {
       const response = await axios.post(
         "http://127.0.0.1:3000/api/v1/MessageRequest",
         {
           Status: SendPost.Status,
+          role: SendPost?.role,
           message: SendPost.message,
           Laboratory: SendPost.data.Laboratory,
           Encharge: SendPost.data.Technician,
@@ -66,7 +66,7 @@ export const MessagePostProvider = ({ children }) => {
     }
   };
 
-  // 🔹 Function to update maintenance request
+  // Function to update maintenance request
   const updatesendPost = async () => {
     if (!SendPatch) return;
 
@@ -93,7 +93,7 @@ export const MessagePostProvider = ({ children }) => {
     }
   };
 
-  // 🔹 Function to update message request
+  // Function to update message request
   const updatesendMsg = async () => {
     if (!sendMsg) return;
 

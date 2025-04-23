@@ -8,8 +8,10 @@ const session = require('express-session');
 
 
 
-
+const PDFRoutes=require('./Routes/PDFRoutes')
 const usersroutes = require('./Routes/UserRoutes');
+
+const IncomingRequest=require('./Routes/IncomingRequestRoute')
 
 const categoryroutes = require('./Routes/CategoryRoutes');
 
@@ -23,7 +25,9 @@ const AssignEquipment = require('./Routes/AssignRoutes');
 
 const MaintenanceRoutes = require ('./Routes/RequestMaintenanceRoutes')
 
-const MessageRequestRoutes = require('./Routes/MessaRoute')
+const MessageRequestRoutes = require('./Routes/MessaRoute');
+
+const MaintenanceTypess = require('./Routes/TypesMaintenancRoute');
 
 const authentic = require('./Routes/authRouter');
 let app = express();
@@ -44,7 +48,7 @@ app.use(session({
 app.use(cors({
     origin:["http://localhost:5173"],
     methods:["GET","POST","PATCH","DELETE"],
-    Credential:true
+    credentials:true
 }));
 
 app.use(logger);
@@ -69,8 +73,14 @@ if(process.env.NODE_ENV === 'development'){
  app.use('/api/v1/AssignEquipment',AssignEquipment )
  
  app.use('/api/v1/MaintenanceRequest',MaintenanceRoutes )
- app.use('/api/v1/MessageRequest',MessageRequestRoutes )
+
+ app.use('/api/v1/TypesMaintenanceRequest',MaintenanceTypess )
  
+ app.use('/api/v1/MessageRequest',MessageRequestRoutes )
+
+ app.use('/api/v1/IncomingRequests',IncomingRequest)
+
+ app.use('/api/v1/GeneratePDF',PDFRoutes)
 
  app.use(ErrorController);
 

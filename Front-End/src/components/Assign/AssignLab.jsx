@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AssignContext } from "../Context/DisplayAssignContext.jsx";
-
+import LoadingTableSpinner from "../ReusableComponent/loadingTableSpiner.jsx";
 const AssignLab = () => {
   const { Assignlaboratories, loading, error } = useContext(AssignContext); // Access data from context
   const [uniqueLaboratories, setUniqueLaboratories] = useState([]);
@@ -34,8 +34,8 @@ const AssignLab = () => {
   }, [Assignlaboratories]);
 
   // Filter data based on search query
-  const filteredLaboratories = uniqueLaboratories.filter((lab) =>
-    lab.departmentName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredLaboratories = uniqueLaboratories?.filter((lab) =>
+    lab.departmentName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Pagination logic
@@ -62,8 +62,6 @@ const AssignLab = () => {
     navigate("/LaboratoryAssign", { state: { selectedLab } }); // Send data to another route
   };
 
-  // Render loading, error, or content
-  if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error}</p>;
 
   return (
@@ -89,7 +87,7 @@ const AssignLab = () => {
             >
               <div className="flex justify-center mb-4">
                 <img
-                  src="/Image/logo.png"
+                  src="/Image/logo.jpg"
                   alt="Lab Logo"
                   className="w-20 h-20 rounded-full"
                 />

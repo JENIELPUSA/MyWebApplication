@@ -2,18 +2,19 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext"; // Import AuthContext
-
+import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 export const LaboratoryDisplayContext = createContext();
 
 export const LaboratoryDisplayProvider = ({ children }) => {
-  const { authToken,role} = useContext(AuthContext); // Access token from AuthContext
+  const [customError, setCustomError] = useState("");
+  const { authToken } = useContext(AuthContext); // Access token from AuthContext
   const [laboratories, setLaboratories] = useState([""]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [laboratoryPerPage, setLaboratoryPerPage] = useState(6);
-  const [totalLaboratories, setTotalLaboratories] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-
+  const [showModal, setShowModal] = useState(false);
+  const [modalStatus, setModalStatus] = useState("success");
   useEffect(() => {
     if (!authToken) {
       setLaboratories(null);
@@ -22,46 +23,146 @@ export const LaboratoryDisplayProvider = ({ children }) => {
     }
 
     fetchLaboratoryData();
-  }, [authToken, currentPage, laboratoryPerPage]); // Trigger when token, page or items per page change
+  }, [authToken]); // Trigger when token, page or items per page change
 
+  useEffect(() => {
+    if (customError) {
+      const timer = setTimeout(() => {
+        setCustomError(null);
+      }, 5000); // auto-dismiss after 5s
+
+      return () => clearTimeout(timer); // cleanup
+    }
+  }, [customError]);
 
   const fetchLaboratoryData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(
-        `http://127.0.0.1:3000/api/v1/laboratory`,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`, // Include the token in headers
-          },
-          params: {
-            page: currentPage,
-            limit: laboratoryPerPage,
-          },
-        }
-      );
+      const res = await axios.get(`http://127.0.0.1:3000/api/v1/laboratory`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`, // Include the token in headers
+        },
+      });
 
       const laboratoryData = res.data.data;
       setLaboratories(laboratoryData);
-      setTotalLaboratories(res.data.total); // Assuming the API provides a 'total' value
     } catch (error) {
       if (error.response?.status === 401) {
         // Handle Unauthorized error
-        toast.error("Unauthorized: Please log in again.");
-        setError("Unauthorized: Please log in again.");
+        setCustomError("Unauthorized: Please log in again.");
+        setCustomError("Unauthorized: Please log in again.");
       } else {
-        console.error("Error fetching data:", error);
-        toast.error("Failed to fetch data. Please try again later.");
-        setError("Failed to fetch data");
+        setCustomError("Error fetching data:", error);
+        setCustomError("Failed to fetch data. Please try again later.");
+        setCustomError("Failed to fetch data");
       }
     } finally {
       setLoading(false);
     }
   };
 
+  const AddedLaboratory = async (values) => {
+    try {
+      const response = await axios.post(
+        "http://127.0.0.1:3000/api/v1/laboratory",
+        {
+          department: values.department,
+          Encharge: values.Encharge,
+          LaboratoryName: values.LaboratoryName,
+        },
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+
+      if (response.data.status === "success") {
+        setModalStatus("success");
+        setShowModal(true);
+        //para maka send pabalik sa component
+        return { success: true, data: response.data.data };
+      } else {
+        setModalStatus("failed");
+        setShowModal(true);
+        return { success: false, error: "Unexpected response from server." };
+      }
+    } catch (error) {
+      if (error.response && error.response.data) {
+        const errorData = error.response.data;
+        const message =
+          typeof errorData === "string"
+            ? errorData
+            : errorData.message || errorData.error || "Something went wrong.";
+        setCustomError(message);
+      } else if (error.request) {
+        setCustomError("No response from the server.");
+      } else {
+        setCustomError(error.message || "Unexpected error occurred.");
+      }
+    }
+  };
+
+  const UpdateLaboratory = async (LaboratoryId, values) => {
+    try {
+      const response = await axios.patch(
+        `http://127.0.0.1:3000/api/v1/laboratory/${LaboratoryId}`,
+        {
+          department: values.department,
+          Encharge: values.Encharge,
+          LaboratoryName: values.LaboratoryName,
+        },
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+
+      if (response.data && response.data.status === "success") {
+        setModalStatus("success");
+        setShowModal(true);
+        //para maka send pabalik sa component
+        return { success: true, data: response.data.data };
+      } else {
+        setModalStatus("failed");
+        setShowModal(true);
+        return { success: false, error: "Unexpected response from server." };
+      }
+    } catch (error) {
+      setCustomError("There was an error:", error);
+      setCustomError(
+        error.response?.data?.message || "Operation failed. Please try again."
+      );
+    }
+  };
+
+  const DeleteLaboratory = async(laboratoryId)=>{
+        try {
+          const response=await axios.delete(
+            `http://127.0.0.1:3000/api/v1/laboratory/${laboratoryId}`,
+            {
+              headers: { Authorization: `Bearer ${authToken}` },
+            }
+          );
+       
+             if (response.data && response.data.status === "success") {
+               setModalStatus("success");
+               setShowModal(true);
+               //para maka send pabalik sa component
+               return { success: true, data: response.data.data };
+             } else {
+               setModalStatus("failed");
+               setShowModal(true);
+               return { success: false, error: "Unexpected response from server." };
+             }
+           } catch (error) {
+             console.error("Error deleting Equipment:", error);
+             toast.error(
+               error.response?.data?.message || "Failed to delete Equipment."
+             );
+           }
+  }
+
   return (
     <LaboratoryDisplayContext.Provider
       value={{
+        DeleteLaboratory,
+        UpdateLaboratory,
+        customError,
+        AddedLaboratory,
         laboratories,
         loading,
         error,
@@ -70,10 +171,17 @@ export const LaboratoryDisplayProvider = ({ children }) => {
         laboratoryPerPage,
         currentPage,
         setCurrentPage,
-        fetchLaboratoryData
+        fetchLaboratoryData,
       }}
     >
       {children}
+
+      {/* Modal should be rendered here */}
+      <StatusModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        status={modalStatus}
+      />
     </LaboratoryDisplayContext.Provider>
   );
 };

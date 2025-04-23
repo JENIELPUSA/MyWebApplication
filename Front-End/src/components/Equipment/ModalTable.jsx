@@ -6,6 +6,7 @@ import PopupModal from "./popupModal";
 import EquipmentformModal from "./Equipment";
 import RetrieveForm from "./Retrieve";
 import { FaPlus } from "react-icons/fa";
+import { motion } from "framer-motion";
 import { EquipmentContext } from "../CountContext";
 import { EquipmentDisplayContext } from "../Context/EquipmentContext/DisplayContext";
 
@@ -16,10 +17,10 @@ const ModalTable = ({ isOpen, onClose }) => {
     setEquipment,
     currentPage,
     setCurrentPage,
-    equipmentsPerPage
-  
+    equipmentsPerPage,
+    DeleteDatas,
   } = useContext(EquipmentDisplayContext);
-
+  const [animateExit, setAnimateExit] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [categories, setCategories] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,7 +50,9 @@ const ModalTable = ({ isOpen, onClose }) => {
   };
 
   const handleEditEquipment = (newEquipment) => {
-    const category = categories.find((cat) => cat._id === newEquipment.Category);
+    const category = categories.find(
+      (cat) => cat._id === newEquipment.Category
+    );
     const updatedEquipment = {
       ...newEquipment,
       Category: {
@@ -88,27 +91,14 @@ const ModalTable = ({ isOpen, onClose }) => {
   };
 
   const handleDeleteEquipment = async (equipmentID) => {
-    if (!equipmentID) {
-      toast.error("Equipment ID is required to delete.");
-      return;
-    }
-
-    try {
-      await axios.delete(
-        `http://127.0.0.1:3000/api/v1/equipment/${equipmentID}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+    await DeleteDatas(equipmentID);
+    setEquipment((prevEquipment) => {
+      const updated = prevEquipment.filter(
+        (equipment) => equipment._id !== equipmentID
       );
-      setEquipment((prevEquipment) =>
-        prevEquipment.filter((equipment) => equipment._id !== equipmentID)
-      );
-      setEquipmentCount((prevCount) => prevCount - 1);
-      toast.success("Equipment deleted successfully!");
-    } catch (error) {
-      console.error("Error deleting equipment:", error);
-      toast.error("Failed to delete equipment.");
-    }
+      return updated;
+    });
+    setEquipmentCount((prevCount) => prevCount - 1);
   };
 
   // Filtered and paginated equipment data
@@ -129,7 +119,10 @@ const ModalTable = ({ isOpen, onClose }) => {
   };
 
   const handleAddEquipment = (newEquipment) => {
-    const category = categories.find((cat) => cat._id === newEquipment.Category);
+    const category = categories.find(
+      (cat) => cat._id === newEquipment.Category
+    );
+
     const updatedEquipment = {
       ...newEquipment,
       Category: {
@@ -141,116 +134,165 @@ const ModalTable = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-4xl w-full text-black shadow-lg relative">
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 text-xl text-gray-500 hover:text-gray-700"
+    <motion.div
+      className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50 px-2 overflow-y-auto"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="relative flex flex-col rounded-xl bg-white px-6 py-6 w-full max-w-screen-sm sm:max-w-screen-md lg:max-w-screen-lg shadow-lg max-h-[90vh] sm:max-h-none overflow-y-auto"
+        initial={{ opacity: 0, y: -50 }}
+        animate={animateExit ? { opacity: 0, y: -50 } : { opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -50 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
+        {/* Close Button */}
+        <motion.button
+          className="absolute top-2 right-2 text-xl text-gray-500 hover:text-gray-700 transition"
+          aria-label="Close"
+          whileTap={{ scale: 0.8 }}
+          whileHover={{ scale: 1.1 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
+          onClick={() => {
+            setAnimateExit(true);
+            setTimeout(onClose, 500);
+          }}
         >
           <i className="fas fa-times"></i>
-        </button>
+        </motion.button>
 
-        <h2 className="text-xl font-bold mb-4">Equipment Table</h2>
+        <h2 className="text-xl font-bold mb-4 xs:text-sm xs:p-2 lg-p-2 lg:text-lg">
+          Equipment Table
+        </h2>
 
+        {/* Search Input */}
         <div className="mb-4">
           <input
             type="text"
             placeholder="Search Equipment..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-2 border rounded-lg"
+            className="w-full p-2 border rounded-lg xs:text-sm xs:p-2 lg-p-2 lg:text-sm"
           />
         </div>
 
-        <table className="w-full text-left table-auto border-collapse mb-4 border border-gray-300">
-          <thead>
-            <tr>
-              <th className="p-4 border-b border-gray-300">Serial#</th>
-              <th className="p-4 border-b border-gray-300">Brand</th>
-              <th className="p-4 border-b border-gray-300">Specification</th>
-              <th className="p-4 border-b border-gray-300">Status</th>
-              <th className="p-4 border-b border-gray-300">Category</th>
-              <th className="p-4 border-b border-gray-300">
-                <button
-                  onClick={handleAddClick}
-                  className="px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600"
-                >
-                  <FaPlus className="w-5 h-5" />
-                </button>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedEquipment.length === 0 ? (
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left table-auto border-collapse mb-4 border border-gray-300">
+            <thead>
               <tr>
-                <td colSpan={6} className="border p-2 text-center text-gray-500">
-                  No Results Found
-                </td>
-              </tr>
-            ) : (
-              paginatedEquipment.map((equipment) => (
-                <tr key={equipment._id} className="hover:bg-gray-100">
-                  <td className="border p-2">{equipment.SerialNumber}</td>
-                  <td className="border p-2">{equipment.Brand}</td>
-                  <td className="border p-2">{equipment.Specification}</td>
-                  <td
-                    className={`border p-2 ${
-                      equipment.status === "Available"
-                        ? "text-green-500"
-                        : "text-red-500"
-                    }`}
+                <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm sm:p-4 border-b border-gray-300">
+                  Serial#
+                </th>
+                <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-2 sm:p-4 border-b border-gray-300">
+                  Brand
+                </th>
+                <th className=" xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-2 sm:p-4 border-b border-gray-300">
+                  Specification
+                </th>
+                <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-2 sm:p-4 border-b border-gray-300">
+                  Status
+                </th>
+                <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-2 sm:p-4 border-b border-gray-300">
+                  Category
+                </th>
+                <th className="p-2 sm:p-4 border-b border-gray-300">
+                  <button
+                    onClick={handleAddClick}
+                    className="px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600"
                   >
-                    {equipment.status}
-                  </td>
-                  <td className="border p-2">
-                    {equipment.CategoryName || "N/A"}
-                  </td>
-                  <td className="border p-2 flex space-x-2 justify-center">
-                    <button
-                      onClick={() => handleSelectEquipment(equipment)}
-                      className="px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600"
-                    >
-                      <i className="fas fa-edit"></i>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteEquipment(equipment._id)}
-                      className="px-3 py-1 text-white bg-red-500 rounded hover:bg-red-600"
-                    >
-                      <i className="fas fa-trash-alt"></i>
-                    </button>
-                    <button
-                      onClick={() => handleAssignClick(equipment)}
-                      className="px-3 py-1 text-white bg-green-500 rounded hover:bg-red-600"
-                    >
-                      {equipment.status === "Not Available" ? (
-                        <i className="fas fa-sync-alt"></i>
-                      ) : (
-                        <i className="fas fa-plus-circle"></i>
-                      )}
-                    </button>
+                    <FaPlus className="w-5 h-5" />
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedEquipment.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="border p-2 text-center text-gray-500"
+                  >
+                    No Results Found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                paginatedEquipment.map((equipment) => (
+                  <tr key={equipment._id} className="hover:bg-gray-100">
+                    <td className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm border p-2">
+                      {equipment.SerialNumber}
+                    </td>
+                    <td className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm border p-2">
+                      {equipment.Brand}
+                    </td>
+                    <td className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm border p-2">
+                      {equipment.Specification}
+                    </td>
+                    <td
+                      className={`xs:text-xs xs:p-2 lg-p-2 lg:text-sm border p-2 ${
+                        equipment.status === "Available"
+                          ? "text-green-500"
+                          : "text-red-500"
+                      }`}
+                    >
+                      {equipment.status}
+                    </td>
+                    <td className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm border p-2">
+                      {equipment.CategoryName || "N/A"}
+                    </td>
+                    <td className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm border p-2 flex space-x-2 justify-center">
+                      <button
+                        onClick={() => handleSelectEquipment(equipment)}
+                        className="px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600"
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEquipment(equipment._id)}
+                        className="px-3 py-1 text-white bg-red-500 rounded hover:bg-red-600"
+                      >
+                        <i className="fas fa-trash-alt"></i>
+                      </button>
+                      <button
+                        onClick={() => handleAssignClick(equipment)}
+                        className="px-3 py-1 text-white bg-green-500 rounded hover:bg-red-600"
+                      >
+                        {equipment.status === "Not Available" ? (
+                          <i className="fas fa-sync-alt"></i>
+                        ) : (
+                          <i className="fas fa-plus-circle"></i>
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        <div className="flex justify-between items-center">
+        {/* Pagination */}
+        <div className="flex flex-wrap gap-2 items-center justify-center mt-4">
+          {/* Prev Button */}
           <button
             onClick={() => paginate(currentPage - 1)}
-            className="py-2 px-4 bg-gray-200 rounded-full"
+            className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded-full disabled:opacity-50"
             disabled={currentPage === 1}
           >
             Prev
           </button>
 
-          <div className="flex space-x-2">
+          {/* Page Numbers */}
+          <div className="hidden md:flex flex-wrap justify-center gap-1 md:gap-2">
             {Array.from({ length: totalPages }, (_, i) => (
               <button
                 key={i}
                 onClick={() => paginate(i + 1)}
-                className={`py-2 px-4 rounded-full ${
-                  currentPage === i + 1 ? "bg-blue-500 text-white" : "border"
+                className={`py-1 px-3 text-xs md:py-2 md:px-4 md:text-base rounded-full transition ${
+                  currentPage === i + 1
+                    ? "bg-blue-500 text-white"
+                    : "border border-gray-300 hover:bg-gray-100"
                 }`}
               >
                 {i + 1}
@@ -258,17 +300,18 @@ const ModalTable = ({ isOpen, onClose }) => {
             ))}
           </div>
 
+          {/* Next Button */}
           <button
             onClick={() => paginate(currentPage + 1)}
-            className="py-2 px-4 bg-gray-200 rounded-full"
+            className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded-full disabled:opacity-50"
             disabled={currentPage === totalPages}
           >
             Next
           </button>
         </div>
 
+        {/* Modals */}
         {isModalOpen && (
-             //name ng component
           <PopupModal
             isOpen={isModalOpen}
             onClose={handleCloseModal}
@@ -279,7 +322,6 @@ const ModalTable = ({ isOpen, onClose }) => {
         )}
 
         {isFormModalOpen && (
-             //name ng component
           <EquipmentformModal
             isOpen={isFormModalOpen}
             onAddEquipment={handleAddEquipment}
@@ -290,7 +332,6 @@ const ModalTable = ({ isOpen, onClose }) => {
         )}
 
         {isRetrieveModalOpen && (
-             //name ng component
           <RetrieveForm
             isOpen={isRetrieveModalOpen}
             onClose={handleCloseModal}
@@ -298,8 +339,8 @@ const ModalTable = ({ isOpen, onClose }) => {
             onEditStatus={handleEditEquipment}
           />
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

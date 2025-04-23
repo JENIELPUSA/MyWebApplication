@@ -1,0 +1,161 @@
+import React, { createContext, useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
+
+
+export const AddTypeMaintenance = createContext();
+
+export const AddTypeMaintenanceProvider = ({ children }) => {
+  const [showModal, setShowModal] = useState(false);
+const [modalStatus, setModalStatus] = useState("success"); // or "fail"
+  const token = localStorage.getItem("token");
+  const [displayData, setDisplayData] = useState([]);
+  const [newEntries, setNewEntries] = useState(null);
+
+  // GET all type maintenance
+  const fetchDisplayTypes = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      const res = await axios.get(
+        "http://127.0.0.1:3000/api/v1/TypesMaintenanceRequest",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.status === "success") {
+        setDisplayData(res.data.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching display types:", error);
+      toast.error("Failed to load maintenance types.");
+    }
+  }, [token]);
+
+  // Auto-fetch when token or new entries change
+  useEffect(() => {
+    fetchDisplayTypes();
+  }, [fetchDisplayTypes, newEntries]);
+
+  // ADD new type maintenance
+  const Types = async (equipment, type, Laboratory,department) => {
+    try {
+      const res = await axios.post(
+        "http://127.0.0.1:3000/api/v1/TypesMaintenanceRequest",
+        {
+          equipmentType: equipment._id,
+          scheduleType: type,
+          Laboratory: Laboratory.laboratoryId,
+          Department:department
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.status === "success") {
+        setModalStatus("success");
+        setNewEntries(res.data.data);
+        setShowModal(true);
+      }
+     
+    } catch (error) {
+      console.error("Error assigning equipment:", error);
+      setModalStatus("Failed");
+      setShowModal(true);
+    }
+  };
+
+  //UPDATE maintenance type (next date)
+  const UpdateType = async (data, Time) => {
+    const id = data?.[0]?.id;
+    const scheduleType = data?.[0]?.scheduleType;
+
+    let nextDate = new Date(Time);
+    if (isNaN(nextDate)) {
+      toast.error("Invalid date format.");
+      return;
+    }
+
+    switch (scheduleType) {
+      case "weekly":
+        nextDate.setDate(nextDate.getDate() + 7);
+        break;
+      case "monthly":
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        break;
+      case "semi-annually":
+        nextDate.setMonth(nextDate.getMonth() + 6);
+        break;
+      case "annually":
+        nextDate.setFullYear(nextDate.getFullYear() + 1);
+        break;
+      default:
+        nextDate.setDate(nextDate.getDate() + 7);
+        break;
+    }
+
+    const payload = {
+      lastMaintenanceDate: Time,
+      nextMaintenanceDate: nextDate.toISOString(),
+      notified: false,
+    };
+
+    try {
+      const res = await axios.patch(
+        `http://127.0.0.1:3000/api/v1/TypesMaintenanceRequest/${id}`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (error) {
+      console.error("Error updating schedule:", error);
+      toast.error(error.response?.data?.message || "Update failed.");
+    }
+  };
+
+  // DELETE maintenance type
+  const DeleteType = async (equipment) => {
+    const equipmentId = equipment?._id;
+    const schedule = displayData.find((item) => item.equipmentType === equipmentId);
+
+    if (!schedule) {
+      toast.error("No matching schedule found.");
+      return;
+    }
+
+    try {
+      const response = await axios.delete(
+        `http://127.0.0.1:3000/api/v1/TypesMaintenanceRequest/${schedule._id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if(response.data.status="success"){
+        setModalStatus("success"); 
+        setNewEntries(Date.now()); // re-trigger refresh
+        setShowModal(true);
+      }
+    } catch (error) {
+      console.error("Error deleting schedule:", error);
+      setModalStatus("failed");
+      setShowModal(true);
+    }
+  };
+
+  return (
+    <AddTypeMaintenance.Provider
+      value={{
+        displayData,
+        Types,
+        UpdateType,
+        DeleteType,
+      }}
+    >
+      {children}
+        {/* Modal should be rendered here */}
+    <StatusModal
+      isOpen={showModal}
+      onClose={() => setShowModal(false)}
+      status={modalStatus}
+    />
+    </AddTypeMaintenance.Provider>
+  );
+};

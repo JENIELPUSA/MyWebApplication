@@ -4,6 +4,7 @@ import axios from "axios";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { AssignContext } from "../Context/DisplayAssignContext.jsx";
 import { DeleteAssignContext } from "../CountContext";
+import { motion } from "framer-motion";
 
 const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
   const { deleteAssignment } = useContext(DeleteAssignContext);
@@ -11,6 +12,7 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
   const [isLoading, setIsLoading] = useState(false);
   const token = localStorage.getItem("token");
   const { fetchAssignData } = useContext(AssignContext);
+   const [animateExit, setAnimateExit] = useState(false);
 
   // Reset states when the modal is reopened
   useEffect(() => {
@@ -72,8 +74,19 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
   
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-8 w-96">
+    <motion.div 
+    className="fixed inset-0 flex items-center justify-center z-50"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    >
+      <motion.div 
+      className="bg-white rounded-lg shadow-xl p-8 w-96"
+      initial={{ opacity: 0, y: -50 }}
+        animate={animateExit ? { opacity: 0, y: -50 } : { opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -50 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        >
         {/* Header Section */}
         <div className="text-center">
           {isSuccess ? (
@@ -113,15 +126,23 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
         {/* Footer Section */}
         <div className="mt-6 flex justify-between">
           {!isSuccess && (
-            <button
-              onClick={onClose}
+            <motion.button
+            aria-label="Close"
+            whileTap={{ scale: 0.8 }} // Shrinks on click
+            whileHover={{ scale: 1.1 }} // Enlarges on hover
+            transition={{ duration: 0.3, ease: "easeInOut" }} // Defines the duration of the scale animations
+            onClick={() => {
+              setAnimateExit(true); // Set the animation state to trigger upward motion
+              setTimeout(onClose, 500); // Close after 500ms to match the animation duration
+            }}
               className="px-5 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
             >
               Cancel
-            </button>
+            </motion.button>
           )}
           {!isSuccess && (
             <button
+           
               onClick={handleRetrieve}
               className={`px-5 py-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition ${
                 isLoading ? "opacity-70 cursor-not-allowed" : ""
@@ -139,8 +160,8 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
             Equipment has been successfully retrieved.
           </p>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

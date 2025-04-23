@@ -5,15 +5,19 @@ import { ToastContainer, toast } from "react-toastify";
 import axios from "axios";
 import { AuthContext } from "../Context/AuthContext";
 import { io } from "socket.io-client";
+import { motion } from "framer-motion";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
 import { MessagePOSTcontext } from "../Context/MessageContext/POSTmessage";
+import { PostEmailContext } from "../Context/EmailContext/SendNotificationContext";
 function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
   const { setSendPost } = useContext(MessagePOSTcontext);
-  const { fetchunreadRequestData, fetchRequestData, request } = useContext(
+  const [animateExit, setAnimateExit] = useState(false);
+  const { fetchRequestData, request } = useContext(
     RequestDisplayContext
   );
    const socket = io("http://localhost:3000"); // Connect to the backend server
   const { authToken } = useContext(AuthContext);
+  const {triggerSendEmail,setToTechnician}=useContext(PostEmailContext);
   const { users } = useContext(UserDisplayContext);
   const [isLoading, setIsLoading] = useState(false);
   const [enchargeDropdownOpen, setEnchargeDropdownOpen] = useState(false);
@@ -25,6 +29,19 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
     Remarks:""
   });
 
+  const handlesend = (details) => {
+    const encharges = users.filter(
+      (user) =>
+        user.role === "Technician" &&
+        details.data.data.Technician.includes(user._id)
+    );
+    
+    const fullName = `${encharges[0]?.FirstName} ${encharges[0]?.Middle} ${encharges[0]?.LastName}`.trim();
+    const message = `Hello [${fullName}], A new maintenance request from Admin requires your attention. Please review the details in your dashboard.\nDetails:\nRequest Reference: ${details.data.data.Ref}\nStatus: ${details.data.data.Status}\nAssigned By: Admin`;    
+    // Trigger email sending
+    triggerSendEmail(message);
+  };
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -40,9 +57,10 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
         if (response.data?.status === "success") {
           const result = response.data;
           toast.success("Successfully Assigned!");
+          handlesend(response)
+          setToTechnician(result);
           fetchRequestData();
           setValues({ Encharge: "" });
-
           //ibig sabihin nito isinasama ang message sa result
           setSendPost({
             ...result,
@@ -50,8 +68,9 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
             Status: "Pending"
  
           });
-          
-          fetchunreadRequestData();
+          setTimeout(()=> {
+            onClose()
+          }, 2000); 
         } else {
           toast.error(
             response.data?.message || "Failed to update maintenance request"
@@ -84,7 +103,8 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
           const result = response.data;
           toast.success("Successfully Send!");
             //ibig sabihin nito isinasama ang message sa result
-          setSendPost({
+            setSendPost({
+           
             ...result,
             message: "I need your verification to approve a remark from the technician.",
             Status: "Accepted"
@@ -92,7 +112,9 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
        
           
           setValues({ Remarks: "" });
-          fetchunreadRequestData();
+          setTimeout(() => {
+            onClose()
+          }, 3000); // 3000 milliseconds = 3 seconds
         } else {
           toast.error(
             response.data?.message || "Failed to update maintenance request"
@@ -112,15 +134,33 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="flex flex-col relative rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg">
-        <button
-          onClick={onClose}
+    <motion.div 
+    className="fixed inset-0 flex items-center justify-center z-50"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    >
+      <motion.div 
+      className="relative flex flex-col rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg"
+      initial={{ opacity: 0, y: -50 }}
+        animate={animateExit ? { opacity: 0, y: -50 } : { opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -50 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      >
+        {/* Close Icon */}
+        <motion.button
           className="absolute top-2 right-2 text-xl text-gray-500 hover:text-gray-700 transition"
           aria-label="Close"
+          whileTap={{ scale: 0.8 }} // Shrinks on click
+          whileHover={{ scale: 1.1 }} // Enlarges on hover
+          transition={{ duration: 0.3, ease: "easeInOut" }} // Defines the duration of the scale animations
+          onClick={() => {
+            setAnimateExit(true); // Set the animation state to trigger upward motion
+            setTimeout(onClose, 500); // Close after 500ms to match the animation duration
+          }}
         >
           <i className="fas fa-times"></i>
-        </button>
+        </motion.button>
 
         <h4 className="block text-2xl font-medium text-slate-800 mb-2">
           {remarkdata ? "Add Remarks" : "Assign Technician"}
@@ -132,7 +172,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
           <div className="mb-2 flex flex-col gap-4">
             <div className="relative w-full">
               <label className="block mb-1 text-sm text-slate-600">
-                Encharge
+                Remark
               </label>
 
               {remarkdata?.Status === "Under Maintenance" ? (
@@ -140,7 +180,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
                 <textarea
                   type="text"
                   className="w-full bg-white placeholder:text-slate-400 text-slate-700 text-sm border border-slate-300 rounded-md px-3 py-2"
-                  placeholder="INPUT REMARK"
+                  placeholder="Add a Remark..."
                   value={values.Remarks || ""}
                   onChange={(e) =>
                     setValues({ ...values, Remarks: e.target.value })
@@ -211,10 +251,10 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
             {isLoading ? "Processing..." : remarkdata ? "Add Remark" : "Assign"}
           </button>
         </form>
-      </div>
+      </motion.div>
 
       <ToastContainer />
-    </div>
+    </motion.div>
   );
 }
 

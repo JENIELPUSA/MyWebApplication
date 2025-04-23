@@ -29,14 +29,6 @@ const laboratory = location.state?.selectedAssignEquipment;
 
 
 
-function LaboratoryView() {
-  return (
-    <div className="mx-20 my-6 px-4 sm:px-10 bg-transparent flex-grow flex flex-col gap-4 sm:gap-10">
-      {/* Dashboard Header */}
-      <Header title="Laboratories" />
-    </div>
-  );
-}
 
 
 
@@ -44,25 +36,26 @@ function LaboratoryView() {
 function DashboardView() {
   return (
     <div className="flex-1 flex flex-col bg-gray-300 px-4 overflow-y-auto">
-      <div className="mx-4 my-6 px-20 sm:px-10 bg-transparent flex-grow flex flex-col gap-2 sm:gap-10">
+      <div className="mx-4 px-20 my-6 bg-transparent flex-grow flex flex-col gap-2 xs:px-2 sm:px-6 md:px-10 lg:px-20 xl:px-40 ">
         {/* Dashboard Header */}
         <Header title="Laboratories" />
+
         {/* Maintenance Display Section */}
-        <div className="p-2 mb-auto flex-[2]">
-          <MaintenanceDisplay/>
-        </div>
+          <MaintenanceDisplay />
       </div>
     </div>
   );
 }
 
+
 function Header({ title }) {
   return (
-    <div className="flex justify-between items-center py-4 border-b border-gray-300">
+    <div className=" font-poppins flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 border-b border-gray-300 gap-2">
       <h1 className="text-3xl font-bold text-blue-600">{title}</h1>
-      <nav className="bg-transparent text-black py-2 px-4">
-        <ol className="list-reset flex">
-          <li className="mr-4">
+
+      <nav className="bg-transparent text-black">
+        <ol className="list-reset flex text-sm flex-wrap">
+          <li className="mr-2">
             <a
               href="/dashboardfinal"
               className="text-blue-600 hover:text-blue-800 transition-colors"
@@ -70,12 +63,15 @@ function Header({ title }) {
               Home
             </a>
           </li>
-          <li className="mr-4">/</li>
-          <li className="text-blue-600">Laboratories</li>
+          <li className="mr-2 text-gray-500">/</li>
+          <li className="text-blue-600" aria-current="page">
+            Laboratories
+          </li>
         </ol>
       </nav>
     </div>
   );
 }
+
 
 export default RequestMaintenance;

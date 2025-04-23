@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 // Define Equipment Schema and Model
 const EquipmentSchema = new mongoose.Schema({
+    DateTime: {
+        type: Date,
+        default: () => new Date(), // Automatically set current date and time
+      },
     Brand: {
         type: String,
         required: [true, 'Please input a Brand!']
@@ -17,7 +21,7 @@ const EquipmentSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Available','Sent to Laboratory'],
+        enum: ['Not Available','Available'],
         default: 'Available'
     },
     Category: {
@@ -25,7 +29,8 @@ const EquipmentSchema = new mongoose.Schema({
         ref: 'Category',
         required: true
     }
-});
+    
+} ,{ timestamps: true });
 
 const Equipment = mongoose.model('Equipment', EquipmentSchema);
 

@@ -50,6 +50,8 @@ function LaboratoryContent() {
     lab.LaboratoryName && lab.LaboratoryName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  
+
   const handleDeleteLab = async (laboratoryId) => {
     if (!laboratoryId) {
       toast.error('Laboratory ID is required to delete.');

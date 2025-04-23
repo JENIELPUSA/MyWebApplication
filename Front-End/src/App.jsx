@@ -1,7 +1,7 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./Login";
-import ResetPassword from "./ResetPassword";
+import ResetPassword from "./components/ResetPassword/ResetPassword.jsx";
 import "./index.css"; // Import your Tailwind CSS here
 import ForgotPassword from "./forgotpassword";
 import UserForm from "./UserForm";
@@ -29,101 +29,137 @@ import { DisplayRequestProvider } from "./components/Context/MaintenanceRequest/
 import { FilterSpecificAssignProvider } from "./components/Context/AssignContext/FilterSpecificAssign.jsx";
 import { MessagePostProvider } from "./components/Context/MessageContext/POSTmessage.jsx";
 import { DisplayMessageProvider } from "./components/Context/MessageContext/DisplayMessgae.jsx";
+import { ModalProvider } from "./components/Context/ModalContex/modaleffect.jsx";
+import { AddEmailProvider } from "./components/Context/EmailContext/SendNotificationContext.jsx";
+import { AddTypeMaintenanceProvider } from "./components/Context/TypesofMainten/addmaintenance.jsx";
+import { SchedDisplayProvider } from "./components/Context/TypesOfSchedContext.jsx";
+import SocketListener from "./components/SocketListener.jsx";
+import { IncomingDisplayProvider } from "./components/Context/ProcessIncomingRequest/IncomingRequestContext.jsx";
 function App() {
   return (
     <AuthProvider>
-      <DisplayMessageProvider>
-      <MessagePostProvider>
-        <AssignProvider>
-          <FilterSpecificAssignProvider>
-            <DisplayRequestProvider>
-              <DepartmentDisplayProvider>
-                <CategoryDisplayProvider>
-                  <UserDisplayProvider>
-                    <LaboratoryDisplayProvider>
-                      <EquipmentDisplayProvider>
-                        <AddAssignProvider>
-                          <DeleteAssignProvider>
-                            <EquipmentProvider>
-                              <UserProvider>
-                                <LaboratorytProvider>
-                                  <BrowserRouter>
-                                    <Routes>
-                                      <Route
-                                        path="/login"
-                                        element={<Login />}
-                                      />
-                                      <Route
-                                        path="/User"
-                                        element={<UserForm />}
-                                      />
-                                      <Route
-                                        path="/forgot-password"
-                                        element={<ForgotPassword />}
-                                      />
-                                      <Route
-                                        path="/reset_password/:token"
-                                        element={<ResetPassword />}
-                                      />
+     
+        <SchedDisplayProvider>
+          <ModalProvider>
+            <AddTypeMaintenanceProvider>
+              <DisplayMessageProvider>
+                <MessagePostProvider>
+                  <AssignProvider>
+                    <FilterSpecificAssignProvider>
+                      <UserDisplayProvider>
+                        <AddEmailProvider>
+                          <DisplayRequestProvider>
+                          <IncomingDisplayProvider>
+                            <DepartmentDisplayProvider>
+                              <CategoryDisplayProvider>
+                                <LaboratoryDisplayProvider>
+                                  <EquipmentDisplayProvider>
+                                    <AddAssignProvider>
+                                      <DeleteAssignProvider>
+                                        <EquipmentProvider>
+                                          <UserProvider>
+                                            <LaboratorytProvider>
+                                              <BrowserRouter>
+                                                <SocketListener />
+                                                <Routes>
+                                                  <Route
+                                                    path="/login"
+                                                    element={<Login />}
+                                                  />
+                                                  <Route
+                                                    path="/User"
+                                                    element={<UserForm />}
+                                                  />
+                                                  <Route
+                                                    path="/forgot-password"
+                                                    element={<ForgotPassword />}
+                                                  />
+                                                  <Route
+                                                    path="/reset_password/:token"
+                                                    element={<ResetPassword />}
+                                                  />
 
-                                      <Route element={<PrivateRoute />}>
-                                        <Route
-                                          path="/dashboardfinal"
-                                          element={<DashboardFinal />}
-                                        />{" "}
-                                        {/* No need for additional UserProvider here */}
-                                        <Route
-                                          path="/dashboardfinal/:laboratoryId"
-                                          element={<DashboardFinal />}
-                                        />{" "}
-                                        {/* No need for additional UserProvider here */}
-                                        <Route
-                                          path="/Signupform/:id"
-                                          element={<SignUpForm />}
-                                        />
-                                        <Route
-                                          path="/Equipment"
-                                          element={<EquipmentForm />}
-                                        />
-                                        <Route
-                                          path="/department"
-                                          element={<DepartmentContent />}
-                                        />
-                                        <Route
-                                          path="/category"
-                                          element={<CategoryContent />}
-                                        />
-                                        <Route
-                                          path="/laboratory"
-                                          element={<LaboratoryContent />}
-                                        />
-                                        <Route
-                                          path="/LaboratoryAssign"
-                                          element={<LaboratoryHome />}
-                                        />
-                                        <Route
-                                          path="/RequestMaintenances"
-                                          element={<RequestMaintenance />}
-                                        />
-                                      </Route>
-                                    </Routes>
-                                  </BrowserRouter>
-                                </LaboratorytProvider>
-                              </UserProvider>
-                            </EquipmentProvider>
-                          </DeleteAssignProvider>
-                        </AddAssignProvider>
-                      </EquipmentDisplayProvider>
-                    </LaboratoryDisplayProvider>
-                  </UserDisplayProvider>
-                </CategoryDisplayProvider>
-              </DepartmentDisplayProvider>
-            </DisplayRequestProvider>
-          </FilterSpecificAssignProvider>
-        </AssignProvider>
-      </MessagePostProvider>
-            
-      </DisplayMessageProvider>
+                                                  <Route
+                                                    element={<PrivateRoute />}
+                                                  >
+                                                    <Route
+                                                      path="/dashboardfinal"
+                                                      element={
+                                                        <DashboardFinal />
+                                                      }
+                                                    />{" "}
+                                                    {/* No need for additional UserProvider here */}
+                                                    <Route
+                                                      path="/dashboardfinal/:laboratoryId"
+                                                      element={
+                                                        <DashboardFinal />
+                                                      }
+                                                    />{" "}
+                                                    {/* No need for additional UserProvider here */}
+                                                    <Route
+                                                      path="/Signupform/:id"
+                                                      element={<SignUpForm />}
+                                                    />
+                                                    <Route
+                                                      path="/Equipment"
+                                                      element={
+                                                        <EquipmentForm />
+                                                      }
+                                                    />
+                                                    <Route
+                                                      path="/department"
+                                                      element={
+                                                        <DepartmentContent />
+                                                      }
+                                                    />
+                                                    <Route
+                                                      path="/category"
+                                                      element={
+                                                        <CategoryContent />
+                                                      }
+                                                    />
+                                                    <Route
+                                                      path="/laboratory"
+                                                      element={
+                                                        <LaboratoryContent />
+                                                      }
+                                                    />
+                                                    <Route
+                                                      path="/LaboratoryAssign"
+                                                      element={
+                                                        <LaboratoryHome />
+                                                      }
+                                                    />
+                                                    <Route
+                                                      path="/RequestMaintenances"
+                                                      element={
+                                                        <RequestMaintenance />
+                                                      }
+                                                    />
+                                                  </Route>
+                                                </Routes>
+                                              </BrowserRouter>
+                                            </LaboratorytProvider>
+                                          </UserProvider>
+                                        </EquipmentProvider>
+                                      </DeleteAssignProvider>
+                                    </AddAssignProvider>
+                                  </EquipmentDisplayProvider>
+                                </LaboratoryDisplayProvider>
+                              </CategoryDisplayProvider>
+                            </DepartmentDisplayProvider>
+                            </IncomingDisplayProvider>
+                          </DisplayRequestProvider>
+                        </AddEmailProvider>
+                      </UserDisplayProvider>
+                    </FilterSpecificAssignProvider>
+                  </AssignProvider>
+                </MessagePostProvider>
+              </DisplayMessageProvider>
+            </AddTypeMaintenanceProvider>
+          </ModalProvider>
+        </SchedDisplayProvider>
+      
     </AuthProvider>
   );
 }

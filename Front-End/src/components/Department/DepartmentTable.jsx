@@ -124,7 +124,7 @@ const DepartmentTable = ({
                             onClick={() => paginate(currentPage + 1)}
                             disabled={currentPage === totalPages || isNoDepartment}
                         >
-                            Next
+                            NextS
                         </button>
                     </div>
                 </div>

@@ -168,10 +168,6 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
   });
 });
 
-
-  
-
-
 exports.UpdateEquipments = AsyncErrorHandler(async (req, res, next) => {
   const { id } = req.params;
 
