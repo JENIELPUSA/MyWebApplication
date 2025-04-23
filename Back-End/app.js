@@ -86,11 +86,14 @@ if(process.env.NODE_ENV === 'development'){
 
  app.use(ErrorController);
 
- app._router.stack.forEach((r) => {
-    if (r.route && r.route.path) {
-      console.log(r.route.path);
-    }
+ app.all("*", (req, res) => {
+    res.status(404).json({
+      status: "fail",
+      message: `Can't find ${req.originalUrl} on this server!`,
+      method: req.method
+    });
   });
+  
   
 
 module.exports = app;

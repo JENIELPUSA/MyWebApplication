@@ -25,7 +25,7 @@ const io = socketIo(server, {
   cors: {
     origin: [
       "http://localhost:5173",
-      "https://equipment-preventive-maintenance-front.onrender.com" // ✅ ADD this deployed frontend URL
+      "https://equipment-preventive-maintenance-front.onrender.com" // ADD this deployed frontend URL
     ],
     methods: ["GET", "POST"],
     credentials: true,
