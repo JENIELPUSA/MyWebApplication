@@ -47,7 +47,7 @@ app.use(session({
 
 app.use(cors({
     origin:["http://localhost:5173",
-        "https://equipment-preventive-client.onrender.com"
+        "https://equipment-preventive-maintenance-front.onrender.com"
     ],
     methods:["GET","POST","PATCH","DELETE"],
     credentials:true
@@ -85,6 +85,13 @@ if(process.env.NODE_ENV === 'development'){
  app.use('/api/v1/GeneratePDF',PDFRoutes)
 
  app.use(ErrorController);
+
+ app._router.stack.forEach((r) => {
+    if (r.route && r.route.path) {
+      console.log(r.route.path);
+    }
+  });
+  
 
 module.exports = app;
 

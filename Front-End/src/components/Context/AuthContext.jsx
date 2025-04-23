@@ -42,6 +42,7 @@ export const AuthProvider = ({ children }) => {
         { email, password }
       );      
 
+      
       if (res.data.status === "Success") {
         const token = res.data.token;
         const role = res.data.role;
