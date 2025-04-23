@@ -38,9 +38,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const res = await axios.post(
-        "https://equipment-preventive-maintenance-backend.onrender.com/login",
+        "https://equipment-preventive-maintenance-backend.onrender.com/api/v1/authentication/login",
         { email, password }
-      );
+      );      
 
       if (res.data.status === "Success") {
         const token = res.data.token;
