@@ -4,7 +4,7 @@ import io from "socket.io-client";
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const socket = io("https://equipment-preventive-maintenance-backend.onrender.com"); // Connect to your Socket.io server
+  const socket = io("http://127.0.0.1:3000"); // Connect to your Socket.io server
   const [authToken, setAuthToken] = useState(
     localStorage.getItem("token") || null
   ); // Get token from localStorage
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const res = await axios.post(
-        "https://equipment-preventive-maintenance-backend.onrender.com/api/v1/authentication/login",
+        "http://127.0.0.1:3000/api/v1/authentication/login",
         { email, password }
       );
 
