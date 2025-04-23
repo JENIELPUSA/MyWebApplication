@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./Login";
 import ResetPassword from "./components/ResetPassword/ResetPassword.jsx";
 import "./index.css"; // Import your Tailwind CSS here
-import ForgotPassword from "./forgotpassword";
+import ForgotPassword from "./ForgotPassword.jsx";
 import UserForm from "./UserForm";
 import DashboardFinal from "./DashboardFinal";
 import SignUpForm from "./components/USER/SignUpForm";
@@ -23,6 +23,7 @@ import { UserDisplayProvider } from "./components/Context/User/DisplayUser.jsx";
 import { CategoryDisplayProvider } from "./components/Context/Category/Display.jsx";
 import { DepartmentDisplayProvider } from "./components/Context/Department/Display.jsx";
 import RequestMaintenance from "./RequestMaintenance"; // Named import
+import PrivateRoute from "../../Front-End/src/components/PrivateRoute.jsx";
 import { AuthProvider } from "./components/Context/AuthContext.jsx";
 import { DisplayRequestProvider } from "./components/Context/MaintenanceRequest/DisplayRequest.jsx";
 import { FilterSpecificAssignProvider } from "./components/Context/AssignContext/FilterSpecificAssign.jsx";
@@ -77,6 +78,10 @@ function App() {
                                                     path="/reset_password/:token"
                                                     element={<ResetPassword />}
                                                   />
+
+                                                  <Route
+                                                    element={<PrivateRoute />}
+                                                  >
                                                     <Route
                                                       path="/dashboardfinal"
                                                       element={
@@ -131,7 +136,7 @@ function App() {
                                                         <RequestMaintenance />
                                                       }
                                                     />
-                                               
+                                                  </Route>
                                                 </Routes>
                                               </BrowserRouter>
                                             </LaboratorytProvider>
