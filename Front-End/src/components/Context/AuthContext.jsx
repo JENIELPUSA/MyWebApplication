@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const res = await axios.post(
-        "https://equipment-preventive-maintenance-backend.onrender.com/authentication/login",
+        "https://equipment-preventive-maintenance-backend.onrender.com/login",
         { email, password }
       );
 
