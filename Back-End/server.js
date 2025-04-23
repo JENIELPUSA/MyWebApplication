@@ -23,14 +23,18 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:5173", // Change this to your React frontend URL
+    origin: [
+      "http://localhost:5173",
+      "https://equipment-preventive-maintenance-front.onrender.com" // ✅ ADD this deployed frontend URL
+    ],
     methods: ["GET", "POST"],
-    credentials: true, // Allow cookies and auth headers
+    credentials: true,
   },
-  transports: ["websocket", "polling"], // Ensure proper transport
-  pingInterval: 25000, // Regular ping to prevent disconnection
-  pingTimeout: 5000, // Timeout before assuming client is disconnected
+  transports: ["websocket", "polling"],
+  pingInterval: 25000,
+  pingTimeout: 5000,
 });
+
 
 // Store io instance for global event handling
 app.set("io", io);
