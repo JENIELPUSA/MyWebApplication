@@ -19,12 +19,11 @@ function DashboardFinal({ specificData }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
   const { laboratoryData } = useContext(FilterSpecificAssignContext);
-  const { laboratories } = useContext(LaboratoryDisplayContext);
   const { authToken, role } = useContext(AuthContext);
   const { fetchIncomingData } = useContext(IncomingDisplayContext);
   const location = useLocation();
   const navigate = useNavigate();
-  const socketRef = useRef(null);
+
 
   const laboratory = location.state?.laboratory;
   const [data, setData] = useState([]);

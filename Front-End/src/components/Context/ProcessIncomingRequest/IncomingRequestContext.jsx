@@ -12,7 +12,7 @@ export const IncomingDisplayProvider = ({ children }) => {
 
   const fetchIncomingData = async () => {
     try {
-      const res = await axios.get("http://127.0.0.1:3000/api/v1/IncomingRequests", {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/IncomingRequests`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
@@ -30,7 +30,7 @@ export const IncomingDisplayProvider = ({ children }) => {
         await Promise.all(
           departmentData.map(async item => {
             try {
-              await axios.delete(`http://127.0.0.1:3000/api/v1/IncomingRequests/${item._id}`);
+              await axios.delete(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/IncomingRequests/${item._id}`);
             } catch (err) {
               console.error(`Failed to delete ${item._id}:`, err.message);
             }
