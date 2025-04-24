@@ -44,9 +44,9 @@ app.use(session({
 }));
 
 app.use(cors({
-    origin:["http://localhost:5173"],
-    methods:["GET","POST","PATCH","DELETE"],
-    credentials:true
+    origin: process.env.FRONTEND_URL,  // Update with the frontend URL for production
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+    credentials: true
 }));
 
 app.use(logger);
