@@ -83,5 +83,15 @@ if(process.env.NODE_ENV === 'development'){
 
  app.use(ErrorController);
 
+ // Global error handler
+app.use((err, req, res, next) => {
+    console.error("GLOBAL ERROR:", err); // ← ← ← importante ito
+    res.status(500).json({
+      status: 'error',
+      message: 'Something went wrong! Please try Again later...',
+    });
+  });
+  
+
 module.exports = app;
 
