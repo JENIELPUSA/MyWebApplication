@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
         const userId = res.data.userId; // Get the user ID from response
 
         // Store token, role, email, and userId in localStorage
-        localStorage.setItem("token", authToken);
+        localStorage.setItem("token", token);
         localStorage.setItem("role", role);
         localStorage.setItem("email", email);
         localStorage.setItem("userId", userId); // Save ID

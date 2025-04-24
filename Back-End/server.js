@@ -135,10 +135,7 @@ io.on("connection", (socket) => {
 
 // Connect to MongoDB
 mongoose
-  .connect(process.env.CONN_STR, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.CONN_STR)
   .then(() => console.log(" DB connected successfully"))
   .catch((err) => {
     console.error("Database connection error:", err.message);
