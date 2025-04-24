@@ -24,8 +24,7 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: [
-      "http://localhost:5173",
-      "https://equipment-preventive-maintenance-front.onrender.com" // ADD this deployed frontend URL
+      process.env.FRONTEND_URL,
     ],
     methods: ["GET", "POST"],
     credentials: true,
