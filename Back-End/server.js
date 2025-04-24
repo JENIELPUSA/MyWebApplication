@@ -25,7 +25,7 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin:* // Change this to your React frontend URL
+    origin:"*",// Change this to your React frontend URL
     methods: ["GET", "POST"],
     credentials: true, // Allow cookies and auth headers
   },
