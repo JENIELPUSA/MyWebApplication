@@ -25,7 +25,7 @@ export const DisplayMessageProvider = ({ children }) => {
 
   const fetchDisplayMessgae = async () => {
     try {
-      const res = await axios.get(`http://127.0.0.1:3000/api/v1/MessageRequest`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
   

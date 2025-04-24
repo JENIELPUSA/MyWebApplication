@@ -158,13 +158,4 @@ process.on("unhandledRejection", (err) => {
   });
 });
 
-// Serve the static files from the React build directory
-app.use(express.static(path.join(__dirname, 'build')));
-
-// Route to serve the index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'build', 'index.html'));
-});
-
-
 require("./Utils/CronJob");
