@@ -75,10 +75,10 @@ exports.signup = AsyncErrorHandler(async (req, res, next) => {
 
 exports.login = AsyncErrorHandler(async (req, res, next) => {
     const { email, password } = req.body;
-  
+  console.log("LOGIN ACCEPT")
     // Find user by email and explicitly select the password field
     const user = await User.findOne({ email }).select('+password');
-  
+  console.log("Print",user)
     // Check if the user exists
     if (!user) {
       return next(new CustomError('Incorrect email or password', 400));
