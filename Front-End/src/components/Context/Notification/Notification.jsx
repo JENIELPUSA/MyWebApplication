@@ -119,7 +119,7 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
   const getSpecificID = async (requestID) => {
     try {
       const response = await axios.get(
-        `http://127.0.0.1:3000/api/v1/MaintenanceRequest/getbyId/${requestID}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/getbyId/${requestID}`,
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
@@ -155,13 +155,13 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
     const feedbackDataMsg = { read: true };
 
     await updateRequest({
-      url: `http://127.0.0.1:3000/api/v1/MaintenanceRequest/${requestID}`,
+      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${requestID}`,
       updateData: feedbackData,
       socketEvent: "newRequest",
     });
 
     await updateRequest({
-      url: `http://127.0.0.1:3000/api/v1/MessageRequest/${msgId}`,
+      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${msgId}`,
       updateData: feedbackDataMsg,
       socketEvent: "newRequest",
     });
@@ -174,7 +174,7 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
       read: true,
     };
     await updateRequest({
-      url: `http://127.0.0.1:3000/api/v1/MessageRequest/${data}`,
+      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${data}`,
       updateData: feedbackDataMsg, // Sending an object instead of just the text
       socketEvent: "newRequest",
     });
@@ -205,7 +205,7 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
   async function ReadOnUpdate(Id) {
     try {
       const response = await axios.patch(
-        "http://127.0.0.1:3000/api/v1/MessageRequest",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest`,
         { laboratoryIds: Id, readonUpdate: true }, //Pasa bilang JSON body
         { headers: { Authorization: `Bearer ${authToken}` } }
       );

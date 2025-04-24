@@ -26,7 +26,7 @@ export const AssignProvider = ({ children }) => {
   const fetchAssignData = async () => {
     try {
       const response = await axios.get(
-        `http://127.0.0.1:3000/api/v1/AssignEquipment`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/AssignEquipment`,
         {
           headers: { Authorization: `Bearer ${authToken}` },
         }

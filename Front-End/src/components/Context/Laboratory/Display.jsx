@@ -38,7 +38,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
   const fetchLaboratoryData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`http://127.0.0.1:3000/api/v1/laboratory`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`, {
         headers: {
           Authorization: `Bearer ${authToken}`, // Include the token in headers
         },
@@ -64,7 +64,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
   const AddedLaboratory = async (values) => {
     try {
       const response = await axios.post(
-        "http://127.0.0.1:3000/api/v1/laboratory",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`,
         {
           department: values.department,
           Encharge: values.Encharge,
@@ -102,7 +102,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
   const UpdateLaboratory = async (LaboratoryId, values) => {
     try {
       const response = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/laboratory/${LaboratoryId}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory/${LaboratoryId}`,
         {
           department: values.department,
           Encharge: values.Encharge,
@@ -132,7 +132,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
   const DeleteLaboratory = async(laboratoryId)=>{
         try {
           const response=await axios.delete(
-            `http://127.0.0.1:3000/api/v1/laboratory/${laboratoryId}`,
+            `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory/${laboratoryId}`,
             {
               headers: { Authorization: `Bearer ${authToken}` },
             }

@@ -40,7 +40,7 @@ export const CategoryDisplayProvider = ({ children }) => {
   const fetchCategoryData = async () => {
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(`http://127.0.0.1:3000/api/v1/categorys`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/categorys`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
@@ -58,7 +58,7 @@ export const CategoryDisplayProvider = ({ children }) => {
   const addedCategory = async (values) => {
     try {
       const response = await axios.post(
-        "http://127.0.0.1:3000/api/v1/categorys",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/categorys`,
         {
           CategoryName: values.CategoryName,
         },
@@ -101,7 +101,7 @@ export const CategoryDisplayProvider = ({ children }) => {
       }
 
       const response = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/categorys/${categoryId}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/categorys/${categoryId}`,
         dataToSend,
         {
           headers: { Authorization: `Bearer ${authToken}` },
@@ -137,7 +137,7 @@ export const CategoryDisplayProvider = ({ children }) => {
   const RemoveCategory = async (categoryId) => {
     try {
       const response = await axios.delete(
-        `http://127.0.0.1:3000/api/v1/categorys/${categoryId}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/categorys/${categoryId}`,
         {
           headers: { Authorization: `Bearer ${authToken}` },
         }

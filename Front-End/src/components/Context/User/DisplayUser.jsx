@@ -29,7 +29,7 @@ export const UserDisplayProvider = ({ children }) => {
   const fetchUserData = async () => {
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(`http://127.0.0.1:3000/api/v1/users`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
@@ -47,7 +47,7 @@ export const UserDisplayProvider = ({ children }) => {
   const AddUser = async (values) => {
     try {
       const res = await axios.post(
-        "http://127.0.0.1:3000/api/v1/users",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users`,
         {
           FirstName: values.FirstName,
           Middle: values.Middle,
@@ -98,7 +98,7 @@ export const UserDisplayProvider = ({ children }) => {
       }
   
       const response = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/users/${user}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users/${user}`,
         dataToSend,
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
@@ -133,7 +133,7 @@ export const UserDisplayProvider = ({ children }) => {
 
   const DeleteUser=async(userId)=>{
     try {
-      const response = await axios.delete(`http://127.0.0.1:3000/api/v1/users/${userId}`, {
+      const response = await axios.delete(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users/${userId}`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (response.data && response.data.status === "success") {

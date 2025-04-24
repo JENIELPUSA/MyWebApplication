@@ -30,7 +30,7 @@ export const AddAssignProvider = ({ children }) => {
 
     try {
       const response = await axios.post(
-        "http://127.0.0.1:3000/api/v1/AssignEquipment",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/AssignEquipment`,
         {
           Equipments: values.id, // Selected equipment
           Laboratory: values.Laboratory, // Laboratory to assign to
@@ -41,7 +41,7 @@ export const AddAssignProvider = ({ children }) => {
       if (response.data.status === "success") {
         // Refresh equipment data and trigger re-fetch
         const response = await axios.patch(
-          `http://127.0.0.1:3000/api/v1/equipment/${values.id}`,
+          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${values.id}`,
           {
             status:"Not Available"
          

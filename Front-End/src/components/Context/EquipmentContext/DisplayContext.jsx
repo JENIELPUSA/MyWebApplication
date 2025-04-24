@@ -39,7 +39,7 @@ const [customError, setCustomError]=useState("")
   const fetchEquipmentData = async () => {
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(`http://127.0.0.1:3000/api/v1/equipment`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
@@ -67,7 +67,7 @@ const [customError, setCustomError]=useState("")
   const sendaddEquipment = async (values) => {
     try {
       const response = await axios.post(
-        "http://127.0.0.1:3000/api/v1/equipment",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment`,
         {
           Category: values.Category, // Send the Category ID directly
           Specification: values.Specification,
@@ -107,7 +107,7 @@ const [customError, setCustomError]=useState("")
     try {
       console.log("gfgfgf", equipmentID, values);
       const response = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/equipment/${equipmentID}`, // Correctly pass the ID
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${equipmentID}`, // Correctly pass the ID
         {
           Category: values.Category, // Send the category ID
           Specification: values.Specification,
@@ -147,7 +147,7 @@ const [customError, setCustomError]=useState("")
   const DeleteDatas = async (equipmentID) => {
     try {
       const response = await axios.delete(
-        `http://127.0.0.1:3000/api/v1/equipment/${equipmentID}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${equipmentID}`,
         {
           headers: { Authorization: `Bearer ${authToken}` },
         }
