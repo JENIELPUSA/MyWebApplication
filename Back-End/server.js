@@ -25,13 +25,13 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin:"*",// Change this to your React frontend URL
+    origin: process.env.FRONTEND_URL,  // Use the environment variable
     methods: ["GET", "POST"],
-    credentials: true, // Allow cookies and auth headers
+    credentials: true,  // Allow cookies and auth headers
   },
-  transports: ["websocket", "polling"], // Ensure proper transport
-  pingInterval: 25000, // Regular ping to prevent disconnection
-  pingTimeout: 5000, // Timeout before assuming client is disconnected
+  transports: ["websocket", "polling"],
+  pingInterval: 25000,
+  pingTimeout: 5000,
 });
 
 // Store io instance for global event handling
