@@ -38,11 +38,12 @@ const logger =function(res,req,next){
 app.use(express.json());
 
 app.use(session({
-    secret: process.env.SECRET_STR,  // Use an environment variable for session secret
-    resave: false,                       // Don't resave session if not modified
-    saveUninitialized: false,            // Don't create session until something is stored
-}));
-
+    secret: process.env.SECRET_STR,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: process.env.NODE_ENV === 'production' }  // Set to true in production (HTTPS)
+  }));
+  
 app.use(cors({
     origin: process.env.FRONTEND_URL,  // Update with the frontend URL for production
     methods: ["GET", "POST", "PATCH", "DELETE"],
