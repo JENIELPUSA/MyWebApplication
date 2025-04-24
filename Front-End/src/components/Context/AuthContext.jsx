@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const res = await axios.post(
-        "https://equipment-preventive-maintenance-backend.onrender.com/api/v1/authentication/login",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}api/v1/authentication/login`,
         { email, password }
       );      
 
