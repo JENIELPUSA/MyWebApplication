@@ -6,8 +6,6 @@ const morgan =require('morgan');
 const ErrorController = require('./Controller/errorController');
 const session = require('express-session');
 
-
-
 const PDFRoutes=require('./Routes/PDFRoutes')
 const usersroutes = require('./Routes/UserRoutes');
 

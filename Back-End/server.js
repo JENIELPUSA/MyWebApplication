@@ -1,6 +1,8 @@
-// server.js (Backend)
+const express = require('express');
+
 const dotenv = require("dotenv");
 dotenv.config({ path: "./config.env" });
+const path = require('path');
 
 const mongoose = require("mongoose");
 const http = require("http");
@@ -23,7 +25,7 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:5173", // Change this to your React frontend URL
+    origin:process.env.FRONTEND_URL, // Change this to your React frontend URL
     methods: ["GET", "POST"],
     credentials: true, // Allow cookies and auth headers
   },
