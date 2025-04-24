@@ -89,6 +89,8 @@ exports.login = AsyncErrorHandler(async (req, res, next) => {
     if (!isPasswordCorrect) {
       return next(new CustomError('Incorrect email or password', 400));
     }
+
+    console.log(isPasswordCorrect)
   
     // Generate JWT token after ensuring user and password are correct
     const token = signToken(user._id);
