@@ -85,4 +85,14 @@ app.all("*", (req, res) => {
     });
 });
 
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, 'dist')));  // <-- Serve static files
+    
+    // Handle all other routes by sending 'index.html' (for frontend routing)
+    app.all('*', (req, res) => {
+        res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    });
+}
+
+
 module.exports = app;
