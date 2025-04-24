@@ -4,7 +4,7 @@ const socketIO = require('socket.io-client'); // For sending notifications via S
 
 // Replace with your actual server URL
 // Set up Socket.IO client to send notifications to the server
-const socket = socketIO(process.env.BACKEND_BASEURL);
+const socket = socketIO(`https://mywebapplicationapi.onrender.com`);
 // Ensure the socket connection is established before emitting notifications
 socket.on('connect', () => {
   cron.schedule('*/2 * * * *', async () => {
