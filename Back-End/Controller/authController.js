@@ -75,27 +75,31 @@ exports.signup = AsyncErrorHandler(async (req, res, next) => {
 
 exports.login = AsyncErrorHandler(async (req, res, next) => {
     const { email, password } = req.body;
-  console.log("LOGIN ACCEPT")
-    // Find user by email and explicitly select the password field
+    console.log("LOGIN ACCEPT");
+  
+    // Step 1: Check if the user exists
     const user = await User.findOne({ email }).select('+password');
-  console.log("Print",user)
-    // Check if the user exists
+    console.log("User found:", user);
+  
     if (!user) {
-      return next(new CustomError('Incorrect email or password', 400));
+      console.log("User not found, throwing error");
+      return next(new CustomError('Incorrect email or password', 400)); // It could be here
     }
   
-    // Verify password
+    // Step 2: Check if password is correct
     const isPasswordCorrect = await user.comparePasswordInDb(password, user.password);
+    console.log("Is password correct?", isPasswordCorrect);
+  
     if (!isPasswordCorrect) {
-      return next(new CustomError('Incorrect email or password', 400));
+      console.log("Password mismatch, throwing error");
+      return next(new CustomError('Incorrect email or password', 400)); // Or here
     }
-
-    console.log(isPasswordCorrect)
   
-    // Generate JWT token after ensuring user and password are correct
+    // Step 3: Proceed to create JWT token
     const token = signToken(user._id);
+    console.log("Token created:", token);
   
-    // Save user info in session
+    // Step 4: Set session and respond
     req.session.userId = user._id;
     req.session.isLoggedIn = true;
     req.session.user = {
@@ -106,9 +110,12 @@ exports.login = AsyncErrorHandler(async (req, res, next) => {
       role: user.role,
     };
   
+    console.log("Session set:", req.session);
+    
+    // Respond
     return res.status(200).send({
       status: 'Success',
-      userId: user._id,  // Include User ID
+      userId: user._id,
       role: user.role,
       token,
       email
