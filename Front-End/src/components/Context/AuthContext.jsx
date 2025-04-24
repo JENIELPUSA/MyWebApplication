@@ -95,7 +95,6 @@ export const AuthProvider = ({ children }) => {
     // Reload the page after logout
     window.location.reload();
   };
-
   return (
     <AuthContext.Provider
       value={{ email, authToken, role, login, logout, userId }}
