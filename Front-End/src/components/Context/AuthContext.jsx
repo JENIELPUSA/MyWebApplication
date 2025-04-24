@@ -4,7 +4,7 @@ import io from "socket.io-client";
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const socket = io("https://equipment-preventive-maintenance-backend.onrender.com"); // Connect to your Socket.io server
+  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL); // Connect to your Socket.io server
   const [authToken, setAuthToken] = useState(
     localStorage.getItem("token") || null
   ); // Get token from localStorage
