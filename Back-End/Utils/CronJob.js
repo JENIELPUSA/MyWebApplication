@@ -1,9 +1,9 @@
-import cron from 'node-cron';
-import Schedule from '../Models/TypesOfMaintenace'; // Your model
-import { io } from 'socket.io-client'; // Correct way to import socket.io-client
+const cron = require('node-cron');
+const Schedule = require('../Models/TypesOfMaintenace'); // Your model
+const socketIO = require('socket.io-client'); // For sending notifications via Socket.IO
 
 // Set up Socket.IO client to send notifications to the server
-const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL); // Replace with your actual server URL
+const socket = socketIO('http://localhost:3000'); // Replace with your actual server URL
 
 // Ensure the socket connection is established before emitting notifications
 socket.on('connect', () => {
@@ -16,8 +16,7 @@ socket.on('connect', () => {
       const schedules = await Schedule.find({
         nextMaintenanceDate: { $lte: today, $ne: null },
         notified: false,
-      });
-
+      });     
       for (const schedule of schedules) {
         const nextMaintenanceDate = new Date(schedule.nextMaintenanceDate);
         console.log("Next Maintenance Date:", nextMaintenanceDate.toISOString());
@@ -25,7 +24,7 @@ socket.on('connect', () => {
         const oneDayAhead = new Date(today);
         oneDayAhead.setDate(today.getDate() + 1);
         console.log("One Day Ahead:", oneDayAhead.toISOString());
-
+  
         // Check if the schedule is overdue or due in the next day
         if (nextMaintenanceDate <= oneDayAhead) {
           const isTypeNotification = schedule.notified;
@@ -49,6 +48,7 @@ socket.on('connect', () => {
       console.error('Error fetching maintenance schedules:', error);
     }
   });
+  
 
   console.log('Cron job for maintenance notifications is set up.');
 });
@@ -59,7 +59,7 @@ function sendSocketNotification(socket, schedule) {
   socket.emit('send-notifications', {
     equipmentType: schedule.equipmentType,
     Laboratory: schedule.Laboratory,
-    Department: schedule.Department,
+    Department:schedule.Department,
     nextMaintenanceDate: schedule.nextMaintenanceDate,
     Description: `For ${schedule.scheduleType} Maintenance.`,
   });

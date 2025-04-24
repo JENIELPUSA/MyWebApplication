@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
+const socket = io("http://localhost:3000", {
   transports: ["websocket"], // Use WebSocket only
   reconnection: true,        // Allow reconnection
   reconnectionAttempts: 5,   // Limit reconnection attempts

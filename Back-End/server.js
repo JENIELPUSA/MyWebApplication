@@ -23,15 +23,14 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin:process.env.FRONTEND_URL,
+    origin: "http://localhost:5173", // Change this to your React frontend URL
     methods: ["GET", "POST"],
-    credentials: true,
+    credentials: true, // Allow cookies and auth headers
   },
-  transports: ["websocket", "polling"],
-  pingInterval: 25000,
-  pingTimeout: 5000,
+  transports: ["websocket", "polling"], // Ensure proper transport
+  pingInterval: 25000, // Regular ping to prevent disconnection
+  pingTimeout: 5000, // Timeout before assuming client is disconnected
 });
-
 
 // Store io instance for global event handling
 app.set("io", io);
@@ -132,7 +131,10 @@ io.on("connection", (socket) => {
 
 // Connect to MongoDB
 mongoose
-  .connect(process.env.CONN_STR)
+  .connect(process.env.CONN_STR, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
   .then(() => console.log(" DB connected successfully"))
   .catch((err) => {
     console.error("Database connection error:", err.message);
@@ -153,5 +155,14 @@ process.on("unhandledRejection", (err) => {
     process.exit(1);
   });
 });
+
+// Serve the static files from the React build directory
+app.use(express.static(path.join(__dirname, 'build')));
+
+// Route to serve the index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
+
 
 require("./Utils/CronJob");
