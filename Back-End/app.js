@@ -41,8 +41,13 @@ app.use(session({
     secret: process.env.SECRET_STR,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production' }  // Set to true in production (HTTPS)
+    cookie: {
+      httpOnly: true,  // Cookie can't be accessed by JavaScript
+      secure: process.env.NODE_ENV === 'production', // Use secure cookies for HTTPS
+      maxAge: 1000 * 60 * 60 * 24, // 1 day
+    }
   }));
+  
   
 app.use(cors({
     origin: process.env.FRONTEND_URL,  // Update with the frontend URL for production
