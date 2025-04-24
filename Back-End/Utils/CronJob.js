@@ -2,9 +2,9 @@ const cron = require('node-cron');
 const Schedule = require('../Models/TypesOfMaintenace'); // Your model
 const socketIO = require('socket.io-client'); // For sending notifications via Socket.IO
 
+// Replace with your actual server URL
 // Set up Socket.IO client to send notifications to the server
-  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL);  // Replace with your actual server URL
-
+const socket = socketIO(process.env.BACKEND_BASEURL);
 // Ensure the socket connection is established before emitting notifications
 socket.on('connect', () => {
   cron.schedule('*/2 * * * *', async () => {
