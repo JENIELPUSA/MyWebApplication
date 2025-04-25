@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 
 // Initialize socket connection
-const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
+const socket = io("https://mywebapplicationapi.onrender.com", {
   transports: ["websocket"],  // Use WebSocket only (ensure WebSocket is enabled on the server)
   reconnection: true,         // Allow automatic reconnection attempts
   reconnectionAttempts: 5,    // Limit the number of reconnection attempts

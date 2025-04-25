@@ -24,7 +24,7 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL,  // Use the environment variable
+    origin:"https://my-web-application-one.vercel.app",  // Use the environment variable
     methods: ["GET", "POST"],
     credentials: true,  // Allow cookies and auth headers
   },

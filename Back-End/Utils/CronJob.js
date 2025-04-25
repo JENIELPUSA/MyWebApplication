@@ -7,7 +7,7 @@ const socketIO = require('socket.io-client'); // For sending notifications via S
 const socket = socketIO(`https://mywebapplicationapi.onrender.com`);
 // Ensure the socket connection is established before emitting notifications
 socket.on('connect', () => {
-  cron.schedule('*/2 * * * *', async () => {
+  cron.schedule('*/10 * * * *', async () => {
     const today = new Date();
     console.log("Today:", today.toISOString());
     
