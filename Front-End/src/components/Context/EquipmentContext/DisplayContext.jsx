@@ -77,11 +77,11 @@ const [customError, setCustomError]=useState("")
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
-      if (response.data.status === "success") {
+      if (response?.data.status === "success") {
         setModalStatus("success");
         setShowModal(true);
         //para maka send pabalik sa component
-        return { success: true, data: response.data.data };
+        return { success: true, data: response?.data.data };
       } else {
         setModalStatus("failed");
         setShowModal(true);
@@ -93,7 +93,7 @@ const [customError, setCustomError]=useState("")
         const message =
           typeof errorData === "string"
             ? errorData
-            : errorData.message || errorData.error || "Something went wrong.";
+            : errorData?.message || errorData.error || "Something went wrong.";
         setCustomError(message);
       } else if (error.request) {
         setCustomError("No response from the server.");
@@ -105,7 +105,6 @@ const [customError, setCustomError]=useState("")
 
   const EditEquipmentData = async (equipmentID, values) => {
     try {
-      console.log("gfgfgf", equipmentID, values);
       const response = await axios.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${equipmentID}`, // Correctly pass the ID
         {

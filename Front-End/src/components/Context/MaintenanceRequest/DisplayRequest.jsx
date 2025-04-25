@@ -38,16 +38,16 @@ export const DisplayRequestProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${authToken}` },
       });
   
-      const requestData = res.data?.data || []; // Ensure it's always an array
+      const requestData = res?.data.data || []; // Ensure it's always an array
       setView(requestData)
       if (role === "admin") {
-        const specificAdminMsg = requestData.filter((msg) => msg?.read ===false);
+        const specificAdminMsg = requestData?.filter((msg) => msg?.read ===false);
         setRequest(requestData);
-        setAdminMsg(specificAdminMsg.length)
+        setAdminMsg(specificAdminMsg?.length)
       } else if (role === "Technician"||role === "user" ) {
-        const specificMessages = requestData.filter((msg) => msg?.UserId === userId);
-        const CountSpecifiData = requestData.filter((msg)=> msg.Status==="Pending" && msg.UserId===userId)
-        setCountSpecificData(CountSpecifiData.length)
+        const specificMessages = requestData?.filter((msg) => msg?.UserId === userId);
+        const CountSpecifiData = requestData?.filter((msg)=> msg.Status==="Pending" && msg.UserId===userId)
+        setCountSpecificData(CountSpecifiData?.length)
         setRequest(specificMessages); // Set the filtered data to state
       }
     } catch (error) {

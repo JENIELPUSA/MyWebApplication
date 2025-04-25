@@ -32,20 +32,20 @@ export const DisplayMessageProvider = ({ children }) => {
       const MessageData = res?.data.data;
   
       if (role === "user") {
-        const SpecificMessages = MessageData.filter(  
+        const SpecificMessages = MessageData?.filter(  
           (msg) => msg.EnchrageId === userId  && msg.role=="user"
         );
         setMessage(SpecificMessages);
-        const unreadMessages = SpecificMessages.filter(msg => msg.readonUser === false);
+        const unreadMessages = SpecificMessages?.filter(msg => msg.readonUser === false);
         setmsgCount(unreadMessages.length);
       } else if (role === "Technician") {
-        const SpecificMessages = MessageData.filter(
+        const SpecificMessages = MessageData?.filter(
           (msg) => msg.TechnicianId === userId && msg.read === false
         );
 
-        setCountPending(SpecificMessages.length)
+        setCountPending(SpecificMessages?.length)
         setMessage(SpecificMessages);
-        setmsgCount(SpecificMessages.length);
+        setmsgCount(SpecificMessages?.length);
       }else if (role === "admin") {
   const SpecificMessagesAdmin = MessageData.filter((msg) => msg.role === "admin");
   setToAdmin(SpecificMessagesAdmin);

@@ -33,7 +33,7 @@ export const UserDisplayProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
-      const userData = res.data.data;
+      const userData = res?.data.data;
       setUsers(userData);
     } catch (error) {
       console.error("Error fetching data:", error);

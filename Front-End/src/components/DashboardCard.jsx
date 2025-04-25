@@ -145,7 +145,7 @@ function DashboardCard() {
         ) : role === "Technician" ? (
           <>
             {/* User Card - Only for Admin */}
-            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:-mb-3 sm:mb-6 lg:mb-6">
+            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:mb-4 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl  bg-gray-100 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
                   <MdBuild className="h-8 w-8 text-gray-800" />
@@ -162,7 +162,7 @@ function DashboardCard() {
               </div>
             </div>
 
-            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:-mb-3 sm:mb-6 lg:mb-6">
+            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:mb-4 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl  bg-gray-100 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
                   <MdBuild className="h-8 w-8 text-gray-800" />
@@ -179,7 +179,7 @@ function DashboardCard() {
               </div>
             </div>
 
-            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:-mb-3 sm:mb-6 lg:mb-6">
+            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:mb-3 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl  bg-gray-100 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
                   <MdBuild className="h-8 w-8 text-gray-800" />

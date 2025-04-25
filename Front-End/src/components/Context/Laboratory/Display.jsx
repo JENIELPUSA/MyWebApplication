@@ -44,7 +44,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
         },
       });
 
-      const laboratoryData = res.data.data;
+      const laboratoryData = res?.data.data;
       setLaboratories(laboratoryData);
     } catch (error) {
       if (error.response?.status === 401) {
