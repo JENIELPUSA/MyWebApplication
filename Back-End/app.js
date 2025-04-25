@@ -47,7 +47,7 @@ app.use(session({
   saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.CONN_STR,
-    ttl: 14 * 24 * 60 * 60,
+    ttl: maxAgeInSeconds,
   }),
   cookie: {
     httpOnly: true,
