@@ -5,7 +5,7 @@ export default function StatusModal({ isOpen, onClose, status = "success" }) {
   const isSuccess = status === "success";
 
   return isOpen ? (
-    <div className="fixed inset-0 flex items-center justify-center bg-opacity-40 z-50">
+    <div className="fixed inset-0 flex items-center justify-center bg-opacity-40 z-50 2xs:p-4 xs:p-4">
       <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative text-center">
         <button
           onClick={onClose}

@@ -2,9 +2,9 @@ import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 import io from "socket.io-client";
 export const AuthContext = createContext();
-
+import socket from "../../../../Back-End/Utils/socket";
 export const AuthProvider = ({ children }) => {
-  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL); // Connect to your Socket.io server
+  //const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL); // Connect to your Socket.io server
   const [authToken, setAuthToken] = useState(
     localStorage.getItem("token") || null
   ); // Get token from localStorage

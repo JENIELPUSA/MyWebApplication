@@ -127,7 +127,7 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
 
   return (
     <motion.div
-       className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50"
+       className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50 xs:p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -154,7 +154,7 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
             <i className="fas fa-times"></i>
           </motion.button>
       {/* Modal Header */}
-      <h2 className="text-xl font-semibold text-gray-700 mb-4">
+      <h2 className="xs:text-lg sm:text-lg lg:text-xl font-semibold text-gray-700 mb-4">
         Maintenance Request Records
       </h2>
   
@@ -163,33 +163,33 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
         <tbody>
           <tr>
             <td className="border border-gray-300 p-2 text-sm">
-              <span className="font-bold">Equipment</span>
+              <span className="xs:text-xs sm:text-sm lg:text-sm font-bold">Equipment</span>
             </td>
-            <td className="border border-gray-300 p-2 text-sm">
+            <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">
               {Equip.Brand} / {Equip.categoryName}
             </td>
           </tr>
           <tr>
-            <td className="border border-gray-300 p-2 text-sm">
+            <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">
               <span className="font-bold">S/N</span>
             </td>
-            <td className="border border-gray-300 p-2 text-sm">
+            <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">
               {Equip.SerialNumber}
             </td>
           </tr>
           <tr>
-            <td className="border border-gray-300 p-2 text-sm">
+            <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">
               <span className="font-bold">Laboratory Room</span>
             </td>
-            <td className="border border-gray-300 p-2 text-sm">
+            <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">
               {Lab.departmentName}
             </td>
           </tr>
           <tr>
-            <td className="border border-gray-300 p-2 text-sm">
+            <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">
               <span className="font-bold">In-charge</span>
             </td>
-            <td className="border border-gray-300 p-2 text-sm">
+            <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">
               {Lab.encharge}
             </td>
           </tr>
@@ -198,19 +198,21 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
   
       {/* Divider Line */}
       <div className="border-t border-gray-300 my-4"></div>
-  
+ {/* Purpose nito para malagyan ng scroll bar sa baba */}
+      <div className="overflow-x-auto">
+        
       {/* Requests Table */}
       <table className="w-full border-collapse border border-gray-300">
         <thead>
           <tr className="bg-gray-100">
-            <th className="border border-gray-300 p-2 text-left text-sm">Date & Time</th>
-            <th className="border border-gray-300 p-2 text-left text-sm">Ref #</th>
-            <th className="border border-gray-300 p-2 text-left text-sm">Description</th>
-            <th className="border border-gray-300 p-2 text-left text-sm">Technician</th>
-            <th className="border border-gray-300 p-2 text-left text-sm">Remarks</th>
-            <th className="border border-gray-300 p-2 text-left text-sm">Status</th>
-            <th className="border border-gray-300 p-2 text-left text-sm">Feedback</th>
-            <th className="border border-gray-300 p-2 text-center text-sm">
+            <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-left text-sm">Date & Time</th>
+            <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-left text-sm">Ref #</th>
+            <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-left text-sm">Description</th>
+            <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-left text-sm">Technician</th>
+            <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-left text-sm">Remarks</th>
+            <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-left text-sm">Status</th>
+            <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-left text-sm">Feedback</th>
+            <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-center text-sm">
               {role === "user" ? (
                 <button
                   onClick={() =>
@@ -244,18 +246,18 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
           ) : (
             request.map((requestData) => (
               <tr key={requestData._id} className="hover:bg-gray-100">
-                <td className="border border-gray-300 p-2 text-sm">{formatDateTime(requestData.DateTime)}</td>
-                <td className="border border-gray-300 p-2 text-sm">{requestData.Ref}</td>
-                <td className="border border-gray-300 p-2 text-sm">
+                <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">{formatDateTime(requestData.DateTime)}</td>
+                <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">{requestData.Ref}</td>
+                <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">
                   <div className="grid justify-center">
                     {requestData.Description}
-                    <button className="text-blue-500 text-sm ml-2">Edit</button>
+                    <button className="xs:text-xs sm:text-sm lg:text-sm text-blue-500 text-sm ml-2">Edit</button>
                   </div>
                 </td>
-                <td className="border border-gray-300 p-2 text-sm">{requestData.Technician}</td>
-                <td className="border border-gray-300 p-2 text-sm">{requestData.remarksread ? requestData.Remarks : null}</td>
+                <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">{requestData.Technician}</td>
+                <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">{requestData.remarksread ? requestData.Remarks : null}</td>
                 <td
-                  className={`px-6 py-4 flex items-center gap-2 ${
+                  className={`xs:text-xs sm:text-sm lg:text-sm px-6 py-4 flex items-center gap-2 ${
                     requestData.Status === "Pending"
                       ? "text-red-500"
                       : requestData.Status === "Assigned"
@@ -265,18 +267,18 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
                       : "text-gray-700"
                   }`}
                 >
-                  {requestData.Status === "Pending" && <FaClock className="text-red-500" />}
-                  {requestData.Status === "Assigned" && <FaUserCheck className="text-orange-300" />}
-                  {requestData.Status === "Success" && <FaCheckCircle className="text-green-500" />}
+                  {requestData.Status === "Pending" && <FaClock className="xs:text-xs sm:text-sm lg:text-sm text-red-500" />}
+                  {requestData.Status === "Assigned" && <FaUserCheck className="xs:text-xs sm:text-sm lg:text-sm text-orange-300" />}
+                  {requestData.Status === "Success" && <FaCheckCircle className="xs:text-xs sm:text-sm lg:text-sm text-green-500" />}
                   {requestData.Status !== "Pending" &&
                     requestData.Status !== "Assigned" &&
-                    requestData.Status !== "Success" && <FaTimesCircle className="text-gray-700" />}
+                    requestData.Status !== "Success" && <FaTimesCircle className="xs:text-xs sm:text-sm lg:text-sm text-gray-700" />}
                   {requestData.Status}
                 </td>
-                <td className="border border-gray-300 p-2 text-sm">{requestData.feedback}</td>
-                <td className="border border-gray-300 p-2 text-center text-sm">
+                <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">{requestData.feedback}</td>
+                <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-center text-sm">
                   {role === "admin" && (
-                    <button onClick={() => handleDeleteSpecificData(requestData)} className="text-red-500 mx-1">
+                    <button onClick={() => handleDeleteSpecificData(requestData)} className="xs:text-xs sm:text-sm lg:text-sm text-red-500 mx-1">
                       DELETE
                     </button>
                   )}
@@ -286,6 +288,9 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
           )}
         </tbody>
       </table>
+
+      </div>
+  
     </motion.div>
   
     {isFormModalOpen && (
