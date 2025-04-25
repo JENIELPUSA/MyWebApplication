@@ -15,7 +15,7 @@ function AddRequest({
   isOpen,
   onAddRequest,
 }) {
-  const { fetchRequestData, addDescription, isNewData } = useContext(
+  const { addDescription} = useContext(
     RequestDisplayContext
   );
 

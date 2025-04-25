@@ -52,7 +52,7 @@ const ForgotPassword = ({ isOpen, onClose }) => {
       toast.error("Error sending password reset email.");
     } finally {
       setLoading(false);
-      setValues({ email: "" }); // ✅ Clears the input field after submission
+      setValues({ email: "" }); // Clears the input field after submission
     }
   };
 

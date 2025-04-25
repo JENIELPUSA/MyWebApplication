@@ -75,12 +75,8 @@ exports.signup = AsyncErrorHandler(async (req, res, next) => {
 
 exports.login = AsyncErrorHandler(async (req, res, next) => {
     const { email, password } = req.body;
-    console.log("LOGIN ACCEPT");
-  
     // Step 1: Check if the user exists
     const user = await User.findOne({ email }).select('+password');
-    console.log("User found:", user);
-  
     if (!user) {
       console.log("User not found, throwing error");
       return next(new CustomError('Incorrect email or password', 400)); // It could be here
@@ -88,7 +84,6 @@ exports.login = AsyncErrorHandler(async (req, res, next) => {
   
     // Step 2: Check if password is correct
     const isPasswordCorrect = await user.comparePasswordInDb(password, user.password);
-    console.log("Is password correct?", isPasswordCorrect);
   
     if (!isPasswordCorrect) {
       console.log("Password mismatch, throwing error");
@@ -97,7 +92,6 @@ exports.login = AsyncErrorHandler(async (req, res, next) => {
   
     // Step 3: Proceed to create JWT token
     const token = signToken(user._id);
-    console.log("Token created:", token);
   
     // Step 4: Set session and respond
     req.session.userId = user._id;
@@ -228,7 +222,7 @@ exports.forgotPassword = AsyncErrorHandler(async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Generate the reset URL
-    const resetUrl = `http://localhost:5173/reset_password/${resetToken}`;
+    const resetUrl = `https://my-web-application-one.vercel.app/reset_password/${resetToken}`;
     const message = `We have received a password reset request. Please use the below link to reset your password:\n\n${resetUrl} \n\nThis reset password link will be available for 10 minutes.`;
 
     try {

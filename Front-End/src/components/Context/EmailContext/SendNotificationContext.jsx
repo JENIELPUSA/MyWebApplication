@@ -45,7 +45,7 @@ export const AddEmailProvider = ({ children }) => {
 
     setIsSending(true); // Mark as sending
 
-    const resetUrl = `http://localhost:5173/login`;
+    const resetUrl = `https://my-web-application-one.vercel.app/login`;
 
     try {
       const response = await axios.post(

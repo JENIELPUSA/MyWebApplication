@@ -12,8 +12,6 @@ const SocketListener = () => {
   useEffect(() => {
     // Only listen for notifications if the current user is the admin
     if (role === "admin") {
-      console.log("egergerg",role)
-      //kung magpdala ka papuntang UI
       socket.on("maintenance-notifications", (data) => {
         console.log("Received socket data:", data);
         addDescription(data.Description, data.equipmentType, data.Laboratory, data.Department);
