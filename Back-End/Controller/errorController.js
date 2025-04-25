@@ -51,8 +51,6 @@ const prodErrors =(res,error)=>{
 }
 
 module.exports = (error, req, res, next) => {
-   console.error("💥 ERROR 💥", error); // <- this helps you see the real cause
- 
    error.statusCode = error.statusCode || 500;
    error.status = error.status || 'error';
  

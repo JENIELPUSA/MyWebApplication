@@ -186,10 +186,10 @@ const AdminDashboard = () => (
 );
 
 const UserDashboard = ({ onSelect, laboratoryData }) => (
-  <div className="mx-10">
+  <div className="xs:mx-3 sm:mx-10 lg:mx-10">
     <button
       onClick={() => onSelect(laboratoryData)}
-      className="sm:text-sm w-1/2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white py-3 rounded-lg hover:shadow-lg transition-transform transform hover:scale-105"
+      className="xs:w-full sm:text-sm sm:w-1/2 lg:w-1/2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white py-3 rounded-lg hover:shadow-lg transition-transform transform hover:scale-105"
     >
       Go to List Equipments
     </button>
