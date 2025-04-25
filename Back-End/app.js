@@ -5,9 +5,6 @@ const morgan =require('morgan');
 
 const ErrorController = require('./Controller/errorController');
 const session = require('express-session');
-const RedisStore = require('connect-redis')(session);
-const redis = require('redis');
-const client = redis.createClient({ host: 'localhost' }); // Adjust the Redis configuration based on your setup
 const MongoStore = require('connect-mongo');
 
 const PDFRoutes=require('./Routes/PDFRoutes')
@@ -42,22 +39,21 @@ const logger =function(res,req,next){
 app.use(express.json());
 
 app.use(session({
-  store: new RedisStore({ client }),
   secret: process.env.SECRET_STR,
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
-    mongoUrl: process.env.CONN_STR,  // Your MongoDB connection string
-    ttl: 14 * 24 * 60 * 60,  // Session expires after 14 days
+    mongoUrl: process.env.CONN_STR,
+    ttl: 14 * 24 * 60 * 60,
   }),
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',  // Only secure cookies in production
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'none',
     maxAge: 1000 * 60 * 60 * 24,
   }
 }));
-  
+
 app.use(cors({
     origin: process.env.FRONTEND_URL,  // Update with the frontend URL for production
     methods: ["GET", "POST", "PATCH", "DELETE"],
