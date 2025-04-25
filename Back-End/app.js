@@ -91,6 +91,11 @@ if(process.env.NODE_ENV === 'development'){
 
  app.use('/api/v1/GeneratePDF',PDFRoutes)
 
+ const CustomError = require('./Utils/CustomError');
+app.get('/fail', (req, res, next) => {
+  next(new CustomError('This is a test failure.', 400));
+});
+
  app.use(ErrorController);
 
  // Global error handler

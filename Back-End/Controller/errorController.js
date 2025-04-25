@@ -50,18 +50,23 @@ const prodErrors =(res,error)=>{
    }
 }
 
-module.exports =(error,req,res,next)=>{
-    error.statusCode = error.statusCode ||500;
-    error.status = error.status || 'error';
-
-   if(process.env.NODE_ENV === 'development'){
-      devErrors(res,error);    
-   }else if(process.env.NODE_ENV === 'production')
-      if(error.name === 'CastError')error=castErrorHandler(error);
-      if(error.code === 11000)error=duplicateErrorHandler(error);
-      if(error.name === 'ValidationError')error=validationErrorHandler(error);
-      if(error.name === 'TokenExpiredError')error=handleExpiredJWT(error);
-      if(error.name === 'JsonWebTokenError')error=handleJWTError(error);
-      prodErrors(res,error)     
-   
- }
+module.exports = (error, req, res, next) => {
+   console.error("💥 ERROR 💥", error); // <- this helps you see the real cause
+ 
+   error.statusCode = error.statusCode || 500;
+   error.status = error.status || 'error';
+ 
+   if (process.env.NODE_ENV === 'development') {
+     devErrors(res, error);
+   } else if (process.env.NODE_ENV === 'production') {
+     // known error transformation
+     if (error.name === 'CastError') error = castErrorHandler(error);
+     if (error.code === 11000) error = duplicateErrorHandler(error);
+     if (error.name === 'ValidationError') error = validationErrorHandler(error);
+     if (error.name === 'TokenExpiredError') error = handleExpiredJWT();
+     if (error.name === 'JsonWebTokenError') error = handleJWTError();
+ 
+     prodErrors(res, error);
+   }
+ };
+ 
