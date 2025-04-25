@@ -55,7 +55,7 @@ app.use(session({
 }));
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL,  // Update with the frontend URL for production
+    origin: "https://my-web-application-pblnez1w8-jeniels-projects-7edf0553.vercel.app",  // Update with the frontend URL for production
     methods: ["GET", "POST", "PATCH", "DELETE"],
     credentials: true
 }));
