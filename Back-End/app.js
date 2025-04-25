@@ -38,20 +38,21 @@ const logger =function(res,req,next){
 
 app.use(express.json());
 
-const maxAgeInSeconds = process.env.LOGIN_EXPR || 86400;  // Default to 86400 seconds (1 day)
+const maxAgeInSeconds = process.env.LOGIN_EXPR || 86400; // Default to 86400 seconds (1 day)
 const maxAgeInMilliseconds = maxAgeInSeconds * 1000;
 
+// Middleware to handle sessions
 app.use(session({
   secret: process.env.SECRET_STR,
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
-    mongoUrl: process.env.CONN_STR,
-    ttl: maxAgeInSeconds,
+    mongoUrl: process.env.CONN_STR, // Ensure this connection string is correct
+    ttl: maxAgeInSeconds, // Time-to-live for session in seconds
   }),
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production', // Set to false in development
     sameSite: 'none',
     maxAge: maxAgeInMilliseconds,
   }
