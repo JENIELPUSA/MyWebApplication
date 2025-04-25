@@ -191,7 +191,7 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
   const acceptRemarks = async (data) => {
    
     await updateRequest({
-      url: `http://127.0.0.1:3000/api/v1/MaintenanceRequest/${data.RequestID}`,
+      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${data.RequestID}`,
       updateData: { remarksread: true },
       socketEvent: "newRequest",
       msgId: data._id,
