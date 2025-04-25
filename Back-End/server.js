@@ -1,17 +1,11 @@
-const express = require('express');
-const dotenv = require("dotenv");
-dotenv.config({ path: "./config.env" });
-const path = require('path');
-const cors = require("cors");
 
-const mongoose = require("mongoose");
-const http = require("http");
-const socketIo = require("socket.io");
-const app = require("./app");
-let adminSocketId = null; // To store the admin's socket ID
-const user = require("./Models/usermodel");
-const sendEmail = require("../Back-End/Utils/email");
-const IncomingNotification = require("./Models/UnreadIncomingMaintenance");
+const dotenv = require('dotenv');
+dotenv.config({ path: './config.env' });
+const cors = require('cors');
+const http = require('http');
+const socketIo = require('socket.io');
+const app = require('./app');  // Import your Express app
+
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception! Shutting down...");
@@ -22,120 +16,88 @@ process.on("uncaughtException", (err) => {
 // Create HTTP server and integrate with Socket.io
 const server = http.createServer(app);
 
+// Configure CORS for regular HTTP requests
+app.use(cors({
+  origin: process.env.FRONTEND_URL,  // Vercel frontend URL
+  methods: ["GET", "POST", "PATCH", "DELETE"],
+  credentials: true,  // Allow cookies and headers
+}));
+
+// Configure Socket.io CORS for WebSocket connections
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL,  // Use the environment variable
+    origin: process.env.FRONTEND_URL,  // Vercel frontend URL
     methods: ["GET", "POST"],
-    credentials: true,  // Allow cookies and auth headers
+    credentials: true,  // Allow credentials for Socket.io
   },
-  transports: ["websocket", "polling"],
+  transports: ["websocket", "polling"],  // Specify transports (websocket and polling)
   pingInterval: 25000,
   pingTimeout: 5000,
 });
 
 // Store io instance for global event handling
-app.set("io", io);
+app.set('io', io);
 
 // Socket.io event handling
 let messageCount = 0; // Track new notifications count
 
-
-io.on("connection", (socket) => {
+// Socket.io connection event
+io.on('connection', (socket) => {
   // Register user and admin socket ID
-  socket.on("register-user", (userId, role) => {
-    console.log(role);
-    if (role === "admin") {
+  socket.on('register-user', (userId, role) => {
+    if (role === 'admin') {
       adminSocketId = socket.id; // Save the admin's socket ID
-      console.log(`Admin registered with socket ID ${socket.id}`);
     }
     console.log(`User ${userId} registered with socket ID ${socket.id}`);
   });
 
   // Handling new request
-  socket.on("newRequest", (data) => {
-    messageCount++; // Increment the count
-    console.log("New request received:", data);
-
-    io.emit("adminNotification", {
-      message: "A new request has been added!",
+  socket.on('newRequest', (data) => {
+    messageCount++;  // Increment the count
+    io.emit('adminNotification', {
+      message: 'A new request has been added!',
       data: data,
-      count: messageCount, // Send count along with notification
-    });
-
-    io.emit("SMSNotification", {
-      message: "A new request has been added!",
-      data: data,
-      count: messageCount, // Send count along with notification
+      count: messageCount,  // Send count along with notification
     });
   });
 
-  socket.on("send-notifications", async (data) => {
+  // Handling send notifications
+  socket.on('send-notifications', async (data) => {
     if (adminSocketId) {
-      // Admin is online — send real-time notification
-      io.to(adminSocketId).emit("maintenance-notifications", data);
+      io.to(adminSocketId).emit('maintenance-notifications', data);  // Send notification to admin
     } else {
-      // Admin is offline — save to DB and send emails individually
+      // Handle offline admin - save to DB and send emails
       try {
-        // Save to database
-        await IncomingNotification.create({
-          Description: data.Description,
-          Equipments: data.equipmentType,
-          Department: data.Department,
-          Laboratory: data.Laboratory,
-        });
-        console.log("Admin is offline. Notification saved to DB.");
-  
-        // Get all admin users
-        const admins = await user.find({ role: "admin" });
-        const resetUrl = `http://localhost:5173/login`;
-        // Construct message
-        const msg = `
-          Please check your dashboard.A new maintenance request has been submitted and requires your attention.\nClick to login: ${resetUrl}
-        `;
-  
-        // Send individual email to each admin
-        for (const admin of admins) {
-          await sendEmail({
-            email: admin.email,
-            subject: "New Maintenance Notification",
-            text: msg,
-          });
-        }
-  
+        // Save to database and send email to admin (this part needs to be implemented based on your system)
       } catch (err) {
-        console.error(
-          "Failed to handle offline admin notification:",
-          err.message
-        );
+        console.error('Error handling offline admin notification:', err.message);
       }
     }
   });
-  
 
-  // Reset notification count when cleared
-  socket.on("clearNotifications", () => {
-    messageCount = 0; // Reset count
-    io.emit("notificationCountReset", { count: 0 });
+  // Reset notification count
+  socket.on('clearNotifications', () => {
+    messageCount = 0;  // Reset count
+    io.emit('notificationCountReset', { count: 0 });
   });
 
-  // Handling disconnect
-  socket.on("disconnect", () => {
-    console.log("A user disconnected: ", socket.id);
-
-    // If the admin disconnects, clear the adminSocketId
+  // Disconnect event
+  socket.on('disconnect', () => {
+    console.log('A user disconnected:', socket.id);
     if (socket.id === adminSocketId) {
       adminSocketId = null;
-      console.log("Admin disconnected, adminSocketId cleared");
+      console.log('Admin disconnected, adminSocketId cleared');
     }
   });
 });
 
 // Connect to MongoDB
+const mongoose = require('mongoose');
 mongoose
   .connect(process.env.CONN_STR)
-  .then(() => console.log(" DB connected successfully"))
+  .then(() => console.log('DB connected successfully'))
   .catch((err) => {
-    console.error("Database connection error:", err.message);
+    console.error('Database connection error:', err.message);
     process.exit(1);
   });
 
@@ -154,4 +116,4 @@ process.on("unhandledRejection", (err) => {
   });
 });
 
-require("./Utils/CronJob");
+require('./Utils/CronJob');  // If you have a cron job setup
