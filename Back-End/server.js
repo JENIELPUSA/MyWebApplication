@@ -2,6 +2,7 @@ const express = require('express');
 const dotenv = require("dotenv");
 dotenv.config({ path: "./config.env" });
 const path = require('path');
+const cors = require("cors");
 
 const mongoose = require("mongoose");
 const http = require("http");
@@ -11,7 +12,6 @@ let adminSocketId = null; // To store the admin's socket ID
 const user = require("./Models/usermodel");
 const sendEmail = require("../Back-End/Utils/email");
 const IncomingNotification = require("./Models/UnreadIncomingMaintenance");
-
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception! Shutting down...");
