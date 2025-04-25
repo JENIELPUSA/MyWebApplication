@@ -38,6 +38,9 @@ const logger =function(res,req,next){
 
 app.use(express.json());
 
+const maxAgeInSeconds = process.env.LOGIN_EXPR || 86400;  // Default to 86400 seconds (1 day)
+const maxAgeInMilliseconds = maxAgeInSeconds * 1000;
+
 app.use(session({
   secret: process.env.SECRET_STR,
   resave: false,
@@ -50,7 +53,7 @@ app.use(session({
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'none',
-    maxAge: process.env.LOGIN_EXPR,
+    maxAge: maxAgeInMilliseconds,
   }
 }));
 
