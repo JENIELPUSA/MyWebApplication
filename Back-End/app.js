@@ -42,10 +42,12 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-      httpOnly: true,  // Cookie can't be accessed by JavaScript
-      secure: process.env.NODE_ENV === 'production', // Use secure cookies for HTTPS
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',  // important for cross-origin cookies
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     }
+    
   }));
   
   
