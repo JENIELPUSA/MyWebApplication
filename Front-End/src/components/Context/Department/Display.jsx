@@ -37,7 +37,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
   const fetchCategoryData = async () => {
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(`http://127.0.0.1:3000/api/v1/departments`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
@@ -55,7 +55,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
   const AddAcceptDepartment = async (values) => {
     try {
       const response = await axios.post(
-        "http://127.0.0.1:3000/api/v1/departments",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
         {
           DepartmentName: values.DepartmentName,
         },
@@ -98,7 +98,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
       }
 
       const response = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/departments/${department}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${department}`,
         dataToSend,
         {
           headers: { Authorization: `Bearer ${authToken}` },
@@ -126,7 +126,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
   const DeleteDepartment = async (departmentId) => {
     try {
       const response = await axios.delete(
-        `http://127.0.0.1:3000/api/v1/departments/${departmentId}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${departmentId}`,
         {
           headers: { Authorization: `Bearer ${authToken}` },
         }

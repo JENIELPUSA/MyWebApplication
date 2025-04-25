@@ -40,7 +40,7 @@ function InventoryLab({ onClose }) {
   // Fetch departments on component mount
   useEffect(() => {
     fetchData(
-      "http://127.0.0.1:3000/api/v1/departments",
+      `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
       setDepartments,
       "Failed to fetch departments"
     );
@@ -71,7 +71,7 @@ function InventoryLab({ onClose }) {
     try {
       // Make the API request to generate the PDF
       const res = await axios.get(
-        `http://127.0.0.1:3000/api/v1/laboratory/getSpecificDepartments?department=${selectedDepartment}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory/getSpecificDepartments?department=${selectedDepartment}`,
         { headers: { Authorization: `Bearer ${token}` }, responseType: 'blob' }  // Important to specify 'blob' for file download
       );
   

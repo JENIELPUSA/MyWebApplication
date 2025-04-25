@@ -3,12 +3,13 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
 import { io } from "socket.io-client";
+import socket from "../../../../../Back-End/Utils/socket";
 
 // Create Context
 export const MessagePOSTcontext = createContext();
 
 // Initialize a single socket instance
-const socket = io("http://localhost:3000", { transports: ["websocket"] });
+
 
 export const MessagePostProvider = ({ children }) => {
   const { authToken } = useContext(AuthContext);
@@ -39,7 +40,7 @@ export const MessagePostProvider = ({ children }) => {
     if (!SendPost) return;
     try {
       const response = await axios.post(
-        "http://127.0.0.1:3000/api/v1/MessageRequest",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest`,
         {
           Status: SendPost.Status,
           role: SendPost?.role,
@@ -72,7 +73,7 @@ export const MessagePostProvider = ({ children }) => {
 
     try {
       const response = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/MaintenanceRequest/${SendPatch}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${SendPatch}`,
         { Status: "Under Maintenance" },
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
@@ -99,7 +100,7 @@ export const MessagePostProvider = ({ children }) => {
 
     try {
       const response = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/MessageRequest/${sendMsg}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${sendMsg}`,
         { Status: "Accepted" },
         { headers: { Authorization: `Bearer ${authToken}` } }
       );

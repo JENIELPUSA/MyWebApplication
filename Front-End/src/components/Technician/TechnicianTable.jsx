@@ -96,7 +96,7 @@ function TechnicianTable() {
   const handleAccomplished = async (datapass) => {
     try {
       const response = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/MaintenanceRequest/${datapass._id}`, // Fixed URL
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/${datapass._id}`, // Fixed URL
         { feedbackread: true },
         { headers: { Authorization: `Bearer ${authToken}` } }
       );

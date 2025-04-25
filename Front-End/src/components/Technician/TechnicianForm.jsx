@@ -5,6 +5,7 @@ import { ToastContainer, toast } from "react-toastify";
 import axios from "axios";
 import { AuthContext } from "../Context/AuthContext";
 import { io } from "socket.io-client";
+import socket from "../../../../Back-End/Utils/socket";
 import { motion } from "framer-motion";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
 import { MessagePOSTcontext } from "../Context/MessageContext/POSTmessage";
@@ -14,8 +15,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
   const [animateExit, setAnimateExit] = useState(false);
   const { fetchRequestData, request } = useContext(
     RequestDisplayContext
-  );
-   const socket = io("http://localhost:3000"); // Connect to the backend server
+  ); // Connect to the backend server
   const { authToken } = useContext(AuthContext);
   const {triggerSendEmail,setToTechnician}=useContext(PostEmailContext);
   const { users } = useContext(UserDisplayContext);
@@ -49,7 +49,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
     if(values?.Encharge){
       try {
         const response = await axios.patch(
-          `http://127.0.0.1:3000/api/v1/MaintenanceRequest/${data._id}`,
+          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${data._id}`,
           { Technician: values.Encharge },
           { headers: { Authorization: `Bearer ${authToken}` } }
         );
@@ -91,7 +91,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
       const ID = remarkdata._id
       try {
         const response = await axios.patch(
-          `http://127.0.0.1:3000/api/v1/MaintenanceRequest/${ID}`,
+          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${ID}`,
           { 
             Remarks: values.Remarks
           },

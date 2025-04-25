@@ -69,12 +69,12 @@ function LaboratoryForm({
 
   const Checklaboratories = async () => {
     fetchData(
-      "http://127.0.0.1:3000/api/v1/departments",
+      `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
       setDepartments,
       "Failed to fetch departments"
     );
     fetchData(
-      "http://127.0.0.1:3000/api/v1/users",
+      `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users`,
       setEncharges,
       "Failed to fetch encharges"
     );

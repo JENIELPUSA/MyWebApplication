@@ -34,7 +34,7 @@ export const DisplayRequestProvider = ({ children }) => {
   const fetchRequestData = async () => {
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(`http://127.0.0.1:3000/api/v1/MaintenanceRequest`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
   
@@ -63,7 +63,7 @@ export const DisplayRequestProvider = ({ children }) => {
    console.log("TEST CHECK")
     try {
       const response = await axios.post(
-        "http://127.0.0.1:3000/api/v1/MaintenanceRequest",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest`,
         {
           Description: Description,
           Equipments: equipment,

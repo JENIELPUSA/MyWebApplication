@@ -20,7 +20,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
 
     try {
       const res = await axios.get(
-        "http://127.0.0.1:3000/api/v1/TypesMaintenanceRequest",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -42,7 +42,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
   const Types = async (equipment, type, Laboratory,department) => {
     try {
       const res = await axios.post(
-        "http://127.0.0.1:3000/api/v1/TypesMaintenanceRequest",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`,
         {
           equipmentType: equipment._id,
           scheduleType: type,
@@ -102,7 +102,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
 
     try {
       const res = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/TypesMaintenanceRequest/${id}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${id}`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -124,7 +124,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
 
     try {
       const response = await axios.delete(
-        `http://127.0.0.1:3000/api/v1/TypesMaintenanceRequest/${schedule._id}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${schedule._id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

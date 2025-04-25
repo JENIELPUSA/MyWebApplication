@@ -29,7 +29,7 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
     try {
 
       const response = await axios.get(
-        `http://127.0.0.1:3000/api/v1/AssignEquipment?equipmentId=${equipment}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/AssignEquipment?equipmentId=${equipment}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -44,7 +44,7 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
 
            // Update equipment status on the server
       const AssignStatusUpdate = await axios.patch(
-        `http://127.0.0.1:3000/api/v1/equipment/${equipment}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${equipment}`,
         { status: "Available" },
         { headers: { Authorization: `Bearer ${token}` } }
       );

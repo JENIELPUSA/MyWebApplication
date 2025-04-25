@@ -22,7 +22,7 @@ export const SchedDisplayProvider = ({ children }) => {
   const fetchCategoryData = async () => {
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(`http://127.0.0.1:3000/api/v1/TypesMaintenanceRequest`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 

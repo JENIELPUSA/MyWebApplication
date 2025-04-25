@@ -41,7 +41,7 @@ const ForgotPassword = ({ isOpen, onClose }) => {
     e.preventDefault();
     try {
       const res = await axios.post(
-        "http://127.0.0.1:3000/api/v1/authentication/forgotPassword",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/authentication/forgotPassword`,
         values
       );
 

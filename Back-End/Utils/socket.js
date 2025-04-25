@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 
 // Initialize socket connection
-const socket = io("https://mywebapplicationapi.onrender.com", {
+const socket = io("wss://mywebapplicationapi.onrender.com/socket.io/", {
   transports: ["websocket"],  // Use WebSocket only (ensure WebSocket is enabled on the server)
   reconnection: true,         // Allow automatic reconnection attempts
   reconnectionAttempts: 5,    // Limit the number of reconnection attempts

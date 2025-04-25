@@ -75,7 +75,7 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
   const fetchRequest = async () => {
     try {
       const res = await axios.get(
-        `http://127.0.0.1:3000/api/v1/MaintenanceRequest?Equipments=${Equip._id}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest?Equipments=${Equip._id}`,
         {
           headers: { Authorization: `Bearer ${authToken}` },
         }
@@ -108,7 +108,7 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
 
     try {
       await axios.delete(
-        `http://127.0.0.1:3000/api/v1/MaintenanceRequest/${SpecifDataID._id}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${SpecifDataID._id}`,
         {
           headers: { Authorization: `Bearer ${authToken}` },
         }

@@ -42,7 +42,7 @@ function InventoryMaintenanceForm({ onClose }) {
 
       try {
         const response = await axios.get(
-          "http://127.0.0.1:3000/api/v1/departments",
+          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -73,7 +73,7 @@ function InventoryMaintenanceForm({ onClose }) {
     // Add your PDF generation logic here
     try {
       const res = await axios.get(
-        `http://127.0.0.1:3000/api/v1/MaintenanceRequest/getSpecificMaintenances?Department=${values.department}&from=${values.from}&to=${values.to}&Status=${values.status}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/getSpecificMaintenances?Department=${values.department}&from=${values.from}&to=${values.to}&Status=${values.status}`,
         { headers: { Authorization: `Bearer ${token}` }, responseType: "blob" }
       );
       // If the request is successful, handle the file download

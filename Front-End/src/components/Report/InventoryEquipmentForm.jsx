@@ -34,7 +34,7 @@ function InventoryEquipmentForm({ onClose }) {
     e.preventDefault();
     try {
       const res = await axios.get(
-        `http://127.0.0.1:3000/api/v1/equipment/getEquipment?from=${values.from}&to=${values.to}&status=${values.status}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/getEquipment?from=${values.from}&to=${values.to}&status=${values.status}`,
         { headers: { Authorization: `Bearer ${token}` }, responseType: "blob" }
       );
 

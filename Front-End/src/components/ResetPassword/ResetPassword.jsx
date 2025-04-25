@@ -23,7 +23,7 @@ function ResetPassword(onClose) {
 
         try {
             const res = await axios.patch(
-                `http://127.0.0.1:3000/api/v1/authentication/resetPassword/${token}`,
+                `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/authentication/resetPassword/${token}`,
                 { password, confirmPassword },
                 { headers: { "Content-Type": "application/json" } }
             );

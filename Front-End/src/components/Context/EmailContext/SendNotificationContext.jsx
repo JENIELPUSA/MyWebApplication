@@ -49,7 +49,7 @@ export const AddEmailProvider = ({ children }) => {
 
     try {
       const response = await axios.post(
-        "http://127.0.0.1:3000/api/v1/MessageRequest/emailSend",
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/emailSend`,
         {
           emails: isEmail,
           message: `${Msg}.\nClick to login: ${resetUrl}`,
