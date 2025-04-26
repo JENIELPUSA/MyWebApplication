@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
-
+import axiosInstance from "../Utils/axiosInstance";
 export const MessageDisplayContext = createContext();
 
 export const DisplayMessageProvider = ({ children }) => {
@@ -26,7 +26,7 @@ export const DisplayMessageProvider = ({ children }) => {
   const fetchDisplayMessgae = async () => {
     if (!authToken) return;
     try {
-      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest`, {
+      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
   

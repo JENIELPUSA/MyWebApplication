@@ -3,7 +3,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
 import { RequestDisplayContext } from "../MaintenanceRequest/DisplayRequest";
-
+import axiosInstance from "../Utils/axiosInstance";
 export const IncomingDisplayContext = createContext();
 
 export const IncomingDisplayProvider = ({ children }) => {
@@ -13,7 +13,7 @@ export const IncomingDisplayProvider = ({ children }) => {
   const fetchIncomingData = async () => {
     if (!authToken) return;
     try {
-      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/IncomingRequests`, {
+      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/IncomingRequests`, {
         withCredentials: true,
         headers: { Authorization: `Bearer ${authToken}` },
       });

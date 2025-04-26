@@ -3,7 +3,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
-
+import axiosInstance from "../Utils/axiosInstance";
 export const CategoryDisplayContext = createContext();
 
 export const CategoryDisplayProvider = ({ children }) => {
@@ -41,7 +41,7 @@ export const CategoryDisplayProvider = ({ children }) => {
     if (!authToken) return;
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/categorys`, {
+      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/categorys`, {
         withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` },
       });
 
