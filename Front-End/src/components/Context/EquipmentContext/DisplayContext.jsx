@@ -19,7 +19,7 @@ export const EquipmentDisplayProvider = ({ children }) => {
 const [customError, setCustomError]=useState("")
   useEffect(() => {
     if (!authToken) {
-      setEquipment(null);
+      setEquipment([]);
       setLoading(false); // Stop loading when there is no token
       return;
     }

@@ -16,7 +16,7 @@ export const DisplayMessageProvider = ({ children }) => {
 
     console.log("DISPLAY MESSAGE")
     if (!authToken) {
-      setMessage(null);
+      setMessage([]);
       // Stop loading when there is no token
       return;
     }

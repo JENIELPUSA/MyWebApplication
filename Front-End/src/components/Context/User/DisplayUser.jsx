@@ -18,7 +18,7 @@ export const UserDisplayProvider = ({ children }) => {
   const [usersPerPage, setusersPerPage] = useState(6);
   useEffect(() => {
     if (!authToken) {
-      setUsers(null);
+      setUsers([]);
       setLoading(false); // Stop loading when there is no token
       return;
     }

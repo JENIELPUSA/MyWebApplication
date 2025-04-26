@@ -22,7 +22,7 @@ export const DisplayRequestProvider = ({ children }) => {
   const [view,setView]=useState()
   useEffect(() => {
     if (!authToken) {
-        setRequest(null);
+        setRequest([]);
       setLoading(false); // Stop loading when there is no token
       return;
     }   

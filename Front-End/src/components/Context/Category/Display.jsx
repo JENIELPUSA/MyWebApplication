@@ -19,7 +19,7 @@ export const CategoryDisplayProvider = ({ children }) => {
   const [customError, setCustomError] = useState("");
   useEffect(() => {
     if (!authToken) {
-      setCategory(null);
+      setCategory([]);
       setLoading(false); // Stop loading when there is no token
       return;
     }
@@ -45,7 +45,7 @@ export const CategoryDisplayProvider = ({ children }) => {
         withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` },
       });
 
-      const categoryData = res.data.data;
+      const categoryData = res?.data.data;
       setCategory(categoryData);
     } catch (error) {
       console.error("Error fetching data:", error);

@@ -76,7 +76,7 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
   const updateRequest = async ({ url, updateData, socketEvent, msgId }) => {
     try {
       const response = await axios.patch(url, updateData, {
-        headers: { Authorization: `Bearer ${authToken}` },
+        withCredentials: true,headers: { Authorization: `Bearer ${authToken}` },
       });
 
       if (response.status === 200 || response.data.status === "success") {

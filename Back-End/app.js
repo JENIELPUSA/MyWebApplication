@@ -55,7 +55,7 @@ app.use(session({
   }));
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
+    origin: "https://my-web-application-one.vercel.app",
     methods:["GET","POST","PATCH","DELETE"],
     credentials:true
 }));

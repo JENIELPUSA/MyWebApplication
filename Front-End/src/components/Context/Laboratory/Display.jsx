@@ -17,7 +17,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
   const [modalStatus, setModalStatus] = useState("success");
   useEffect(() => {
     if (!authToken) {
-      setLaboratories(null);
+      setLaboratories([]);
       setLoading(false);
       return;
     }
