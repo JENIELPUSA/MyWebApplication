@@ -54,7 +54,12 @@ app.use(session({
         maxAge: parseInt(process.env.LOGIN_EXPR)
       }
   }));
-
+// Log the session expiration time
+app.use((req, res, next) => {
+    console.log('Session expires at:', new Date(Date.now() + parseInt(process.env.LOGIN_EXPR)));
+    next();
+  });
+  
 app.use(cors({
     origin: "https://my-web-application-one.vercel.app",
     methods:["GET","POST","PATCH","DELETE"],
