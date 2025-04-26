@@ -36,6 +36,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
     }
   }, [customError]);
   const fetchCategoryData = async () => {
+    if (!token) return;
     setLoading(true); // Set loading to true before fetching data
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`, {

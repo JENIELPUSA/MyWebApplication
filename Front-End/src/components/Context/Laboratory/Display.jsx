@@ -36,6 +36,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
   }, [customError]);
 
   const fetchLaboratoryData = async () => {
+    if (!authToken) return;
     setLoading(true);
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`, {

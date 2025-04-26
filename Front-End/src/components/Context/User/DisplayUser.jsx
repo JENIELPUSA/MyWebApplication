@@ -27,6 +27,7 @@ export const UserDisplayProvider = ({ children }) => {
   }, [authToken]); // Dependencies to trigger effect when page or items per page change
 
   const fetchUserData = async () => {
+    if (!authToken) return;
     setLoading(true); // Set loading to true before fetching data
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users`, {

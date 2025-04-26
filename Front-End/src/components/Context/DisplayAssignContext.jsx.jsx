@@ -24,6 +24,7 @@ export const AssignProvider = ({ children }) => {
   }, [authToken]);
 
   const fetchAssignData = async () => {
+    if (!authToken) return;
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/AssignEquipment`,

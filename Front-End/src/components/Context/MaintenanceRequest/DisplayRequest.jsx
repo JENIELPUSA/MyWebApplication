@@ -32,6 +32,7 @@ export const DisplayRequestProvider = ({ children }) => {
     triggerSendEmail("Please check your dashboard. A new maintenance request has been submitted and requires your attention.")
   }
   const fetchRequestData = async () => {
+    if (!authToken) return;
     setLoading(true); // Set loading to true before fetching data
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest`, {

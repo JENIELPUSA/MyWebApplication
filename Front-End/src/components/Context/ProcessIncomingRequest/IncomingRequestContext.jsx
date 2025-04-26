@@ -11,6 +11,7 @@ export const IncomingDisplayProvider = ({ children }) => {
   const { authToken } = useContext(AuthContext);
 
   const fetchIncomingData = async () => {
+    if (!authToken) return;
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/IncomingRequests`, {
         withCredentials: true,

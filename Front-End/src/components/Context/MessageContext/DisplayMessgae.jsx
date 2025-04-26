@@ -24,6 +24,7 @@ export const DisplayMessageProvider = ({ children }) => {
   }, [authToken]); // Dependencies to trigger effect when page or items per page change
 
   const fetchDisplayMessgae = async () => {
+    if (!authToken) return;
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest`, {
         headers: { Authorization: `Bearer ${authToken}` },
