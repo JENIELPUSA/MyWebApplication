@@ -45,21 +45,21 @@ app.use(session({
     saveUninitialized: false,
     store: MongoStore.create({
       mongoUrl: process.env.CONN_STR,
-      ttl: 24 * 60 * 60 
+      ttl: 24 * 60 * 60, // 24 hours in seconds
     }),
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // true on Render
-        httpOnly: true,
-        sameSite: 'none', 
-        maxAge: parseInt(process.env.LOGIN_EXPR)
-      }
-  }));
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'none',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+    }
+}));
 // Log the session expiration time
 app.use((req, res, next) => {
     console.log('Session expires at:', new Date(Date.now() + parseInt(process.env.LOGIN_EXPR)));
     next();
   });
-  
+
 app.use(cors({
     origin: "https://my-web-application-one.vercel.app",
     methods:["GET","POST","PATCH","DELETE"],
