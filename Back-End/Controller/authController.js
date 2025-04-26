@@ -7,11 +7,11 @@ const sendEmail = require('../Utils/email');
 const crypto = require('crypto');
 
 //function for secret code
-const signToken =id=>{
-    return jwt.sign({id},process.env.SECRET_STR,{
-         expiresIn:process.env.LOGIN_EXPR
-     })
- }
+const signToken = id => {
+    return jwt.sign({ id }, process.env.SECRET_STR, {
+        expiresIn: '1d' // 1 day
+    });
+};
 
  const createSendResponse =(user, statusCode, res)=>{
     const token = signToken(user._id);
