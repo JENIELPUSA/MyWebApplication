@@ -47,7 +47,6 @@ export const AuthProvider = ({ children }) => {
 
       
       if (res.data.status === "Success") {
-        toast.success("Login successful! Redirecting...");
         const token = res.data.token;
         const role = res.data.role;
         const email = res.data.email;
