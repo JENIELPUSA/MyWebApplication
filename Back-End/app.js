@@ -5,7 +5,8 @@ const morgan =require('morgan');
 
 const ErrorController = require('./Controller/errorController');
 const session = require('express-session');
-const MongoStore = require('connect-mongo');
+
+
 
 const PDFRoutes=require('./Routes/PDFRoutes')
 const usersroutes = require('./Routes/UserRoutes');
@@ -38,30 +39,16 @@ const logger =function(res,req,next){
 
 app.use(express.json());
 
-const maxAgeInSeconds = process.env.LOGIN_EXPR || 86400; // Default to 86400 seconds (1 day)
-const maxAgeInMilliseconds = maxAgeInSeconds * 1000;
-
-// Middleware to handle sessions
 app.use(session({
-  secret: process.env.SECRET_STR,
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.CONN_STR, // Ensure this connection string is correct
-    ttl: maxAgeInSeconds, // Time-to-live for session in seconds
-  }),
-  cookie: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // Set to false in development
-    sameSite: 'none',
-    maxAge: maxAgeInMilliseconds,
-  }
+    secret: process.env.SECRET_STR,  // Use an environment variable for session secret
+    resave: false,                       // Don't resave session if not modified
+    saveUninitialized: false,            // Don't create session until something is stored
 }));
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL,  // Update with the frontend URL for production
-    methods: ["GET", "POST", "PATCH", "DELETE"],
-    credentials: true
+    origin: process.env.FRONTEND_URL,
+    methods:["GET","POST","PATCH","DELETE"],
+    credentials:true
 }));
 
 app.use(logger);
@@ -95,22 +82,7 @@ if(process.env.NODE_ENV === 'development'){
 
  app.use('/api/v1/GeneratePDF',PDFRoutes)
 
- const CustomError = require('./Utils/CustomError');
-app.get('/fail', (req, res, next) => {
-  next(new CustomError('This is a test failure.', 400));
-});
-
  app.use(ErrorController);
-
- // Global error handler
-app.use((err, req, res, next) => {
-    console.error("GLOBAL ERROR:", err); // ← ← ← importante ito
-    res.status(500).json({
-      status: 'error',
-      message: 'Something went wrong! Please try Again later...',
-    });
-  });
-  
 
 module.exports = app;
 

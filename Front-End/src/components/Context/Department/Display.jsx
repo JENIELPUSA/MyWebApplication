@@ -7,7 +7,7 @@ import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 export const DepartmentDisplayContext = createContext();
 
 export const DepartmentDisplayProvider = ({ children }) => {
-  const { authToken } = useContext(AuthContext); // Retrieve token from AuthContext
+  //const { token } = useContext(AuthContext); // Retrieve token from AuthContext
   const [department, setDepartment] = useState([]); // Initialize equipment state
   const [loading, setLoading] = useState(true); // Initialize loading state
   const [error, setError] = useState(null); // Initialize error state
@@ -16,15 +16,16 @@ export const DepartmentDisplayProvider = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
   const [customError, setCustomError] = useState("");
+  const token = localStorage.getItem("token");
   useEffect(() => {
-    if (!authToken) {
+    if (!token) {
       setDepartment(null);
       setLoading(false); // Stop loading when there is no token
       return;
     }
 
     fetchCategoryData();
-  }, [authToken]); // Dependencies to trigger effect when page or items per page change
+  }, [token]); // Dependencies to trigger effect when page or items per page change
   useEffect(() => {
     if (customError) {
       const timer = setTimeout(() => {
@@ -38,7 +39,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
     setLoading(true); // Set loading to true before fetching data
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`, {
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const DepartmentData = res.data.data;
@@ -59,7 +60,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
         {
           DepartmentName: values.DepartmentName,
         },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (response.data && response.data.status === "success") {
@@ -101,7 +102,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${department}`,
         dataToSend,
         {
-          headers: { Authorization: `Bearer ${authToken}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -128,7 +129,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
       const response = await axios.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${departmentId}`,
         {
-          headers: { Authorization: `Bearer ${authToken}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
       if (response.data && response.data.status === "success") {

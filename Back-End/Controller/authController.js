@@ -128,13 +128,11 @@ exports.logout =AsyncErrorHandler(async(req,res,next)=>{
       });
 })
 
-
 exports.protect = AsyncErrorHandler(async (req, res, next) => {
     // 1. Check for session first
     if (req.session && req.session.isLoggedIn) {
         // If the session is active, attach user from session to req object
         req.user = req.session.user;
-        console.log('Session is active:', req.user); // Debugging session
         return next(); // User is logged in, proceed to the next middleware or route handler
     }
 
