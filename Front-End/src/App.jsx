@@ -35,7 +35,30 @@ import { AddTypeMaintenanceProvider } from "./components/Context/TypesofMainten/
 import { SchedDisplayProvider } from "./components/Context/TypesOfSchedContext.jsx";
 import SocketListener from "./components/SocketListener.jsx";
 import { IncomingDisplayProvider } from "./components/Context/ProcessIncomingRequest/IncomingRequestContext.jsx";
+import { AuthContext } from "./components/Context/AuthContext.jsx";
+import { useContext } from "react";
+import { useContext, useEffect } from "react";
 function App() {
+const {logout}=useContext(AuthContext)
+  useEffect(() => {
+    // Set up axios interceptor
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response && error.response.status === 401) {
+          // Token expired or invalid, call logout
+          logout();
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    // Cleanup the interceptor when the component unmounts
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, [logout]);
+
   return (
     <AuthProvider>
      

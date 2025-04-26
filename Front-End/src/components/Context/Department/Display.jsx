@@ -19,7 +19,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
   const token = localStorage.getItem("token");
   useEffect(() => {
     if (!token) {
-      setDepartment(null);
+      setDepartment([]);
       setLoading(false); // Stop loading when there is no token
       return;
     }
