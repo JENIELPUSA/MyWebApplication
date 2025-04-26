@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 export const EquipmentDisplayContext = createContext();
-import axiosInstance from "../Utils/axiosInstance";
+
 export const EquipmentDisplayProvider = ({ children }) => {
   const [equipment, setEquipment] = useState([""]); // Initialize equipment state
   const [loading, setLoading] = useState(true); // Initialize loading state
@@ -40,7 +40,7 @@ const [customError, setCustomError]=useState("")
     if (!authToken) return;
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment`, {
         withCredentials: true ,
         headers: { Authorization: `Bearer ${authToken}` },
       });

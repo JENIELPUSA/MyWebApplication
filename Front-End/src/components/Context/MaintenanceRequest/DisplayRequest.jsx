@@ -5,7 +5,7 @@ import { AuthContext } from "../AuthContext";
 import socket from "../../../../../Back-End/Utils/socket";
 import { PostEmailContext} from "../EmailContext/SendNotificationContext";
 export const RequestDisplayContext = createContext();
-import axiosInstance from "../Utils/axiosInstance";
+
 export const DisplayRequestProvider = ({ children }) => {
   const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
   const { authToken,role,userId } = useContext(AuthContext); // Retrieve token from AuthContext
@@ -35,7 +35,7 @@ export const DisplayRequestProvider = ({ children }) => {
     if (!authToken) return;
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
   

@@ -3,7 +3,6 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext"; // Import AuthContext
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
-import axiosInstance from "../Utils/axiosInstance";
 export const LaboratoryDisplayContext = createContext();
 
 export const LaboratoryDisplayProvider = ({ children }) => {
@@ -40,7 +39,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
     if (!authToken) return;
     setLoading(true);
     try {
-      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`, {
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`, {
         headers: {
           withCredentials: true ,Authorization: `Bearer ${authToken}`, // Include the token in headers
         },
