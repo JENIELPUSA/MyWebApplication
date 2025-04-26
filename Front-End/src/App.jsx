@@ -36,7 +36,6 @@ import { SchedDisplayProvider } from "./components/Context/TypesOfSchedContext.j
 import SocketListener from "./components/SocketListener.jsx";
 import { IncomingDisplayProvider } from "./components/Context/ProcessIncomingRequest/IncomingRequestContext.jsx";
 import { AuthContext } from "./components/Context/AuthContext.jsx";
-import { useContext } from "react";
 import { useContext, useEffect } from "react";
 function App() {
 const {logout}=useContext(AuthContext)
