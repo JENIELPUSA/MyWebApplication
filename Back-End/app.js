@@ -61,7 +61,7 @@ app.use((req, res, next) => {
   });
 
 app.use(cors({
-    origin: "https://my-web-application-one.vercel.app",
+    origin: process.env.FRONTEND_URL,
     methods:["GET","POST","PATCH","DELETE"],
     credentials:true
 }));

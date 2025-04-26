@@ -3,6 +3,8 @@ import axios from "axios";
 import io from "socket.io-client";
 export const AuthContext = createContext();
 import socket from "../../../../Back-End/Utils/socket";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 export const AuthProvider = ({ children }) => {
   //const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL); // Connect to your Socket.io server
   const [authToken, setAuthToken] = useState(
@@ -45,6 +47,7 @@ export const AuthProvider = ({ children }) => {
 
       
       if (res.data.status === "Success") {
+        toast.success("Login successful! Redirecting...");
         const token = res.data.token;
         const role = res.data.role;
         const email = res.data.email;
@@ -96,6 +99,7 @@ export const AuthProvider = ({ children }) => {
     // Reload the page after logout
     window.location.reload();
   };
+  <ToastContainer />
   return (
     <AuthContext.Provider
       value={{ email, authToken, role, login, logout, userId }}
@@ -103,6 +107,7 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
+  
 };
 
 // Custom hook to use AuthContext

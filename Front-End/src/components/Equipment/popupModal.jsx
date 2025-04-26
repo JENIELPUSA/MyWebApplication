@@ -212,7 +212,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
             <i className="fas fa-times"></i>
           </motion.button>
 
-          <h2 className="xs:text-lg sm:text-lg lg:text-2xl text-lg font-bold mb-4">
+          <h2 className="xs:text-lg sm:text-lg lg:text-lg text-lg font-bold mb-4">
             {values.status === "Not Available"
               ? "Re-Assign Equipment"
               : "Assign Equipment"}
@@ -227,11 +227,11 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
                       {/* Step 1: Custom Department Dropdown */}
                       {index === 0 && (
                         <div className="relative w-full">
-                          <label className="xs:text-sm sm:text-sm lg:text-lg block mb-1 text-sm text-slate-600">
+                          <label className="xs:text-sm sm:text-sm lg:text-sm block mb-1 text-sm text-slate-600">
                             Department
                           </label>
                           <div
-                            className="xs:text-sm sm:text-sm lg:text-lg  w-full bg-white placeholder:text-slate-400 text-slate-700 text-sm border border-slate-300 rounded-md px-3 py-2 cursor-pointer flex justify-between items-center"
+                            className="xs:text-sm sm:text-sm lg:text-sm  w-full bg-white placeholder:text-slate-400 text-slate-700 text-sm border border-slate-300 rounded-md px-3 py-2 cursor-pointer flex justify-between items-center"
                             onClick={() =>
                               setDepartmentDropdownOpen(!departmentDropdownOpen)
                             }
@@ -244,7 +244,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
                                 : "Select Department"}
                             </span>
                             <i
-                              className={`xs:text-sm sm:text-sm lg:text-lg fas ${
+                              className={`xs:text-sm sm:text-sm lg:text-sm fas ${
                                 departmentDropdownOpen
                                   ? "fa-chevron-up"
                                   : "fa-chevron-down"
@@ -260,7 +260,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
                               }}
                             >
                               <li
-                                className="xs:text-sm sm:text-sm lg:text-lg  px-3 py-2 hover:bg-slate-100 cursor-pointer"
+                                className="xs:text-sm sm:text-sm lg:text-sm  px-3 py-2 hover:bg-slate-100 cursor-pointer"
                                 onClick={() => {
                                   handleDepartmentChange({
                                     target: { name: "department", value: "" },
@@ -273,7 +273,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
                               {departments.map((department) => (
                                 <li
                                   key={department._id}
-                                  className="xs:text-sm sm:text-sm lg:text-lg  px-3 py-2 hover:bg-slate-100 cursor-pointer"
+                                  className="xs:text-sm sm:text-sm lg:text-sm  px-3 py-2 hover:bg-slate-100 cursor-pointer"
                                   onClick={() => {
                                     handleDepartmentChange({
                                       target: {
@@ -293,13 +293,13 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
                       )}
                       {index === 1 && (
                         <div className="relative w-full">
-                          <label className="xs:text-sm sm:text-sm lg:text-lg block mb-1 text-sm text-slate-600">
+                          <label className="xs:text-sm sm:text-sm lg:text-sm block mb-1 text-sm text-slate-600">
                             Laboratory
                           </label>
 
                           {/* Dropdown Trigger */}
                           <div
-                            className="xs:text-sm sm:text-sm lg:text-lg w-full bg-white placeholder:text-slate-400 text-slate-700 text-sm border border-slate-300 rounded-md px-3 py-2 cursor-pointer flex justify-between items-center"
+                            className="xs:text-sm sm:text-sm lg:text-sm w-full bg-white placeholder:text-slate-400 text-slate-700 text-sm border border-slate-300 rounded-md px-3 py-2 cursor-pointer flex justify-between items-center"
                             onClick={() =>
                               setLaboratoryDropdownOpen(!LaboratoryDropdownOpen)
                             }
@@ -312,7 +312,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
                                 : "Select Laboratory"}
                             </span>
                             <i
-                              className={`xs:text-sm sm:text-sm lg:text-lg fas ${
+                              className={`xs:text-sm sm:text-sm lg:text-sm fas ${
                                 LaboratoryDropdownOpen
                                   ? "fa-chevron-up"
                                   : "fa-chevron-down"
@@ -330,7 +330,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
                             >
                               {/* Clear Selection */}
                               <li
-                                className="xs:text-sm sm:text-sm lg:text-lg px-3 py-2 hover:bg-slate-100 cursor-pointer"
+                                className="xs:text-sm sm:text-sm lg:text-sm px-3 py-2 hover:bg-slate-100 cursor-pointer"
                                 onClick={() => {
                                   handleLaboratoryChange({
                                     target: { name: "Laboratory", value: "" },
@@ -345,7 +345,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
                               {filteredLaboratories.map((lab) => (
                                 <li
                                   key={lab._id}
-                                  className="xs:text-sm sm:text-sm lg:text-lg px-3 py-2 hover:bg-slate-100 cursor-pointer"
+                                  className="xs:text-sm sm:text-sm lg:text-sm px-3 py-2 hover:bg-slate-100 cursor-pointer"
                                   onClick={() => {
                                     handleLaboratoryChange({
                                       target: {
@@ -367,14 +367,14 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
                       {/* Step 3: Review Selected Values */}
                       {index === 2 && (
                         <div className="p-4 bg-gray-50 rounded-lg">
-                          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                          <h3 className="xs:text-sm sm:text-sm lg:text-sm font-semibold text-gray-800 mb-2">
                             Review Your Inputs
                           </h3>
-                          <p className="xs:text-sm sm:text-sm lg:text-lg text-sm text-gray-600">
+                          <p className="xs:text-sm sm:text-sm lg:text-sm text-sm text-gray-600">
                             <strong>Department:</strong>{" "}
                             {values.department || "Not Selected"}
                           </p>
-                          <p className="xs:text-sm sm:text-sm lg:text-lg text-sm text-gray-600">
+                          <p className="xs:text-sm sm:text-sm lg:text-sm text-sm text-gray-600">
                             <strong>Laboratory:</strong>{" "}
                             {filteredLaboratories.find(
                               (lab) => lab._id === values.Laboratory
@@ -388,7 +388,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
               ))}
             </Stepper>
 
-            <div className="xs:text-sm sm:text-sm lg:text-lg flex justify-end mt-6 space-x-2">
+            <div className="xs:text-sm sm:text-sm lg:text-sm flex justify-end mt-6 space-x-2">
               <Button
                 variant="outlined"
                 onClick={() => setActiveStep((prev) => Math.max(prev - 1, 0))}

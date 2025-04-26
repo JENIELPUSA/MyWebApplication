@@ -6,9 +6,10 @@ const util = require('util');
 const sendEmail = require('../Utils/email');
 const crypto = require('crypto');
 
-//function for secret code
+//ito ay function para sa secret code
 const signToken = id => {
     return jwt.sign({ id }, process.env.SECRET_STR, {
+        //importante ito dapat tugma siya sa back-end o sa app.js na session sa ttl and sa maxage
         expiresIn: '1d' // 1 day
     });
 };

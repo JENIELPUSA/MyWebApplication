@@ -77,13 +77,13 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
   
   return (
     <motion.div 
-    className="fixed inset-0 flex items-center justify-center z-50"
+    className="fixed inset-0 flex items-center justify-center z-50 xs:p-4"
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
     >
-      <motion.div 
-      className="bg-white rounded-lg shadow-xl p-8 w-96"
+
+      <motion.div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative text-center "
       initial={{ opacity: 0, y: -50 }}
         animate={animateExit ? { opacity: 0, y: -50 } : { opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -50 }}
@@ -114,11 +114,11 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
               </svg>
             </div>
           )}
-          <h2 className="text-xl font-bold text-gray-800">
+          <h2 className="xs:text-lg sm:text-xl lg:text-xl font-bold text-gray-800">
             {isSuccess ? "Success!" : "Retrieve Equipment"}
           </h2>
           {!isSuccess && (
-            <p className="text-gray-600 mt-2">
+            <p className="xs:text-sm sm:text-xl lg:text-xl text-gray-600 mt-2">
               Are you sure you want to retrieve this equipment? This action
               cannot be undone.
             </p>
@@ -137,7 +137,7 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
               setAnimateExit(true); // Set the animation state to trigger upward motion
               setTimeout(onClose, 500); // Close after 500ms to match the animation duration
             }}
-              className="px-5 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
+              className="xs:text-sm sm:text-lg lg:text-lg xs:px-4 sm:px-5 sm:py-2 xs:py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
             >
               Cancel
             </motion.button>
@@ -146,7 +146,7 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
             <button
            
               onClick={handleRetrieve}
-              className={`px-5 py-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition ${
+              className={`xs:text-sm sm:text-lg lg:text-lg xs:px-4 sm:px-5 sm:py-2 xs:py-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition ${
                 isLoading ? "opacity-70 cursor-not-allowed" : ""
               }`}
               disabled={isLoading}

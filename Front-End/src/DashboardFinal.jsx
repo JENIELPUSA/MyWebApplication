@@ -163,7 +163,7 @@ const Breadcrumbs = ({ current }) => (
 );
 
 const DashboardContent = ({ role, laboratoryData, onSelect }) => (
-  <div className="gap-6">
+  <div>
     <DashboardCard Laboratory={laboratoryData} />
     {role === "admin" && <AdminDashboard />}
     {role === "user" && (
@@ -186,7 +186,7 @@ const AdminDashboard = () => (
 );
 
 const UserDashboard = ({ onSelect, laboratoryData }) => (
-  <div className="xs:mx-3 sm:mx-10 lg:mx-10">
+  <div className="xs:mx-2 sm:mx-10 lg:mx-10">
     <button
       onClick={() => onSelect(laboratoryData)}
       className="xs:w-full sm:text-sm sm:w-1/2 lg:w-1/2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white py-3 rounded-lg hover:shadow-lg transition-transform transform hover:scale-105"
@@ -204,12 +204,6 @@ const TechnicianDashboard = () => (
       <div className="w-full overflow-x-auto">
         <TechnicianTable />
       </div>
-  </div>
-);
-
-const NewRequestNotification = () => (
-  <div className="fixed bottom-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-md">
-    <p>New Maintenance Request Received!</p>
   </div>
 );
 

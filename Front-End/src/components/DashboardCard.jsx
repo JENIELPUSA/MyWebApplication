@@ -35,7 +35,7 @@ function DashboardCard() {
   return (
     <div className="xs:m-3 lg:m-10 font-poppins">
       {error && <div className="text-red-500 mb-4">{error}</div>}
-      <div className="flex flex-wrap -mx-6 h-full ">
+      <div className="flex flex-wrap -mx-6 xs:-mt-5 lg:mt-4 h-full ">
         {role === "admin" ? (
           <>
             {/* User Card - Only for Admin */}
@@ -98,7 +98,7 @@ function DashboardCard() {
                   <MdApartment className="h-8 w-8 text-gray-800" />
                 </div>
                 <div className="mx-5">
-                  <h4 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-800">
+                  <h4 className="text-xl sm:text-2xl md:text-3xl  font-semibold text-gray-800">
                     {laboratoryData?.departmentName}
                   </h4>
                   <div className="text-sm sm:text-base text-gray-800">

@@ -36,7 +36,7 @@ const laboratory = location.state?.selectedAssignEquipment;
 function DashboardView() {
   return (
     <div className="flex-1 flex flex-col bg-gray-300 overflow-y-auto">
-      <div className="mx-4 px-20 my-6 bg-transparent flex-grow flex flex-col gap-2 xs:px-2 sm:px-6 md:px-10 lg:px-20 xl:px-40 ">
+      <div className="mx-2 px-20 my-6 bg-transparent flex-grow flex flex-col gap-2 xs:px-2 sm:px-6 md:px-10 lg:px-20 xl:px-40 ">
         {/* Dashboard Header */}
         <Header title="Laboratories" />
 

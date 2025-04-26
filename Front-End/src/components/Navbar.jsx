@@ -315,11 +315,11 @@ function Navbar() {
                 >
                   {/* Menu Items */}
                   <div className=" mt-2 space-y-2">
-                    <button
-                      onClick={() => setIsReportsOpen(!isReportsOpen)}
-                      className="block px-11 py-1 w-full text-left hover:bg-blue-200"
+                  <button
+                      
+                      className="block w-full text-center text-white  font-medium py-2 px-4 rounded hover:bg-blue-500"
                     >
-                      Reports
+                      Report
                     </button>
                     <button
                       onClick={() => toggleModal("forgot")}

@@ -33,7 +33,6 @@ function Login() {
     const response = await login(values.email, values.password);
 
     if (response.success) {
-      toast.success("Login successful! Redirecting...");
       setTimeout(() => {
         // Navigate to the dashboard for admin role
         navigate("/dashboardfinal");
@@ -61,10 +60,10 @@ function Login() {
           <img
             src="/Image/logo.png"
             alt="Logo"
-            className="xs:w-20 xs:h-20 sm:w-24 sm:h-24 lg:w-24 lg:h-24 rounded-full"
+            className="xs:w-20 xs:h-20 sm:w-22 sm:h-22 lg:w-22 lg:h-22 rounded-full"
           />
         </div>
-        <h2 className="font-poppins xs:text-lg text-center text-2xl sm:text-2xl lg:text-3xl font-bold text-gray-800 mb-6">
+        <h2 className="font-poppins xs:text-lg text-center sm:text-xl lg:text-xl font-bold text-gray-800 mb-6">
           Equipment
           <br />
           Preventive Maintenance
@@ -73,7 +72,7 @@ function Login() {
           <div className="mb-4">
             <label
               htmlFor="email"
-              className=" font-poppins xs:text-sm sm:text-2xl lg:text-lg block text-gray-700 font-semibold mb-2"
+              className=" font-poppins xs:text-sm sm:text-2xl lg:text-sm block text-gray-700 font-semibold mb-2"
             >
               Email
             </label>
@@ -83,7 +82,7 @@ function Login() {
               name="email"
               placeholder="Enter Email"
               autoComplete="off"
-              className="font-poppins xs:text-sm sm:text-2xl lg:text-lg w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="font-poppins xs:text-sm sm:text-2xl lg:text-sm w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               onChange={handleInput}
               value={values.email}
             />
@@ -94,7 +93,7 @@ function Login() {
           <div className="mb-4">
             <label
               htmlFor="password"
-              className="font-poppins xs:text-sm sm:text-2xl lg:text-lg block text-gray-700 font-semibold mb-2"
+              className="font-poppins xs:text-sm sm:text-2xl lg:text-sm block text-gray-700 font-semibold mb-2"
             >
               Password
             </label>
@@ -104,7 +103,7 @@ function Login() {
               name="password"
               placeholder="Enter Password"
               autoComplete="off"
-              className="font-poppins xs:text-sm sm:text-2xl lg:text-lg w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="font-poppins xs:text-sm sm:text-2xl lg:text-sm w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               onChange={handleInput}
               value={values.password}
             />
@@ -114,7 +113,7 @@ function Login() {
           </div>
           <button
             type="submit"
-            className="font-poppins xs:text-sm sm:text-2xl lg:text-lg w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white py-3 rounded-lg hover:shadow-lg transition-transform transform hover:scale-105"
+            className="font-poppins xs:text-sm sm:text-sm lg:text-sm w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white py-3 rounded-lg hover:shadow-lg transition-transform transform hover:scale-105"
           >
             Log In
           </button>

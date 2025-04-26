@@ -35,17 +35,19 @@ function AddRequest({
 
   const addDepartment = async () => {
     // Ensure addDescription is called and awaited first
-    await addDescription(
+    const result=await addDescription(
+
       values.Description,
       EquipmentID,
       LaboratoryID,
       DepartmentID
     );
-    resetForm();
-    // Close the modal after a short delay
-    setTimeout(() => {
+    console.log("para sa result",result)
+    if(result.success===true){
+      onAddRequest(result.data)
+      resetForm();
       onClose();
-    }, 2000);
+    }
   
   };
 
