@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from 'react-router-dom';
 import io from "socket.io-client";
 export const AuthContext = createContext();
 import socket from "../../../../Back-End/Utils/socket";
@@ -93,8 +94,8 @@ export const AuthProvider = ({ children }) => {
     // Confirm removal
     console.log("UserID after removal:", localStorage.getItem("userId")); // Should be null
 
-    // Reload the page after logout
-    window.location.reload();
+    const navigate = useNavigate();
+    navigate('/login'); 
   };
   return (
     <AuthContext.Provider
