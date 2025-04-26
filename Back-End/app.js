@@ -47,9 +47,10 @@ app.use(session({
       mongoUrl: process.env.CONN_STR,
     }),
     cookie: {
-        secure: process.env.NODE_ENV === 'production', //auto true if deployed
+        secure: process.env.NODE_ENV === 'production', // true on Render
         httpOnly: true,
-        maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
+        sameSite: 'none', // <-- ADD THIS!
+        maxAge: 14 * 24 * 60 * 60 * 1000
       }
   }));
 
