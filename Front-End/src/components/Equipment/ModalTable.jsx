@@ -50,7 +50,7 @@ const ModalTable = ({ isOpen, onClose }) => {
   };
 
   const handleEditEquipment = (newEquipment) => {
-    const category = categories.find(
+    const category = categories?.find(
       (cat) => cat._id === newEquipment.Category
     );
     const updatedEquipment = {
@@ -102,7 +102,7 @@ const ModalTable = ({ isOpen, onClose }) => {
   };
 
   // Filtered and paginated equipment data
-  const filteredEquipment = equipment.filter((equip) =>
+  const filteredEquipment = equipment?.filter((equip) =>
     (equip.Brand?.toLowerCase() || "").includes(searchTerm.toLowerCase())
   );
   const totalPages = Math.ceil(filteredEquipment.length / equipmentsPerPage);
@@ -110,7 +110,7 @@ const ModalTable = ({ isOpen, onClose }) => {
   const paginatedEquipment = filteredEquipment.slice(
     (currentPage - 1) * equipmentsPerPage,
     currentPage * equipmentsPerPage
-  );
+  )|| [];
 
   const paginate = (pageNumber) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -119,9 +119,9 @@ const ModalTable = ({ isOpen, onClose }) => {
   };
 
   const handleAddEquipment = (newEquipment) => {
-    const category = categories.find(
+    const category = categories?.find(
       (cat) => cat._id === newEquipment.Category
-    );
+    )|| [];
 
     const updatedEquipment = {
       ...newEquipment,

@@ -74,13 +74,13 @@ const LaboratoryTable = ({ isOpen, onClose }) => {
     setSelectedLab(laboratory);
   };
 
-  const filteredLaboratories = laboratories.filter(
+  const filteredLaboratories = laboratories?.filter(
     (lab) =>
       lab.LaboratoryName &&
       lab.LaboratoryName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredLaboratories.length / laboratoryPerPage); // Calculate total pages
+  const totalPages = Math.ceil(filteredLaboratories?.length / laboratoryPerPage); // Calculate total pages
   const paginatedLab = filteredLaboratories.slice(
     (currentPage - 1) * laboratoryPerPage,
     currentPage * laboratoryPerPage

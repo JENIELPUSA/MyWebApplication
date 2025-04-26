@@ -13,7 +13,7 @@ const DepartmentTable = ({
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
-    const totalPages = Math.ceil(totalDepartment / departmentPerPage); // Calculate total pages
+    const totalPages = Math?.ceil(totalDepartment / departmentPerPage); // Calculate total pages
 
     const paginate = (pageNumber) => {
         if (pageNumber < 1 || pageNumber > totalPages) return; // Check for valid page number
@@ -28,11 +28,11 @@ const DepartmentTable = ({
         );
 
     // Filter equipment based on search term
-    const filteredEquipment = department.filter((department) =>
+    const filteredEquipment = department?.filter((department) =>
         department.DepartmentName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const isNoDepartment = filteredEquipment.length === 0; // Fixed here
+    const isNoDepartment = filteredEquipment?.length === 0; // Fixed here
 
     return (
         <div className="flex flex-col p-6">

@@ -31,6 +31,7 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
       const response = await axios.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/AssignEquipment?equipmentId=${equipment}`,
         {
+          withCredentials: true ,
           headers: { Authorization: `Bearer ${token}` },
         }
       );
@@ -46,7 +47,8 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
       const AssignStatusUpdate = await axios.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${equipment}`,
         { status: "Available" },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { withCredentials: true ,
+          headers: { Authorization: `Bearer ${token}` } }
       );
       // Call onEditStatus to update the parent component
       onEditStatus(AssignStatusUpdate.data.data);

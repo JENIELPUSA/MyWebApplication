@@ -65,6 +65,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
 
       try {
         const response = await axios.get(url, {
+          withCredentials: true,
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -157,14 +158,15 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
       const response = await axios.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/AssignEquipment/`,
         {
+          withCredentials: true,
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      const fetchedData = response.data.data;
+      const fetchedData = response?.data.data;
       console.log("Fetched Data:", fetchedData);
 
-      const searchedData = fetchedData.filter(
+      const searchedData = fetchedData?.filter(
         (item) => item.EquipmentID === AssigId
       );
       console.log("Filtered Data (using EquipmentID):", searchedData);

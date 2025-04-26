@@ -52,11 +52,11 @@ const DepartmentTables = ({ isOpen, onClose }) => {
     setSelectedDepartment(false);
   };
 
-  const filterDepartment = department.filter(
+  const filterDepartment = department?.filter(
     (department) =>
       department.DepartmentName &&
       department.DepartmentName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) || [];
 
   const totalPages = Math.ceil(filterDepartment.length / departmentPerPage);
 

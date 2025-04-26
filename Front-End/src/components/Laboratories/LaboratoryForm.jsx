@@ -40,10 +40,11 @@ function LaboratoryForm({
 
     try {
       const response = await axios.get(url, {
+        withCredentials: true ,
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.data?.status === "success") {
+      if (response?.data.status === "success") {
         setState(response.data.data);
       } else {
         toast.error(errorMessage || "Unexpected response format");
