@@ -19,7 +19,7 @@ export const CategoryDisplayProvider = ({ children }) => {
   const [customError, setCustomError] = useState("");
   useEffect(() => {
     if (!authToken) {
-      setCategory([]);
+      setCategory(null);
       setLoading(false); // Stop loading when there is no token
       return;
     }
