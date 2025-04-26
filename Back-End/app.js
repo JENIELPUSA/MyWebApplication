@@ -44,7 +44,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-      mongoUrl: process.env.LOCAL_CONN_STR,
+      mongoUrl: process.env.CONN_STR,
     }),
     cookie: {
         secure: process.env.NODE_ENV === 'production', //auto true if deployed
