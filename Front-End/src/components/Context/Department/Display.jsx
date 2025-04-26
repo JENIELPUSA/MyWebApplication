@@ -7,7 +7,7 @@ import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 export const DepartmentDisplayContext = createContext();
 
 export const DepartmentDisplayProvider = ({ children }) => {
-  //const { token } = useContext(AuthContext); // Retrieve token from AuthContext
+  const { token } = useContext(AuthContext); // Retrieve token from AuthContext
   const [department, setDepartment] = useState([]); // Initialize equipment state
   const [loading, setLoading] = useState(true); // Initialize loading state
   const [error, setError] = useState(null); // Initialize error state
@@ -16,7 +16,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
   const [customError, setCustomError] = useState("");
-  const token = localStorage.getItem("token");
+
   useEffect(() => {
     if (!token) {
       setDepartment(null);

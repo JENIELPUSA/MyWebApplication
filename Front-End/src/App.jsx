@@ -37,8 +37,7 @@ import SocketListener from "./components/SocketListener.jsx";
 import { IncomingDisplayProvider } from "./components/Context/ProcessIncomingRequest/IncomingRequestContext.jsx";
 function App() {
   return (
-    <AuthProvider>
-     
+    <AuthProvider> 
         <SchedDisplayProvider>
           <ModalProvider>
             <AddTypeMaintenanceProvider>

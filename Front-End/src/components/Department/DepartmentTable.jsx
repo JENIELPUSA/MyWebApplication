@@ -28,7 +28,7 @@ const DepartmentTable = ({
         );
 
     // Filter equipment based on search term
-    const filteredEquipment = department?.filter((department) =>
+    const filteredEquipment = department.filter((department) =>
         department.DepartmentName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
