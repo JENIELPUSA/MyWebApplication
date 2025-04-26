@@ -68,7 +68,7 @@ function Equipment({
       const response = await axios.get(
         "http://127.0.0.1:3000/api/v1/categorys",
         {
-          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,headers: { Authorization: `Bearer ${token}` },
         }
       );
 
