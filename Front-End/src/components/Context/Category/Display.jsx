@@ -41,7 +41,7 @@ export const CategoryDisplayProvider = ({ children }) => {
     setLoading(true); // Set loading to true before fetching data
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/categorys`, {
-        headers: { Authorization: `Bearer ${authToken}` },
+        withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` },
       });
 
       const categoryData = res.data.data;
@@ -62,7 +62,7 @@ export const CategoryDisplayProvider = ({ children }) => {
         {
           CategoryName: values.CategoryName,
         },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        {withCredentials: true , headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data && response.data.status === "success") {
@@ -104,7 +104,7 @@ export const CategoryDisplayProvider = ({ children }) => {
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/categorys/${categoryId}`,
         dataToSend,
         {
-          headers: { Authorization: `Bearer ${authToken}` },
+          withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` },
         }
       );
 
@@ -139,7 +139,7 @@ export const CategoryDisplayProvider = ({ children }) => {
       const response = await axios.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/categorys/${categoryId}`,
         {
-          headers: { Authorization: `Bearer ${authToken}` },
+          withCredentials: true , headers: { Authorization: `Bearer ${authToken}` },
         }
       );
 

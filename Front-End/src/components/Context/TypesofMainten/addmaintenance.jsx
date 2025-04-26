@@ -125,7 +125,9 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
     try {
       const response = await axios.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${schedule._id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { 
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${token}` } }
       );
 
       if(response.data.status="success"){

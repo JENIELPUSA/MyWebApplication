@@ -5,7 +5,7 @@ const morgan =require('morgan');
 
 const ErrorController = require('./Controller/errorController');
 const session = require('express-session');
-
+const MongoStore = require('connect-mongo');
 
 
 const PDFRoutes=require('./Routes/PDFRoutes')
@@ -40,10 +40,18 @@ const logger =function(res,req,next){
 app.use(express.json());
 
 app.use(session({
-    secret: process.env.SECRET_STR,  // Use an environment variable for session secret
-    resave: false,                       // Don't resave session if not modified
-    saveUninitialized: false,            // Don't create session until something is stored
-}));
+    secret: process.env.SECRET_STR,
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: process.env.LOCAL_CONN_STR,
+    }),
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', //auto true if deployed
+        httpOnly: true,
+        maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
+      }
+  }));
 
 app.use(cors({
     origin: process.env.FRONTEND_URL,

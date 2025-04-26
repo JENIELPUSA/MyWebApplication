@@ -40,7 +40,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`, {
         headers: {
-          Authorization: `Bearer ${authToken}`, // Include the token in headers
+          withCredentials: true ,Authorization: `Bearer ${authToken}`, // Include the token in headers
         },
       });
 
@@ -70,7 +70,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
           Encharge: values.Encharge,
           LaboratoryName: values.LaboratoryName,
         },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        {withCredentials: true , headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data.status === "success") {
@@ -108,7 +108,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
           Encharge: values.Encharge,
           LaboratoryName: values.LaboratoryName,
         },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data && response.data.status === "success") {
@@ -134,7 +134,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
           const response=await axios.delete(
             `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory/${laboratoryId}`,
             {
-              headers: { Authorization: `Bearer ${authToken}` },
+              withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` },
             }
           );
        

@@ -60,7 +60,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
         {
           DepartmentName: values.DepartmentName,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { withCredentials: true ,headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (response.data && response.data.status === "success") {
@@ -102,7 +102,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${department}`,
         dataToSend,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true ,headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -129,7 +129,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
       const response = await axios.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${departmentId}`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true , headers: { Authorization: `Bearer ${token}` },
         }
       );
       if (response.data && response.data.status === "success") {

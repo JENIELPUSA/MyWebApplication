@@ -120,7 +120,8 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/getbyId/${requestID}`,
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { withCredentials: true ,
+          headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data?.status === "success") {
@@ -157,12 +158,14 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
     await updateRequest({
       url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${requestID}`,
       updateData: feedbackData,
+      withCredentials: true,
       socketEvent: "newRequest",
     });
 
     await updateRequest({
       url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${msgId}`,
       updateData: feedbackDataMsg,
+      withCredentials: true,
       socketEvent: "newRequest",
     });
     fetchDisplayMessgae();
@@ -175,7 +178,8 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
     };
     await updateRequest({
       url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${data}`,
-      updateData: feedbackDataMsg, // Sending an object instead of just the text
+      updateData: feedbackDataMsg,
+      withCredentials: true , // Sending an object instead of just the text
       socketEvent: "newRequest",
     });
   };
@@ -207,7 +211,8 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
       const response = await axios.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest`,
         { laboratoryIds: Id, readonUpdate: true }, //Pasa bilang JSON body
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { withCredentials: true ,
+          headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data?.status === "success") {

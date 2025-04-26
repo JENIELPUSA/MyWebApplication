@@ -40,6 +40,7 @@ const [customError, setCustomError]=useState("")
     setLoading(true); // Set loading to true before fetching data
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment`, {
+        withCredentials: true ,
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
@@ -74,7 +75,8 @@ const [customError, setCustomError]=useState("")
           Brand: values.Brand,
           SerialNumber: values.SerialNumber,
         },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { withCredentials: true ,
+          headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response?.data.status === "success") {
@@ -113,7 +115,8 @@ const [customError, setCustomError]=useState("")
           Brand: values.Brand,
           SerialNumber: values.SerialNumber,
         },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { withCredentials: true ,
+          headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data && response.data.status === "success") {
@@ -148,6 +151,7 @@ const [customError, setCustomError]=useState("")
       const response = await axios.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${equipmentID}`,
         {
+          withCredentials: true ,
           headers: { Authorization: `Bearer ${authToken}` },
         }
       );
