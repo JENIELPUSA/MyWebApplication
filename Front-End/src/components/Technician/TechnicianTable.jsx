@@ -24,22 +24,21 @@ function TechnicianTable() {
   const [senddata, setsenddata] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
-  const [selectedLaboratory, setSelectedLaboratory] = useState(""); // ✅ New state for laboratory filter
-  const [laboratoryOptions, setLaboratoryOptions] = useState([]); // ✅ Dynamic lab options
+  const [selectedLaboratory, setSelectedLaboratory] = useState(""); 
+  const [laboratoryOptions, setLaboratoryOptions] = useState([]); 
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 4;
   const { setSendPost } = useContext(MessagePOSTcontext);
   useEffect(() => {
     // Listen for WebSocket connection
     socket.on("connect", () => {
-      console.log("🟢 Connected to WebSocket server:", socket.id);
+      console.log("Connected to WebSocket server:", socket.id);
     });
 
     return () => {
       socket.off("connect"); // Cleanup event listener on unmount
     };
   }, []);
-  console.log("pafej", request);
   // Mag uupdate ang dropdown kapag may seacrhQuery na nalagay
   //dito ipinapasa ang reference na na input sa search
   const handleSearchChange = (e) => {
@@ -59,7 +58,7 @@ function TechnicianTable() {
     setLaboratoryOptions([...new Set(matchingLabs)]);
   };
 
-  // 🔍 Filtering logic
+  //  Filtering logic
   const filteredRequests = request?.filter((item) => {
     const matchesSearch =
       item.Ref.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -78,7 +77,7 @@ function TechnicianTable() {
     return matchesSearch && matchesStatus && matchesLaboratory;
   });
 
-  // 📄 Pagination Logic
+  // Pagination Logic
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentRows = filteredRequests?.slice(indexOfFirstRow, indexOfLastRow);
@@ -96,9 +95,9 @@ function TechnicianTable() {
   const handleAccomplished = async (datapass) => {
     try {
       const response = await axios.patch(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/${datapass._id}`, // Fixed URL
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${datapass._id}`, // Fixed URL
         { feedbackread: true },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        {withCredentials: true, headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.status === 200 && response.data.status === "success") {
