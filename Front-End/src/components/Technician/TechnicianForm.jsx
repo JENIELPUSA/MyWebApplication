@@ -5,7 +5,6 @@ import { ToastContainer, toast } from "react-toastify";
 import axios from "axios";
 import { AuthContext } from "../Context/AuthContext";
 import { io } from "socket.io-client";
-import socket from "../../../../Back-End/Utils/socket";
 import { motion } from "framer-motion";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
 import { MessagePOSTcontext } from "../Context/MessageContext/POSTmessage";
@@ -13,20 +12,22 @@ import { PostEmailContext } from "../Context/EmailContext/SendNotificationContex
 function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
   const { setSendPost } = useContext(MessagePOSTcontext);
   const [animateExit, setAnimateExit] = useState(false);
-  const { fetchRequestData, request } = useContext(
-    RequestDisplayContext
-  ); // Connect to the backend server
+  const { fetchRequestData, request } = useContext(RequestDisplayContext); // Connect to the backend server
   const { authToken } = useContext(AuthContext);
-  const {triggerSendEmail,setToTechnician}=useContext(PostEmailContext);
+  const { triggerSendEmail, setToTechnician } = useContext(PostEmailContext);
   const { users } = useContext(UserDisplayContext);
   const [isLoading, setIsLoading] = useState(false);
   const [enchargeDropdownOpen, setEnchargeDropdownOpen] = useState(false);
+  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
+    withCredentials: true,
+    transports: ["websocket"], // optional pero maganda para mas mabilis
+  });
   const encharges = users.filter((user) => user.role === "Technician");
   if (!isOpen) return null;
 
   const [values, setValues] = useState({
     Encharge: "",
-    Remarks:""
+    Remarks: "",
   });
 
   const handlesend = (details) => {
@@ -35,29 +36,32 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
         user.role === "Technician" &&
         details.data.data.Technician.includes(user._id)
     );
-    
-    const fullName = `${encharges[0]?.FirstName} ${encharges[0]?.Middle} ${encharges[0]?.LastName}`.trim();
-    const message = `Hello [${fullName}], A new maintenance request from Admin requires your attention. Please review the details in your dashboard.\nDetails:\nRequest Reference: ${details.data.data.Ref}\nStatus: ${details.data.data.Status}\nAssigned By: Admin`;    
+
+    const fullName =
+      `${encharges[0]?.FirstName} ${encharges[0]?.Middle} ${encharges[0]?.LastName}`.trim();
+    const message = `Hello [${fullName}], A new maintenance request from Admin requires your attention. Please review the details in your dashboard.\nDetails:\nRequest Reference: ${details.data.data.Ref}\nStatus: ${details.data.data.Status}\nAssigned By: Admin`;
     // Trigger email sending
     triggerSendEmail(message);
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-   
-    if(values?.Encharge){
+
+    if (values?.Encharge) {
       try {
         const response = await axios.patch(
-          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${data._id}`,
+          `${
+            import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+          }/api/v1/MaintenanceRequest/${data._id}`,
           { Technician: values.Encharge },
           { headers: { Authorization: `Bearer ${authToken}` } }
         );
-  
+
         if (response.data?.status === "success") {
           const result = response.data;
           toast.success("Successfully Assigned!");
-          handlesend(response)
+          handlesend(response);
           setToTechnician(result);
           fetchRequestData();
           setValues({ Encharge: "" });
@@ -65,12 +69,17 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
           setSendPost({
             ...result,
             message: "Admin Already Assign Technician to your Laboratory!",
-            Status: "Pending"
- 
+            Status: "Pending",
           });
-          setTimeout(()=> {
-            onClose()
-          }, 2000); 
+
+          socket.emit("newRequest", {
+            message: "A new maintenance request!",
+            data: result.data,
+          });
+          
+          setTimeout(() => {
+            onClose();
+          }, 2000);
         } else {
           toast.error(
             response.data?.message || "Failed to update maintenance request"
@@ -85,35 +94,39 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
       } finally {
         setIsLoading(false);
       }
-
-    }else if(values.Remarks){
-   
-      const ID = remarkdata._id
+    } else if (values.Remarks) {
+      const ID = remarkdata._id;
       try {
         const response = await axios.patch(
-          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${ID}`,
-          { 
-            Remarks: values.Remarks
+          `${
+            import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+          }/api/v1/MaintenanceRequest/${ID}`,
+          {
+            Remarks: values.Remarks,
           },
-   
+
           { headers: { Authorization: `Bearer ${authToken}` } }
         );
-  
+
         if (response.data?.status === "success") {
           const result = response.data;
           toast.success("Successfully Send!");
-            //ibig sabihin nito isinasama ang message sa result
-            setSendPost({
-           
+          //ibig sabihin nito isinasama ang message sa result
+          setSendPost({
             ...result,
-            message: "I need your verification to approve a remark from the technician.",
-            Status: "Accepted"
+            message:
+              "I need your verification to approve a remark from the technician.",
+            Status: "Accepted",
           });
-       
-          
+
+          socket.emit("newRequest", {
+            message: "A new maintenance request!",
+            data: result.data,
+          });
+
           setValues({ Remarks: "" });
           setTimeout(() => {
-            onClose()
+            onClose();
           }, 3000); // 3000 milliseconds = 3 seconds
         } else {
           toast.error(
@@ -130,19 +143,18 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
         setIsLoading(false);
       }
     }
- 
   };
 
   return (
-    <motion.div 
-    className="fixed inset-0 flex items-center justify-center z-50"
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
+    <motion.div
+      className="fixed inset-0 flex items-center justify-center z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
     >
-      <motion.div 
-      className="relative flex flex-col rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg"
-      initial={{ opacity: 0, y: -50 }}
+      <motion.div
+        className="relative flex flex-col rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg"
+        initial={{ opacity: 0, y: -50 }}
         animate={animateExit ? { opacity: 0, y: -50 } : { opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -50 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
@@ -166,7 +178,9 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
           {remarkdata ? "Add Remarks" : "Assign Technician"}
         </h4>
 
-        <p className="text-slate-500 font-light mb-6">{remarkdata ? "Input Remarks" : "Select Technician"}</p>
+        <p className="text-slate-500 font-light mb-6">
+          {remarkdata ? "Input Remarks" : "Select Technician"}
+        </p>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-2 flex flex-col gap-4">

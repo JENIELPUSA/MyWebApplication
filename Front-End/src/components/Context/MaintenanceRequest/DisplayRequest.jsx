@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
-import socket from "../../../../../Back-End/Utils/socket";
+import {io} from 'socket.io-client'
 import { PostEmailContext } from "../EmailContext/SendNotificationContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 export const RequestDisplayContext = createContext();
@@ -23,6 +23,12 @@ export const DisplayRequestProvider = ({ children }) => {
   const [view, setView] = useState();
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
+
+  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
+    withCredentials: true,
+    transports: ["websocket", "polling"],
+  });
+
   useEffect(() => {
     if (!authToken) {
       setRequest([]);
@@ -82,7 +88,6 @@ export const DisplayRequestProvider = ({ children }) => {
     Laboratory,
     department
   ) => {
-    console.log("TEST CHECK");
     try {
       const response = await axios.post(
         `${
@@ -105,12 +110,14 @@ export const DisplayRequestProvider = ({ children }) => {
         setShowModal(true);
         setToAdmin(response.data);
         handlesend();
-        toast.success("Description sent successfully");
         fetchRequestData();
         console.log("gegerg", response.data.data);
-        socket.emit("newRequest", {
-          message: "A new maintenance !",
-          data: response.data.data,
+        socket.on("connect", () => {
+          console.log("Connected to socket server:", socket.id);
+          socket.emit("newRequest", {
+            message: "A new maintenance request!",
+            data: response.data.data,
+          });
         });
         console.log("TEST #");
         setNewData(response.data.data);

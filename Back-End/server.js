@@ -1,9 +1,5 @@
-const express = require('express');
 const dotenv = require("dotenv");
 dotenv.config({ path: "./config.env" });
-const path = require('path');
-const cors = require("cors");
-
 const mongoose = require("mongoose");
 const http = require("http");
 const socketIo = require("socket.io");
@@ -24,7 +20,7 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin:"wss://mywebapplicationapi.onrender.com/socket.io/",  // Use the environment variable
+    origin:["http://localhost:5173", "http://127.0.0.1:5173"],  // Use the environment variable
     methods: ["GET", "POST"],
     credentials: true,  // Allow cookies and auth headers
   },

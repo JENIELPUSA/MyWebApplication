@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useContext,useRef } from "react";
 import { FaBell } from "react-icons/fa";
-import { io } from "socket.io-client";
 import { RequestDisplayContext } from "../MaintenanceRequest/DisplayRequest";
 import { MessageDisplayContext } from "../MessageContext/DisplayMessgae";
 import { AuthContext } from "../AuthContext";
@@ -9,9 +8,15 @@ import axios from "axios";
 import LoadingSpinner from "../../ReusableComponent/loadingSpiner";
 import { MessagePOSTcontext } from "../MessageContext/POSTmessage";
 import { motion, AnimatePresence,useScroll,useTransform } from "framer-motion";
-import socket from "../../../../../Back-End/Utils/socket";
 import { PostEmailContext } from "../EmailContext/SendNotificationContext";
 import { AddAssignContext } from "../AssignContext/AddAssignContext";
+import {io} from 'socket.io-client'
+
+const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
+  withCredentials: true,
+  transports: ["websocket", "polling"],
+});
+
 const Notification = ({ toggleTechnicianModal }) => {
   const { role, authToken } = useContext(AuthContext);
 const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
@@ -33,45 +38,43 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
   });
 
   useEffect(() => {
-    //  WebSocket Connection
+    // WebSocket Connection
     socket.on("connect", () => {
       console.log("🟢 Connected to WebSocket server:", socket.id);
     });
-
-    
+  
     const updateNotifications = () => {
-      fetchDisplayMessgae();
-      fetchRequestData();
+      fetchDisplayMessgae(); // Update messages or requests
+      fetchRequestData(); // Update request data
     };
-
-    if (isNotificationOpen && role === "user" && msg.length > 0 && hasUnread) {
-      const allLaboratoryIds = msg?.map((item) => item._id);
-      ReadOnUpdate(allLaboratoryIds);
-      fetchDisplayMessgae();
-    } else if (isNotificationOpen && role === "admin") {
-      const allLaboratoryIds = ToAdmin?.map((item) => item._id);
-      ReadOnUpdate(allLaboratoryIds);
-      fetchDisplayMessgae();
+  
+    if (isNotificationOpen) {
+      // Depending on role, update notifications for the user/admin
+      if (role === "user" && msg.length > 0 && hasUnread) {
+        const allLaboratoryIds = msg?.map((item) => item._id);
+        ReadOnUpdate(allLaboratoryIds); // Mark messages as read
+      } else if (role === "admin") {
+        const allLaboratoryIds = ToAdmin?.map((item) => item._id);
+        ReadOnUpdate(allLaboratoryIds); // Mark messages as read
+      }
     }
-
-    //  WebSocket Event Listeners
+  
+    // WebSocket Event Listeners
     const events = [
       "adminNotification",
       "SMSNotification",
       "newNotificationSent",
     ];
-    events.forEach((event) => socket.on(event, updateNotifications));
 
+    events.forEach((event) => socket.on(event, updateNotifications));
+  
     // Cleanup function to remove event listeners when component unmounts
     return () => {
       socket.off("connect");
       events.forEach((event) => socket.off(event, updateNotifications));
     };
-  }, [fetchRequestData, isNotificationOpen, role, msg, hasUnread]);
-
+  }, [isNotificationOpen, role, msg, hasUnread, ToAdminCount]);
   
-   
-
   
   const updateRequest = async ({ url, updateData, socketEvent, msgId }) => {
     try {

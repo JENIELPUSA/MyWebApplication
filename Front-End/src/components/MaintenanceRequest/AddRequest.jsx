@@ -6,6 +6,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
 import { motion } from "framer-motion";
 
+// Gawa ka ng new instance ng socket client
 function AddRequest({
   DepartmentID,
   EquipmentID,
@@ -18,6 +19,11 @@ function AddRequest({
   const { addDescription} = useContext(
     RequestDisplayContext
   );
+
+  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
+  withCredentials: true,
+  transports: ['websocket'], // optional pero maganda para mas mabilis
+}); 
 
   if (!isOpen) return null;
   const [animateExit, setAnimateExit] = useState(false);
@@ -42,11 +48,15 @@ function AddRequest({
       LaboratoryID,
       DepartmentID
     );
-    console.log("para sa result",result)
     if(result.success===true){
       onAddRequest(result.data)
       resetForm();
       onClose();
+        socket.emit("newRequest", {
+          message: "A new maintenance request!",
+          data: result.data,
+        })
+      
     }
   
   };

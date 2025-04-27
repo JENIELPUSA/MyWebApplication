@@ -13,8 +13,6 @@ import {
   FaCheckCircle,
   FaTimesCircle,
 } from "react-icons/fa";
-
-import socket from "../../../../Back-End/Utils/socket";
 import LoadingTableSpinner from "../ReusableComponent/loadingTableSpiner";
 function TechnicianTable() {
   const [loadings, setLoading] = useState(false);
@@ -29,6 +27,10 @@ function TechnicianTable() {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 4;
   const { setSendPost } = useContext(MessagePOSTcontext);
+    const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
+    withCredentials: true,
+    transports: ['websocket'], // optional pero maganda para mas mabilis
+  }); 
   useEffect(() => {
     // Listen for WebSocket connection
     socket.on("connect", () => {

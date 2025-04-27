@@ -9,12 +9,11 @@ export const DisplayMessageProvider = ({ children }) => {
   const { authToken, role, userId } = useContext(AuthContext); // Retrieve token from AuthContext
   const [msg, setMessage] = useState([]);
   const [msgcount, setmsgCount] = useState([]);
-  const [countPending, setCountPending]=useState([])
-  const[ToAdmin,setToAdmin]=useState([]);
-  const [ToAdminCount,setToAdminCount]=useState([])
+  const [countPending, setCountPending] = useState([]);
+  const [ToAdmin, setToAdmin] = useState([]);
+  const [ToAdminCount, setToAdminCount] = useState([]);
   useEffect(() => {
-
-    console.log("DISPLAY MESSAGE")
+    console.log("DISPLAY MESSAGE");
     if (!authToken) {
       setMessage([]);
       // Stop loading when there is no token
@@ -26,42 +25,51 @@ export const DisplayMessageProvider = ({ children }) => {
   const fetchDisplayMessgae = async () => {
     if (!authToken) return;
     try {
-      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-  
+      const res = await axios.get(
+        `${
+          import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+        }/api/v1/MessageRequest`,
+        {
+          headers: { Authorization: `Bearer ${authToken}` },
+        }
+      );
+
       const MessageData = res?.data.data;
-  
+
       if (role === "user") {
-        const SpecificMessages = MessageData?.filter(  
-          (msg) => msg.EnchrageId === userId  && msg.role=="user"
+        const SpecificMessages = MessageData?.filter(
+          (msg) => msg.EnchrageId === userId && msg.role == "user"
         );
         setMessage(SpecificMessages);
-        const unreadMessages = SpecificMessages?.filter(msg => msg.readonUser === false);
+        const unreadMessages = SpecificMessages?.filter(
+          (msg) => msg.readonUser === false
+        );
         setmsgCount(unreadMessages.length);
       } else if (role === "Technician") {
         const SpecificMessages = MessageData?.filter(
           (msg) => msg.TechnicianId === userId && msg.read === false
         );
 
-        setCountPending(SpecificMessages?.length)
+        setCountPending(SpecificMessages?.length);
         setMessage(SpecificMessages);
         setmsgCount(SpecificMessages?.length);
-      }else if (role === "admin") {
-  const SpecificMessagesAdmin = MessageData.filter((msg) => msg.role === "admin");
-  setToAdmin(SpecificMessagesAdmin);
+      } else if (role === "admin") {
+        const SpecificMessagesAdmin = MessageData.filter(
+          (msg) => msg.role === "admin"
+        );
+        setToAdmin(SpecificMessagesAdmin);
 
-  // Count unread messages correctly
-  const unreadCount = SpecificMessagesAdmin.filter(msg => msg.readonUser === false);
-  setToAdminCount(unreadCount);
-}
-
+        // Count unread messages correctly
+        const unreadCount = SpecificMessagesAdmin.filter(
+          (msg) => msg.readonUser === false
+        );
+        setToAdminCount(unreadCount);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Failed to fetch data. Please try again later.");
     }
   };
-  
 
   return (
     <MessageDisplayContext.Provider
@@ -71,7 +79,7 @@ export const DisplayMessageProvider = ({ children }) => {
         countPending,
         msg,
         msgcount,
-        fetchDisplayMessgae
+        fetchDisplayMessgae,
       }}
     >
       {children}
