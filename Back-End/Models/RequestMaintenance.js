@@ -12,8 +12,7 @@ const MaintenanceRequestSchema = new mongoose.Schema(
       unique: true, // Ensures uniqueness for Ref
     },
     Description: {
-      type: String,
-      required: [true, "Please enter a description."], // Description is required
+      type: String,// Description is required
     },
     Remarks: {
       type: String,
@@ -30,13 +29,11 @@ const MaintenanceRequestSchema = new mongoose.Schema(
     Equipments: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Equipment", // Reference to the Equipment model
-      required: true,
     },
 
     Department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department", // Reference to the Department model
-      required: true,
     },
 
     Laboratory: {

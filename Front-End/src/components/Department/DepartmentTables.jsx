@@ -56,7 +56,7 @@ const DepartmentTables = ({ isOpen, onClose }) => {
     (department) =>
       department.DepartmentName &&
       department.DepartmentName.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  );
 
   const totalPages = Math.ceil(filterDepartment.length / departmentPerPage);
 

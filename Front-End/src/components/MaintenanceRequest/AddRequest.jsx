@@ -6,6 +6,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
 import { motion } from "framer-motion";
 
+
 // Gawa ka ng new instance ng socket client
 function AddRequest({
   DepartmentID,
@@ -16,7 +17,7 @@ function AddRequest({
   isOpen,
   onAddRequest,
 }) {
-  const { addDescription} = useContext(
+  const { addDescription,customError} = useContext(
     RequestDisplayContext
   );
 
@@ -24,7 +25,6 @@ function AddRequest({
   withCredentials: true,
   transports: ['websocket'], // optional pero maganda para mas mabilis
 }); 
-
   if (!isOpen) return null;
   const [animateExit, setAnimateExit] = useState(false);
   const [values, setValues] = useState({
@@ -40,6 +40,7 @@ function AddRequest({
   const [isLoading, setIsLoading] = useState(false);
 
   const addDepartment = async () => {
+    setIsLoading(true); // Disable the button
     // Ensure addDescription is called and awaited first
     const result=await addDescription(
 
@@ -58,7 +59,6 @@ function AddRequest({
         })
       
     }
-  
   };
 
   const handleInput = (event) => {
@@ -119,7 +119,11 @@ function AddRequest({
             ? "Update the description details"
             : "Enter description details to send request."}
         </p>
-
+        {customError && (
+          <div className="mb-4 px-4 py-2 text-sm text-red-700 bg-red-100 border border-red-400 rounded">
+            {customError}
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="mb-2 flex flex-col gap-4">
             <div className="w-full">

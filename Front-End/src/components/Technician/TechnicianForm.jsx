@@ -76,7 +76,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
             message: "A new maintenance request!",
             data: result.data,
           });
-          
+
           setTimeout(() => {
             onClose();
           }, 2000);
@@ -95,6 +95,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
         setIsLoading(false);
       }
     } else if (values.Remarks) {
+      setIsLoading(true);
       const ID = remarkdata._id;
       try {
         const response = await axios.patch(

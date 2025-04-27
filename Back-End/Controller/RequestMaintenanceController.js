@@ -30,6 +30,13 @@ exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
     });
   }
 
+  if(!Equipments){
+    return res.status(400).json({
+      status: "fail",
+      message: "Description: Please Input Description!"
+    });
+  }
+
   // Proceed to create new maintenance request
   const maintenance = await requestmaintenance.create(req.body);
 

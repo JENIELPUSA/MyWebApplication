@@ -95,6 +95,7 @@ function TechnicianTable() {
   };
 
   const handleAccomplished = async (datapass) => {
+    setLoading(true);
     try {
       const response = await axios.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${datapass._id}`, // Fixed URL
@@ -121,14 +122,7 @@ function TechnicianTable() {
       toast.error(
         error.response?.data?.message || "An unexpected error occurred."
       );
-    }
-  };
-
-  const handleDone = async (item) => {
-    setLoading(true);
-    try {
-      await handleAccomplished(item);
-    } finally {
+    }finally {
       setLoading(false);
     }
   };
@@ -263,7 +257,7 @@ function TechnicianTable() {
                     {item.feedbackread === false &&
                       item.remarksread === true && (
                         <button
-                          onClick={() => handleDone(item)}
+                          onClick={() => handleAccomplished(item)}
                           className="mt-3 flex items-center justify-center rounded-full w-full bg-green-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white transition duration-150 ease-in-out hover:bg-green-600 focus:outline-none h-10"
                         >
                           <i className="fa fa-check"></i>

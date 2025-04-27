@@ -40,7 +40,7 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
   useEffect(() => {
     // WebSocket Connection
     socket.on("connect", () => {
-      console.log("🟢 Connected to WebSocket server:", socket.id);
+      console.log("Connected to WebSocket server:", socket.id);
     });
   
     const updateNotifications = () => {
