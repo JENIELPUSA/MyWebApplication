@@ -60,7 +60,7 @@ const DepartmentTables = ({ isOpen, onClose }) => {
 
   const totalPages = Math.ceil(filterDepartment?.length / departmentPerPage);
 
-  const paginatedDepartment = filterDepartment.slice(
+  const paginatedDepartment = filterDepartment?.slice(
     (currentPage - 1) * departmentPerPage,
     currentPage * departmentPerPage
   );
@@ -176,7 +176,7 @@ const DepartmentTables = ({ isOpen, onClose }) => {
                     <LoadingTableSpinner />
                   </td>
                 </tr>
-              ) : paginatedDepartment.length === 0 ? (
+              ) : paginatedDepartment?.length === 0 ? (
                 <tr>
                   <td
                     colSpan={6}
@@ -186,7 +186,7 @@ const DepartmentTables = ({ isOpen, onClose }) => {
                   </td>
                 </tr>
               ) : (
-                paginatedDepartment.map((department) => (
+                paginatedDepartment?.map((department) => (
                   <tr key={department._id} className="hover:bg-gray-100">
                     <td className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm border p-2">{department.DepartmentName}</td>
                     <td className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm border p-2 flex space-x-2 justify-center">

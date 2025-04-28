@@ -1,13 +1,12 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { AuthContext } from "../AuthContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
-
+import { AuthContext } from "../AuthContext";
 export const DepartmentDisplayContext = createContext();
 
 export const DepartmentDisplayProvider = ({ children }) => {
-  const { token } = useContext(AuthContext); // Retrieve token from AuthContext
+const { authToken } = useContext(AuthContext);
   const [department, setDepartment] = useState([]); // Initialize equipment state
   const [loading, setLoading] = useState(true); // Initialize loading state
   const [error, setError] = useState(null); // Initialize error state
@@ -18,14 +17,14 @@ export const DepartmentDisplayProvider = ({ children }) => {
   const [customError, setCustomError] = useState("");
  
   useEffect(() => {
-    if (!token) {
+    if (!authToken) {
       setDepartment(null);
-      setLoading(false); // Stop loading when there is no token
+      setLoading(false); // Stop loading when there is no authToken
       return;
     }
 
     fetchCategoryData();
-  }, [token]); // Dependencies to trigger effect when page or items per page change
+  }, [authToken]); // Dependencies to trigger effect when page or items per page change
   useEffect(() => {
     if (customError) {
       const timer = setTimeout(() => {
@@ -40,15 +39,11 @@ export const DepartmentDisplayProvider = ({ children }) => {
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`, {
         withCredentials: true,
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${authToken}` },
       });
 
       const DepartmentData = res.data.data;
       setDepartment(DepartmentData);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error("Failed to fetch data. Please try again later.");
-      setError("Failed to fetch data");
     } finally {
       setLoading(false); // Set loading to false after data fetching is complete
     }
@@ -61,7 +56,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
         {
           DepartmentName: values.DepartmentName,
         },
-        { withCredentials: true ,headers: { Authorization: `Bearer ${token}` } }
+        { withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data && response.data.status === "success") {
@@ -103,7 +98,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${department}`,
         dataToSend,
         {
-          withCredentials: true ,headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` },
         }
       );
 
@@ -130,7 +125,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
       const response = await axios.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${departmentId}`,
         {
-          withCredentials: true , headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true , headers: { Authorization: `Bearer ${authToken}` },
         }
       );
       if (response.data && response.data.status === "success") {

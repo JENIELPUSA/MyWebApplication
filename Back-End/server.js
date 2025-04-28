@@ -20,7 +20,7 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin:["http://localhost:5173", "http://127.0.0.1:5173"],  // Use the environment variable
+    origin:process.env.FRONTEND_URL,  // Use the environment variable
     methods: ["GET", "POST"],
     credentials: true,  // Allow cookies and auth headers
   },

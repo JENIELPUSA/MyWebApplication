@@ -40,7 +40,7 @@ function Login() {
       setTimeout(() => {
         navigate("/dashboardfinal");
         setIsLoading(false); // After navigate, pwede mo nang itigil ang loading (optional depende sa flow mo)
-      }, 2000); // Stay loading habang naghihintay ng 2 seconds
+      }, 1000); // Stay loading habang naghihintay ng 2 seconds
     } else {
       setIsLoading(false); // Stop loading pag error
       toast.error(response.message);
