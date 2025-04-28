@@ -56,14 +56,14 @@ const DepartmentTables = ({ isOpen, onClose }) => {
     (department) =>
       department.DepartmentName &&
       department.DepartmentName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) ;
 
-  const totalPages = Math.ceil(filterDepartment.length / departmentPerPage);
+  const totalPages = Math.ceil(filterDepartment?.length / departmentPerPage);
 
   const paginatedDepartment = filterDepartment.slice(
     (currentPage - 1) * departmentPerPage,
     currentPage * departmentPerPage
-  );
+  )||[];
 
   const paginate = (pageNumber) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
