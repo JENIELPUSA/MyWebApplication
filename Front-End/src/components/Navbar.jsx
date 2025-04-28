@@ -121,7 +121,7 @@ function Navbar() {
                   {/* Menu Items */}
                   <div className=" mt-2 space-y-2">
                     <button
-                      onClick={() => handleHamburgerClick("user")}
+                      onClick={() => toggleModal("user")}
                       className="block w-full text-center text-white  font-medium py-2 px-4 rounded hover:bg-blue-500"
                     >
                       User
