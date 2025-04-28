@@ -7,7 +7,7 @@ import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 export const DepartmentDisplayContext = createContext();
 
 export const DepartmentDisplayProvider = ({ children }) => {
-  //const { token } = useContext(AuthContext); // Retrieve token from AuthContext
+  const { token } = useContext(AuthContext); // Retrieve token from AuthContext
   const [department, setDepartment] = useState([]); // Initialize equipment state
   const [loading, setLoading] = useState(true); // Initialize loading state
   const [error, setError] = useState(null); // Initialize error state
@@ -16,7 +16,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
   const [customError, setCustomError] = useState("");
-  const token = localStorage.getItem("token");
+ 
   useEffect(() => {
     if (!token) {
       setDepartment(null);
@@ -36,6 +36,7 @@ export const DepartmentDisplayProvider = ({ children }) => {
     }
   }, [customError]);
   const fetchCategoryData = async () => {
+    setLoading(true); // Set loading to true before fetching data
     try {
       const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`, {
         withCredentials: true,
@@ -48,7 +49,9 @@ export const DepartmentDisplayProvider = ({ children }) => {
       console.error("Error fetching data:", error);
       toast.error("Failed to fetch data. Please try again later.");
       setError("Failed to fetch data");
-    } 
+    } finally {
+      setLoading(false); // Set loading to false after data fetching is complete
+    }
   };
 
   const AddAcceptDepartment = async (values) => {

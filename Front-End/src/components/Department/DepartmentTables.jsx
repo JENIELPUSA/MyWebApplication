@@ -63,7 +63,7 @@ const DepartmentTables = ({ isOpen, onClose }) => {
   const paginatedDepartment = filterDepartment.slice(
     (currentPage - 1) * departmentPerPage,
     currentPage * departmentPerPage
-  )||[];
+  );
 
   const paginate = (pageNumber) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
