@@ -119,8 +119,8 @@ const LaboratoryView = ({ laboratory }) => (
 );
 
 const DashboardView = ({ role, laboratoryData, onSelect }) => (
-  <div className="flex-1 flex flex-col relative z-10 bg-gray-300">
-    <div className="sm:px-10 flex-grow flex flex-col gap-4 sm:gap-10">
+  <div className="flex-1 flex flex-col relative z-10">
+    <div className=" sm:px-10 flex-grow flex flex-col gap-4 sm:gap-10">
       <DashboardHeader title={getDashboardTitle(role)} />
       <DashboardContent
         role={role}
@@ -133,7 +133,7 @@ const DashboardView = ({ role, laboratoryData, onSelect }) => (
 
 const DashboardHeader = ({ title }) => (
   <div className="flex justify-between items-center py-4 border-b border-gray-200">
-    <div className="sm:text-lg xs:text-lg text-3xl font-bold text-blue-600">{title}</div>
+    <div className=" lg:text-3xl sm:text-2xl xs:text-lg text-3xl font-bold text-blue-600">{title}</div>
     <Breadcrumbs current={title} />
   </div>
 );

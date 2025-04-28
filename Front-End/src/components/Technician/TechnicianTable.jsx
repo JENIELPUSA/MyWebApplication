@@ -260,7 +260,6 @@ function TechnicianTable() {
                           onClick={() => handleAccomplished(item)}
                           className="mt-3 flex items-center justify-center rounded-full w-full bg-green-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white transition duration-150 ease-in-out hover:bg-green-600 focus:outline-none h-10"
                         >
-                          <i className="fa fa-check"></i>
                           {loadings ? <LoadingSpinner /> : "Done"}
                         </button>
                       )}
@@ -290,7 +289,7 @@ function TechnicianTable() {
       Previous
     </button>
 
-    {/* 🔒 Page number buttons hidden */}
+    {/* Page number buttons hidden */}
 
     <button
       className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"

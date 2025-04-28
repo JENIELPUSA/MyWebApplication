@@ -164,7 +164,7 @@ const DepartmentTables = ({ isOpen, onClose }) => {
                     onClick={() => handleAddClick()}
                     className="px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600"
                   >
-                    <FaPlus className="w-5 h-5" />
+                    <FaPlus className="xs:w-3 xs:h-3 sm:w-5 sm:h-5 lg:w-5 lg:h-5" />
                   </button>
                 </th>
               </tr>

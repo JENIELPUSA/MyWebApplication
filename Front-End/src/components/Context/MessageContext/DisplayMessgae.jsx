@@ -13,7 +13,6 @@ export const DisplayMessageProvider = ({ children }) => {
   const [ToAdmin, setToAdmin] = useState([]);
   const [ToAdminCount, setToAdminCount] = useState([]);
   useEffect(() => {
-    console.log("DISPLAY MESSAGE");
     if (!authToken) {
       setMessage([]);
       // Stop loading when there is no token
@@ -30,6 +29,7 @@ export const DisplayMessageProvider = ({ children }) => {
           import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
         }/api/v1/MessageRequest`,
         {
+          withCredentials: true,
           headers: { Authorization: `Bearer ${authToken}` },
         }
       );

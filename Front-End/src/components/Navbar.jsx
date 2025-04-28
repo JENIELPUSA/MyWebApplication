@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import InventoryLab from "./Report/InventoryLab";
 import InventoryMaintenanceForm from "./Report/InventoryMaintenanceForm";
 import InventoryEquipmentForm from "./Report/InventoryEquipmentForm";
+import ModalReport from "./Report/ModalReport";
 function Navbar() {
   const { role, email } = useContext(AuthContext);
   const { logout } = useAuth();
@@ -29,22 +30,28 @@ function Navbar() {
     laboratory: false,
     technician: false,
     report: false,
+    reportmobile: false,
     labreport: false,
     maintenancereport: false,
   });
 
-  // State para sa data na ipapasa sa TechForm
-  const [senddata, setsenddata] = useState();
-
   const toggleModal = (modalName, data) => {
     setModals((prev) => ({ ...prev, [modalName]: !prev[modalName] }));
-
+    
     if (modalName === "technician" && data) {
       setsenddata(data);
     }
-
+  
+    // Close the mobile dropdown when opening a modal
+    setIsMobileMenuOpen(false);
+  
     setIsManagementOpen(false);
   };
+  
+  // State para sa data na ipapasa sa TechForm
+  const [senddata, setsenddata] = useState();
+
+
 
   // State para sa Management Dropdown
   const [isManagementOpen, setIsManagementOpen] = useState(false);
@@ -55,6 +62,7 @@ function Navbar() {
       if (!event.target.closest(".management-dropdown")) {
         setIsManagementOpen(false);
         setIsReportsOpen(false); // Close reports submenu when clicked outside
+        setIsMobileMenuOpen(false);
       }
     };
 
@@ -63,6 +71,9 @@ function Navbar() {
       document.removeEventListener("click", handleClickOutside);
     };
   }, []);
+
+
+
 
   const dropdownVariants = {
     hidden: { opacity: 0, y: -10 },
@@ -110,7 +121,7 @@ function Navbar() {
                   {/* Menu Items */}
                   <div className=" mt-2 space-y-2">
                     <button
-                      onClick={() => toggleModal("user")}
+                      onClick={() => handleHamburgerClick("user")}
                       className="block w-full text-center text-white  font-medium py-2 px-4 rounded hover:bg-blue-500"
                     >
                       User
@@ -139,7 +150,10 @@ function Navbar() {
                     >
                       Category
                     </button>
-                    <button className="block w-full text-center text-white font-medium py-2 px-4 rounded hover:bg-blue-500">
+                    <button
+                      onClick={() => toggleModal("reportmobile")}
+                      className="block w-full text-center text-white font-medium py-2 px-4 rounded hover:bg-blue-500"
+                    >
                       Reports
                     </button>
                     <button
@@ -315,8 +329,8 @@ function Navbar() {
                 >
                   {/* Menu Items */}
                   <div className=" mt-2 space-y-2">
-                  <button
-                      
+                    <button
+                      onClick={() => toggleModal("report")}
                       className="block w-full text-center text-white  font-medium py-2 px-4 rounded hover:bg-blue-500"
                     >
                       Report
@@ -352,6 +366,13 @@ function Navbar() {
         <PopUpDepartment
           isOpen={modals.department}
           onClose={() => toggleModal("department")}
+        />
+      )}
+
+      {modals.reportmobile && (
+        <ModalReport
+          isOpen={modals.reportmobile}
+          onClose={() => toggleModal("reportmobile")}
         />
       )}
       {modals.category && (

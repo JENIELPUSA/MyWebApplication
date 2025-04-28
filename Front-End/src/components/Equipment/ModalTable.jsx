@@ -107,10 +107,11 @@ const ModalTable = ({ isOpen, onClose }) => {
   );
   const totalPages = Math.ceil(filteredEquipment.length / equipmentsPerPage);
 
-  const paginatedEquipment = filteredEquipment.slice(
-    (currentPage - 1) * equipmentsPerPage,
-    currentPage * equipmentsPerPage
-  )|| [];
+  const paginatedEquipment =
+    filteredEquipment.slice(
+      (currentPage - 1) * equipmentsPerPage,
+      currentPage * equipmentsPerPage
+    ) || [];
 
   const paginate = (pageNumber) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -119,9 +120,8 @@ const ModalTable = ({ isOpen, onClose }) => {
   };
 
   const handleAddEquipment = (newEquipment) => {
-    const category = categories?.find(
-      (cat) => cat._id === newEquipment.Category
-    )|| [];
+    const category =
+      categories?.find((cat) => cat._id === newEquipment.Category) || [];
 
     const updatedEquipment = {
       ...newEquipment,
@@ -197,12 +197,12 @@ const ModalTable = ({ isOpen, onClose }) => {
                 <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-2 sm:p-4 border-b border-gray-300">
                   Category
                 </th>
-                <th className="p-2 sm:p-4 border-b border-gray-300">
+                <th className="p-4 border-b border-gray-300 flex justify-center items-center">
                   <button
-                    onClick={handleAddClick}
+                    onClick={() => handleAddClick()}
                     className="px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600"
                   >
-                    <FaPlus className="w-5 h-5" />
+                    <FaPlus className="xs:w-3 xs:h-3 sm:w-5 sm:h-5 lg:w-5 lg:h-5" />
                   </button>
                 </th>
               </tr>

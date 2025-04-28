@@ -23,7 +23,7 @@ export const DisplayRequestProvider = ({ children }) => {
   const [view, setView] = useState();
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
-
+  const [customError, setCustomError] = useState("");
   const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
     withCredentials: true,
     transports: ["websocket", "polling"],
@@ -37,11 +37,25 @@ export const DisplayRequestProvider = ({ children }) => {
     }
     fetchRequestData();
   }, [authToken]); // Dependencies to trigger effect when page or items per page change
+  
+    useEffect(() => {
+      if (customError) {
+        const timer = setTimeout(() => {
+          setCustomError(null);
+        }, 5000); // auto-dismiss after 5s
+  
+        return () => clearTimeout(timer); // cleanup
+      }
+    }, [customError]);
+  
   const handlesend = () => {
     triggerSendEmail(
       "Please check your dashboard. A new maintenance request has been submitted and requires your attention."
     );
   };
+
+
+
   const fetchRequestData = async () => {
     if (!authToken) return;
     setLoading(true); // Set loading to true before fetching data
@@ -51,6 +65,7 @@ export const DisplayRequestProvider = ({ children }) => {
           import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
         }/api/v1/MaintenanceRequest`,
         {
+          withCredentials: true,
           headers: { Authorization: `Bearer ${authToken}` },
         }
       );
@@ -100,10 +115,9 @@ export const DisplayRequestProvider = ({ children }) => {
           Laboratory: Laboratory,
           Status: "Pending",
         },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { withCredentials: true,
+          headers: { Authorization: `Bearer ${authToken}` } }
       );
-
-      console.log("Response from server:", response);
 
       if (response.data && response.data.status === "success") {
         setModalStatus("success");
@@ -111,7 +125,6 @@ export const DisplayRequestProvider = ({ children }) => {
         setToAdmin(response.data);
         handlesend();
         fetchRequestData();
-        console.log("gegerg", response.data.data);
         socket.on("connect", () => {
           console.log("Connected to socket server:", socket.id);
           socket.emit("newRequest", {
@@ -119,7 +132,6 @@ export const DisplayRequestProvider = ({ children }) => {
             data: response.data.data,
           });
         });
-        console.log("TEST #");
         setNewData(response.data.data);
         return { success: true, data: response?.data.data };
       } else {
@@ -128,14 +140,25 @@ export const DisplayRequestProvider = ({ children }) => {
         return { success: false, error: "Unexpected response from server." };
       }
     } catch (error) {
-      console.error("Error:", error);
-      toast.error("An unexpected error occurred.");
+      if (error.response && error.response.data) {
+        const errorData = error.response.data;
+        const message =
+          typeof errorData === "string"
+            ? errorData
+            : errorData.message || errorData.error || "Something went wrong.";
+        setCustomError(message);
+      } else if (error.request) {
+        setCustomError("No response from the server.");
+      } else {
+        setCustomError(error.message || "Unexpected error occurred.");
+      }
     }
   };
 
   return (
     <RequestDisplayContext.Provider
       value={{
+        customError,
         view,
         isNewData,
         addDescription,

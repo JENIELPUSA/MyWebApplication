@@ -29,7 +29,6 @@ export const AddEmailProvider = ({ children }) => {
         const adminUsers = users?.filter(user => user.role === "admin");
         const adminEmail = adminUsers?.map(admin => admin.email);
         setIsEmail(adminEmail);
-        console.log("Admin Emails:", adminEmail);
       }
     };
 
@@ -54,7 +53,8 @@ export const AddEmailProvider = ({ children }) => {
           emails: isEmail,
           message: `${Msg}.\nClick to login: ${resetUrl}`,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { withCredentials: true,
+          headers: { Authorization: `Bearer ${token}` } }
       );
       setSendMsg(null); // Reset message after sending
       setIsEmail([]); // Reset emails list after sending

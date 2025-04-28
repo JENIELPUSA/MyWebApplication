@@ -17,11 +17,11 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
   // GET all type maintenance
   const fetchDisplayTypes = useCallback(async () => {
     if (!token) return;
-
     try {
       const res = await axios.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { withCredentials: true,
+          headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (res.data.status === "success") {
@@ -49,7 +49,8 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
           Laboratory: Laboratory.laboratoryId,
           Department:department
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { withCredentials: true,
+          headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (res.data.status === "success") {

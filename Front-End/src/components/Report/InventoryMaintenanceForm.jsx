@@ -111,7 +111,7 @@ function InventoryMaintenanceForm({ onClose }) {
 
   return (
     <motion.div
-      className="fixed inset-0 flex items-center justify-center z-50"
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -132,9 +132,6 @@ function InventoryMaintenanceForm({ onClose }) {
           </div>
         )}
         <form onSubmit={handleSubmit}>
-          <h4 className="text-2xl font-medium text-slate-800 mb-2">
-            Select Department
-          </h4>
           <p className="text-slate-500 font-light mb-6">
             Please select a department, status, and date if you want specific
             display.

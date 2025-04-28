@@ -49,11 +49,11 @@ export const MessagePostProvider = ({ children }) => {
           Encharge: SendPost.data.Technician,
           RequestID: SendPost.data._id,
         },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { withCredentials: true,
+          headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data?.status === "success") {
-        console.log("Test Request")
         //  Emit socket event
         socket.emit("newRequest", {
           message: "Admin Approved Your request!",
@@ -76,7 +76,8 @@ export const MessagePostProvider = ({ children }) => {
       const response = await axios.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${SendPatch}`,
         { Status: "Under Maintenance" },
-        { headers: { Authorization: `Bearer ${authToken}` } }
+        { withCredentials: true,
+          headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.status === 200) {
@@ -84,8 +85,6 @@ export const MessagePostProvider = ({ children }) => {
           message: "Maintenance request updated!",
           data: response.data.data,
         });
-
-        toast.success("Request updated successfully!");
       } else {
         toast.error("Failed to update request.");
       }
