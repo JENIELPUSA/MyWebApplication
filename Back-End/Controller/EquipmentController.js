@@ -6,6 +6,87 @@ const PDFDocument = require("pdfkit");
 const path = require("path");
 const fs = require("fs");
 const CustomError = require("../Utils/CustomError");
+const Equipment = require('../Models/Equipment'); // Equipment model
+const RequestMaintenance = require('../Models/RequestMaintenance'); // MaintenanceRequest model
+const Assign = require('../Models/AssigningEquipment')
+const IncomingMaintenance = require('../Models/UnreadIncomingMaintenance')
+
+// Mapping of collections and their corresponding field names
+const collectionFieldMapping = {
+  RequestMaintenance: "Equipments", // 'Equipments' is the field that references the Equipment model
+  Assign:"Equipments",
+  IncomingMaintenance:"Equipments",
+
+};
+
+// Delete equipment and related documents from other collections
+exports.deleteEquipmentAndRelated = async (req, res, next) => {
+  const { equipmentID } = req.params; // Assuming equipmentID is passed as a parameter
+
+  try {
+    // Loop through the collectionFieldMapping and delete documents from each collection
+    for (const [collectionName, fieldName] of Object.entries(collectionFieldMapping)) {
+      const collection = mongoose.model(collectionName); // Get the model for the collection
+
+      // Query to find documents that match the equipmentID in the respective field
+      const relatedDocs = await collection.find({ [fieldName]: equipmentID });
+
+      if (relatedDocs.length > 0) {
+        // Delete all documents that match the equipmentID in this collection
+        await collection.deleteMany({ [fieldName]: equipmentID });
+        console.log(`Deleted ${relatedDocs.length} documents from ${collectionName}`);
+      }
+    }
+
+    // Finally, delete the equipment document from the Equipment collection
+    await Equipment.deleteOne({ _id: equipmentID });
+    console.log('Equipment document deleted successfully.');
+
+    res.status(200).json({
+      status: "success",
+      message: "Equipment and related documents deleted successfully.",
+    });
+
+  } catch (error) {
+    console.error('Error deleting related documents:', error);
+    res.status(500).json({
+      status: "fail",
+      message: "Error occurred while deleting equipment and related documents.",
+    });
+  }
+};
+
+// Delete equipment and related documents from other collections
+exports.RemoverelatedData = async (req, res, next) => {
+  const { equipmentID } = req.params; // Assuming equipmentID is passed as a parameter
+
+  try {
+    // Loop through the collectionFieldMapping and delete documents from each collection
+    for (const [collectionName, fieldName] of Object.entries(collectionFieldMapping)) {
+      const collection = mongoose.model(collectionName); // Get the model for the collection
+
+      // Query to find documents that match the equipmentID in the respective field
+      const relatedDocs = await collection.find({ [fieldName]: equipmentID });
+
+      if (relatedDocs.length > 0) {
+        // Delete all documents that match the equipmentID in this collection
+        await collection.deleteMany({ [fieldName]: equipmentID });
+        console.log(`Deleted ${relatedDocs.length} documents from ${collectionName}`);
+      }
+    }
+    res.status(200).json({
+      status: "success",
+      message: "Equipment and related documents deleted successfully.",
+    });
+
+  } catch (error) {
+    console.error('Error deleting related documents:', error);
+    res.status(500).json({
+      status: "fail",
+      message: "Error occurred while deleting equipment and related documents.",
+    });
+  }
+};
 
 exports.createtool = AsyncErrorHandler(async (req, res) => {
   // Validate Category if it's provided

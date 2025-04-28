@@ -150,7 +150,7 @@ const [customError, setCustomError]=useState("")
   const DeleteDatas = async (equipmentID) => {
     try {
       const response = await axios.delete(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${equipmentID}`,
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/delete/${equipmentID}`,
         {
           withCredentials: true ,
           headers: { Authorization: `Bearer ${authToken}` },

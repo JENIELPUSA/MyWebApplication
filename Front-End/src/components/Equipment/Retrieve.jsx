@@ -23,6 +23,20 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+const handleRetriveSync = async(equipment)=>{
+  await axios.delete(
+    `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/Releted/${equipment}`,
+    {
+      withCredentials: true ,
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+}
+
+
+
+
   
   const handleRetrieve = async () => {
     setIsLoading(true); // Start loading
@@ -55,6 +69,8 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
   
       // Show success message
       setIsSuccess(true);
+
+      handleRetriveSync(equipment)
   
       // Reset states after showing success feedback
       setTimeout(() => {

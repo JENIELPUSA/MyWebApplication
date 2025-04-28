@@ -35,5 +35,21 @@ router
     EquipmentController.Getidequip
   );
 
+  router
+  .route("/delete/:equipmentID")
+  .delete(
+    authController.protect,
+    authController.restrict("admin"),
+    EquipmentController.deleteEquipmentAndRelated // This is the new method
+  );
+
+  router
+  .route("/Releted/:equipmentID")
+  .delete(
+    authController.protect,
+    authController.restrict("admin"),
+    EquipmentController.RemoverelatedData // This is the new method
+  );
+
 
 module.exports = router;
