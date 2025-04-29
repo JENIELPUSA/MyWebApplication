@@ -32,12 +32,12 @@ function TechnicianTable() {
     transports: ['websocket'], // optional pero maganda para mas mabilis
   }); 
   useEffect(() => {
-    socket.on("adminNotification", handleNotification);
-    socket.on("SMSNotification", handleNotification);
+    socket.on("adminNotification");
+    socket.on("SMSNotification");
 
     return () => {
-      socket.off("adminNotification", handleNotification);
-      socket.off("SMSNotification", handleNotification);
+      socket.off("adminNotification");
+      socket.off("SMSNotification");
     };
   }, []);
   // Mag uupdate ang dropdown kapag may seacrhQuery na nalagay

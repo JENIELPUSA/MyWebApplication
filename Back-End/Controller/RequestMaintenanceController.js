@@ -523,8 +523,8 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
   doc.text(`Page: ${pageNumber} of ${Math.ceil(totalCount / pageSize)}`); // Display page number
   doc.moveDown(2);
 
-  const tableHeaders = ['Date', 'Equipment', 'Description', 'Status', 'Technician', 'Laboratory', 'Department', 'Feedback', 'Date Accomplish'];
-  const columnWidths = [80, 80, 80, 60, 80, 80, 80, 80, 80];
+  const tableHeaders = ['Date', 'Equipment', 'Description','Remarks', 'Status', 'Technician', 'Laboratory', 'Department', 'Feedback', 'Date Accomplish'];
+  const columnWidths = [80, 80,80,80, 60, 80, 80, 80, 80, 80];
   const tableWidth = columnWidths.reduce((a, b) => a + b, 0);
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const startXTable = doc.page.margins.left + (pageWidth - tableWidth) / 2;
@@ -590,6 +590,7 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
       formattedDate,
       `${lab.EquipmentName || 'N/A'} / ${lab.CategoryName || 'N/A'}`,
       lab.Description || 'N/A',
+      lab.Remarks || 'N/A',
       lab.Status || 'N/A',
       lab.Technician || 'N/A',
       lab.laboratoryName || 'N/A',
