@@ -55,6 +55,7 @@ const Notification = ({ toggleTechnicianModal }) => {
     //dito siya automatic na makaka recieve
     const updateNotifications = () => {
       fetchDisplayMessgae(); // Load new messages
+      fetchRequestData();    // Update related requests
     };
   
     // socket listeners
@@ -303,7 +304,6 @@ const Notification = ({ toggleTechnicianModal }) => {
       //Purpose nito ay para once matapos nang ma open ang bill ay mag refresh siya
               onExitComplete={() => {
                 fetchDisplayMessgae(); 
-                fetchRequestData();
               }}      
       >
         {isNotificationOpen && (

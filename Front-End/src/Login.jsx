@@ -59,7 +59,7 @@ function Login() {
         <LoadingLogInSpinner />
       ) : (
         <motion.div
-          className="relative flex flex-col rounded-xl bg-white px-6 py-6 w-full max-w-md shadow-lg"
+          className="relative flex flex-col rounded-xl bg-white px-12 py-12 w-full max-w-md shadow-lg"
           initial={{ opacity: 0, y: -50 }}
           animate={animateExit ? { opacity: 0, y: -50 } : { opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -50 }}
