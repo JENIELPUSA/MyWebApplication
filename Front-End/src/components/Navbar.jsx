@@ -15,11 +15,13 @@ import InventoryLab from "./Report/InventoryLab";
 import InventoryMaintenanceForm from "./Report/InventoryMaintenanceForm";
 import InventoryEquipmentForm from "./Report/InventoryEquipmentForm";
 import ModalReport from "./Report/ModalReport";
+import socket from "../../../Back-End/Utils/socket";
 function Navbar() {
   const { role, email } = useContext(AuthContext);
   const { logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
+  const [refreshNotifications, setRefreshNotifications] = useState(false);
   // State para sa Modal Visibility
   const [modals, setModals] = useState({
     equipment: false,
@@ -35,6 +37,23 @@ function Navbar() {
     maintenancereport: false,
   });
 
+  useEffect(() => {
+    // Listen for notifications
+    const handleNotification = () => {
+      setHasUnread(true); // update badge
+    };
+
+    socket.on("adminNotification", handleNotification);
+    socket.on("SMSNotification", handleNotification);
+
+    return () => {
+      socket.off("adminNotification", handleNotification);
+      socket.off("SMSNotification", handleNotification);
+    };
+  }, []);
+
+  
+
   const toggleModal = (modalName, data) => {
     setModals((prev) => ({ ...prev, [modalName]: !prev[modalName] }));
 
@@ -44,7 +63,6 @@ function Navbar() {
 
     // Close the mobile dropdown when opening a modal
     setIsMobileMenuOpen(false);
-
     setIsManagementOpen(false);
   };
 
@@ -85,9 +103,9 @@ function Navbar() {
       <div></div>
 
       <div className="flex items-center gap-x-5 ">
-        <Notification
-          toggleTechnicianModal={(data) => toggleModal("technician", data)}
-        />
+          <Notification
+            toggleTechnicianModal={(data) => toggleModal("technician", data)}
+          />
 
         {role === "admin" && (
           <div className="relative management-dropdown">

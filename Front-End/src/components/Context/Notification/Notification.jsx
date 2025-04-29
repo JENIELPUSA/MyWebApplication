@@ -45,43 +45,47 @@ const Notification = ({ toggleTechnicianModal }) => {
     feedback: "",
   });
 
+  //para sa soket io mag update ang badges kahit hindi kailangan e refresh ang buong component
   useEffect(() => {
     // WebSocket Connection
     socket.on("connect", () => {
       console.log("Connected to WebSocket server:", socket.id);
     });
-
+  
+    //dito siya automatic na makaka recieve
     const updateNotifications = () => {
-      fetchDisplayMessgae(); // Update messages or requests
-      fetchRequestData(); // Update request data
+      fetchDisplayMessgae(); // Load new messages
+      fetchRequestData();    // Update related requests
     };
-
-    if (isNotificationOpen) {
-      // Depending on role, update notifications for the user/admin
-      if (role === "user" && msg.length > 0 && hasUnread) {
-        const allLaboratoryIds = msg?.map((item) => item._id);
-        ReadOnUpdate(allLaboratoryIds); // Mark messages as read
-      } else if (role === "admin") {
-        const allLaboratoryIds = ToAdmin?.map((item) => item._id);
-        ReadOnUpdate(allLaboratoryIds); // Mark messages as read
-      }
-    }
-
-    // WebSocket Event Listeners
+  
+    // socket listeners
     const events = [
       "adminNotification",
-      "SMSNotification",
-      "newNotificationSent",
+      "SMSNotification"
     ];
-
+  
     events.forEach((event) => socket.on(event, updateNotifications));
-
-    // Cleanup function to remove event listeners when component unmounts
+  
+    // importante ito para masarado ang socket io prvent a data leak
     return () => {
       socket.off("connect");
       events.forEach((event) => socket.off(event, updateNotifications));
     };
-  }, [isNotificationOpen, role, msg, hasUnread, ToAdminCount]);
+  }, []);
+  
+
+  useEffect(() => {
+    if (isNotificationOpen) {
+      if (role === "user" && msg.length > 0 && hasUnread) {
+        const allLaboratoryIds = msg.map((item) => item._id);
+        ReadOnUpdate(allLaboratoryIds);
+      } else if (role === "admin" && ToAdmin?.length > 0) {
+        const allLaboratoryIds = ToAdmin.map((item) => item._id);
+        ReadOnUpdate(allLaboratoryIds);
+      }
+    }
+  }, [isNotificationOpen, role, msg, hasUnread, ToAdmin]);
+  
 
   const updateRequest = async ({ url, updateData, socketEvent, msgId }) => {
     try {
@@ -296,7 +300,13 @@ const Notification = ({ toggleTechnicianModal }) => {
             : msgcount}
         </span>
       ) : null}
-      <AnimatePresence>
+      <AnimatePresence
+      //Purpose nito ay para once matapos nang ma open ang bill ay mag refresh siya
+              onExitComplete={() => {
+                fetchDisplayMessgae(); 
+                fetchRequestData();
+              }}      
+      >
         {isNotificationOpen && (
           <motion.div
             initial="hidden"
