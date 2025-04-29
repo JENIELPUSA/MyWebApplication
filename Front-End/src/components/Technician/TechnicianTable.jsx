@@ -32,13 +32,12 @@ function TechnicianTable() {
     transports: ['websocket'], // optional pero maganda para mas mabilis
   }); 
   useEffect(() => {
-    // Listen for WebSocket connection
-    socket.on("connect", () => {
-      console.log("Connected to WebSocket server:", socket.id);
-    });
+    socket.on("adminNotification", handleNotification);
+    socket.on("SMSNotification", handleNotification);
 
     return () => {
-      socket.off("connect"); // Cleanup event listener on unmount
+      socket.off("adminNotification", handleNotification);
+      socket.off("SMSNotification", handleNotification);
     };
   }, []);
   // Mag uupdate ang dropdown kapag may seacrhQuery na nalagay
@@ -104,7 +103,6 @@ function TechnicianTable() {
       );
 
       if (response.status === 200 && response.data.status === "success") {
-        toast.success("successfully Send Request!");
         const result = response.data;
         setSendPost({
           ...result,

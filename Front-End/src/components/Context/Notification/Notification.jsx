@@ -55,7 +55,6 @@ const Notification = ({ toggleTechnicianModal }) => {
     //dito siya automatic na makaka recieve
     const updateNotifications = () => {
       fetchDisplayMessgae(); // Load new messages
-      fetchRequestData();    // Update related requests
     };
   
     // socket listeners

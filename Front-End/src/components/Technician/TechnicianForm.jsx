@@ -119,7 +119,6 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
               "I need your verification to approve a remark from the technician.",
             Status: "Accepted",
           });
-
           socket.emit("newRequest", {
             message: "A new maintenance request!",
             data: result.data,
