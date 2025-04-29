@@ -54,12 +54,6 @@ app.use(session({
       maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
     }
 }));
-// Log the session expiration time
-app.use((req, res, next) => {
-    console.log('Session expires at:', new Date(Date.now() + parseInt(process.env.LOGIN_EXPR)));
-    next();
-  });
-
 app.use(cors({
     origin: process.env.FRONTEND_URL,
     methods:["GET","POST","PATCH","DELETE"],

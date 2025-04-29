@@ -266,18 +266,100 @@ exports.UpdateSenData = AsyncErrorHandler(async (req, res, next) => {
 });
 
 exports.getRequest = AsyncErrorHandler(async (req, res, next) => {
-  const request = await requestmaintenance.findById(req.params.id);
+  const filteredrequest = await requestmaintenance.findById(req.params.id);
 
-  if (!request) {
-    const error = new CustomError("User with the ID is not found", 404);
+  if (!filteredrequest) {
+    const error = new CustomError("Request with the ID is not found", 404);
     return next(error);
   }
 
+  const detailedRequest = await requestmaintenance.aggregate([
+    { $match: { _id: filteredrequest._id } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "Technician",
+        foreignField: "_id",
+        as: "TechnicianDetails"
+      }
+    },
+    { $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "Department",
+        foreignField: "_id",
+        as: "DepartmentInfo"
+      }
+    },
+    { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "Laboratory",
+        foreignField: "_id",
+        as: "LaboratoryInfo"
+      }
+    },
+    { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "equipment",
+        localField: "Equipments",
+        foreignField: "_id",
+        as: "EquipmentsInfo"
+      }
+    },
+    { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "categories",
+        localField: "EquipmentsInfo.Category",
+        foreignField: "_id",
+        as: "CategoryInfo"
+      }
+    },
+    { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        id: 1,
+        DateTime: 1,
+        Ref: 1,
+        read: 1,
+        Status: 1,
+        feedback: 1,
+        feedbackread: 1,
+        Description: 1,
+        EquipmentId: { $ifNull: ["$EquipmentsInfo._id", "N/A"] },
+        EquipmentName: { $ifNull: ["$EquipmentsInfo.Brand", "N/A"] },
+        CategoryName: { $ifNull: ["$CategoryInfo.CategoryName", "N/A"] },
+        DepartmentId: "$DepartmentInfo._id",
+        _id: 1,
+        Remarks: 1,
+        Department: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
+        remarksread: 1,
+        laboratoryName: { $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"] },
+        UserId: "$TechnicianDetails._id",
+        Technician: {
+          $concat: [
+            "$TechnicianDetails.FirstName",
+            " ",
+            { $ifNull: ["$TechnicianDetails.Middle", ""] },
+            " ",
+            "$TechnicianDetails.LastName"
+          ]
+        },
+        DateTimeAccomplish: 1
+      }
+    }
+  ]);
+
   res.status(200).json({
     status: "success",
-    data: request,
+    data: detailedRequest,
   });
 });
+
 
 exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
   const departmentID = req.query.Department;
@@ -405,7 +487,7 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
 
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 30 });
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', 'attachment; filename=Department_Labs_' + Date.now() + '.pdf');
+  res.setHeader('Content-Disposition', 'attachment; filename=Maintenance_History' + Date.now() + '.pdf');
   doc.pipe(res);
 
   const logoPath = path.join(__dirname, '../public/image/logo.jpg');

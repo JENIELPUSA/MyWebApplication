@@ -111,7 +111,7 @@ const Laboratory = ({ onClose }) => {
 
               {/* Equipment Count */}
               <span className="absolute top-4 right-4 bg-gray-400 text-white px-3 py-1 rounded-full text-xs">
-                {lab.assignCount} Equipment
+                {lab.equipmentsCount} Equipment
               </span>
 
               {/* Buttons */}

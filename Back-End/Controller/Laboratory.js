@@ -325,7 +325,7 @@ exports.getSpecificDepartment = AsyncErrorHandler(async (req, res, next) => {
 
   // Set the response headers for downloading the PDF directly
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', 'attachment; filename=Department_Labs_' + Date.now() + '.pdf');
+  res.setHeader('Content-Disposition', 'attachment; filename=Laboratory-_Report' + Date.now() + '.pdf');
 
   // Pipe the PDF document directly to the response
   doc.pipe(res);

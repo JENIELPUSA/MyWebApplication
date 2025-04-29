@@ -37,24 +37,23 @@ function Navbar() {
 
   const toggleModal = (modalName, data) => {
     setModals((prev) => ({ ...prev, [modalName]: !prev[modalName] }));
-    
+
     if (modalName === "technician" && data) {
       setsenddata(data);
     }
-  
+
     // Close the mobile dropdown when opening a modal
     setIsMobileMenuOpen(false);
-  
+
     setIsManagementOpen(false);
   };
-  
+
   // State para sa data na ipapasa sa TechForm
   const [senddata, setsenddata] = useState();
 
-
-
   // State para sa Management Dropdown
   const [isManagementOpen, setIsManagementOpen] = useState(false);
+  const [isManagementUserOpen, setIsManagementUserOpen] = useState(false);
 
   // Mag-close ang dropdown kapag nag-click sa labas
   useEffect(() => {
@@ -71,9 +70,6 @@ function Navbar() {
       document.removeEventListener("click", handleClickOutside);
     };
   }, []);
-
-
-
 
   const dropdownVariants = {
     hidden: { opacity: 0, y: -10 },
@@ -275,6 +271,14 @@ function Navbar() {
         {role === "user" && (
           <div className="relative management-dropdown">
             <button
+              className="text-white items-center hidden md:flex"
+              onClick={() => setIsManagementUserOpen(!isManagementUserOpen)}
+            >
+              <FaCog className="w-8 h-8 mt-1 transition-transform duration-200" />
+              <span className="ml-2">Management</span>
+              <FaCaretDown className="ml-2 w-4 h-4 mt-1" />
+            </button>
+            <button
               className="md:hidden text-2xl text-white flex items-center"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
@@ -307,6 +311,31 @@ function Navbar() {
                 </motion.div>
               </div>
             )}
+
+            <AnimatePresence>
+              {isManagementUserOpen && (
+                <motion.div
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  variants={dropdownVariants}
+                  className="absolute bg-white shadow-lg rounded-md w-40 top-full right-0 mt-2 p-2 text-sm text-gray-700"
+                >
+                  <button
+                    onClick={() => toggleModal("forgot")}
+                    className="block px-4 py-2 w-full hover:bg-blue-200"
+                  >
+                    Forgot Password
+                  </button>
+                  <button
+                    className="block px-4 py-2 w-full hover:bg-blue-200"
+                    onClick={logout}
+                  >
+                    Logout
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
@@ -318,6 +347,15 @@ function Navbar() {
             >
               <FaBars className="w-8 h-8 mt-1 transition-transform duration-200" />
             </button>
+            <button
+              className="text-white items-center hidden md:flex"
+              onClick={() => setIsManagementUserOpen(!isManagementUserOpen)}
+            >
+              <FaCog className="w-8 h-8 mt-1 transition-transform duration-200" />
+              <span className="ml-2">Management</span>
+              <FaCaretDown className="ml-2 w-4 h-4 mt-1" />
+            </button>
+
             {isMobileMenuOpen && (
               <div className="m-6 mt-20 fixed inset-0 z-50 md:hidden bg-transparent bg-opacity-40 flex items-start ">
                 <motion.div
@@ -330,7 +368,7 @@ function Navbar() {
                   {/* Menu Items */}
                   <div className=" mt-2 space-y-2">
                     <button
-                      onClick={() => toggleModal("report")}
+                      onClick={() => toggleModal("reportmobile")}
                       className="block w-full text-center text-white  font-medium py-2 px-4 rounded hover:bg-blue-500"
                     >
                       Report
@@ -351,6 +389,31 @@ function Navbar() {
                 </motion.div>
               </div>
             )}
+
+            <AnimatePresence>
+              {isManagementUserOpen && (
+                <motion.div
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  variants={dropdownVariants}
+                  className="absolute bg-white shadow-lg rounded-md w-40 top-full right-0 mt-2 p-2 text-sm text-gray-700"
+                >
+                  <button
+                    onClick={() => toggleModal("forgot")}
+                    className="block px-4 py-2 w-full hover:bg-blue-200"
+                  >
+                    Forgot Password
+                  </button>
+                  <button
+                    className="block px-4 py-2 w-full hover:bg-blue-200"
+                    onClick={logout}
+                  >
+                    Logout
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
       </div>

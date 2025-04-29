@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext,useRef } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { FaBell } from "react-icons/fa";
 import { RequestDisplayContext } from "../MaintenanceRequest/DisplayRequest";
 import { MessageDisplayContext } from "../MessageContext/DisplayMessgae";
@@ -7,10 +7,15 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import LoadingSpinner from "../../ReusableComponent/loadingSpiner";
 import { MessagePOSTcontext } from "../MessageContext/POSTmessage";
-import { motion, AnimatePresence,useScroll,useTransform } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import { PostEmailContext } from "../EmailContext/SendNotificationContext";
 import { AddAssignContext } from "../AssignContext/AddAssignContext";
-import {io} from 'socket.io-client'
+import { io } from "socket.io-client";
 
 const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
   withCredentials: true,
@@ -19,19 +24,22 @@ const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
 
 const Notification = ({ toggleTechnicianModal }) => {
   const { role, authToken } = useContext(AuthContext);
-const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
+  const { triggerSendEmail, setToAdmin } = useContext(PostEmailContext);
   const { setSendPatch, setSendMsg, setSendPost } =
     useContext(MessagePOSTcontext);
-  const { AdminMsg, request, fetchRequestData, CountSpecificData,addDescription } = useContext(
-    RequestDisplayContext
-  );
+  const {
+    AdminMsg,
+    request,
+    fetchRequestData,
+    CountSpecificData,
+    addDescription,
+  } = useContext(RequestDisplayContext);
   const { ToAdminCount, ToAdmin, msg, msgcount, fetchDisplayMessgae } =
     useContext(MessageDisplayContext);
   const [loading, setLoading] = useState(false);
   const hasUnread = msg?.some((message) => message.readonUser === false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const {setupdateSched}=useContext(AddAssignContext)
-
+  const { setupdateSched } = useContext(AddAssignContext);
 
   const [values, setValues] = useState({
     feedback: "",
@@ -42,12 +50,12 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
     socket.on("connect", () => {
       console.log("Connected to WebSocket server:", socket.id);
     });
-  
+
     const updateNotifications = () => {
       fetchDisplayMessgae(); // Update messages or requests
       fetchRequestData(); // Update request data
     };
-  
+
     if (isNotificationOpen) {
       // Depending on role, update notifications for the user/admin
       if (role === "user" && msg.length > 0 && hasUnread) {
@@ -58,7 +66,7 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
         ReadOnUpdate(allLaboratoryIds); // Mark messages as read
       }
     }
-  
+
     // WebSocket Event Listeners
     const events = [
       "adminNotification",
@@ -67,19 +75,19 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
     ];
 
     events.forEach((event) => socket.on(event, updateNotifications));
-  
+
     // Cleanup function to remove event listeners when component unmounts
     return () => {
       socket.off("connect");
       events.forEach((event) => socket.off(event, updateNotifications));
     };
   }, [isNotificationOpen, role, msg, hasUnread, ToAdminCount]);
-  
-  
+
   const updateRequest = async ({ url, updateData, socketEvent, msgId }) => {
     try {
       const response = await axios.patch(url, updateData, {
-        withCredentials: true,headers: { Authorization: `Bearer ${authToken}` },
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${authToken}` },
       });
 
       if (response.status === 200 || response.data.status === "success") {
@@ -123,20 +131,26 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
     if (!authToken) return;
     try {
       const response = await axios.get(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/getbyId/${requestID}`,
-        { withCredentials: true ,
-          headers: { Authorization: `Bearer ${authToken}` } }
+        `${
+          import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+        }/api/v1/MaintenanceRequest/getbyId/${requestID}`,
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${authToken}` },
+        }
       );
 
       if (response.data?.status === "success") {
         const result = response.data;
-        //ibig sabihin nito isinasama ang message sa result
+        const requestInfo = result.data[0]; // <- extract the actual object
+
         setSendPost({
           ...result,
-          message: "The assigned request has been completed!",
+          message: `The assigned request in ${requestInfo.Department} / ${requestInfo.laboratoryName} has been completed!`,
           Status: "Accepted",
           role: "admin",
         });
+
         setValues({ Remarks: "" });
       } else {
         toast.error(
@@ -156,18 +170,26 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
     const requestID = req.RequestID;
     setupdateSched(req.RequestID);
     getSpecificID(requestID);
-    const feedbackData = { Status: "Success", feedback: values.feedback,DateTimeAccomplish:new Date() };
+    const feedbackData = {
+      Status: "Success",
+      feedback: values.feedback,
+      DateTimeAccomplish: new Date(),
+    };
     const feedbackDataMsg = { read: true };
 
     await updateRequest({
-      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${requestID}`,
+      url: `${
+        import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+      }/api/v1/MaintenanceRequest/${requestID}`,
       updateData: feedbackData,
       withCredentials: true,
       socketEvent: "newRequest",
     });
 
     await updateRequest({
-      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${msgId}`,
+      url: `${
+        import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+      }/api/v1/MessageRequest/${msgId}`,
       updateData: feedbackDataMsg,
       withCredentials: true,
       socketEvent: "newRequest",
@@ -181,49 +203,45 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
       read: true,
     };
     await updateRequest({
-      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${data}`,
+      url: `${
+        import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+      }/api/v1/MessageRequest/${data}`,
       updateData: feedbackDataMsg,
-      withCredentials: true , // Sending an object instead of just the text
+      withCredentials: true, // Sending an object instead of just the text
       socketEvent: "newRequest",
     });
   };
 
-
-  const handlesend=(data)=>{
+  const handlesend = (data) => {
     setToAdmin(data);
     const message = `Hello Admin, the assigned request has been completed.\nDetails:\nRequest Reference: ${data.Ref}\nSend By: Technician`;
-    triggerSendEmail(message)
-  }
+    triggerSendEmail(message);
+  };
 
-  
   const acceptRemarks = async (data) => {
-   
     await updateRequest({
-      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${data.RequestID}`,
+      url: `${
+        import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+      }/api/v1/MaintenanceRequest/${data.RequestID}`,
       updateData: { remarksread: true },
       socketEvent: "newRequest",
       msgId: data._id,
-      
     });
-
-
-  
   };
 
   async function ReadOnUpdate(Id) {
+    if (!authToken) return;
     try {
       const response = await axios.patch(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest`,
+        `${
+          import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+        }/api/v1/MessageRequest`,
         { laboratoryIds: Id, readonUpdate: true }, //Pasa bilang JSON body
-        { withCredentials: true ,
-          headers: { Authorization: `Bearer ${authToken}` } }
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${authToken}` },
+        }
       );
-
-      if (response.data?.status === "success") {
-        toast.success(
-          `Updated ${response.data.updatedCount} messages successfully!`
-        );
-      }
     } catch (error) {
       console.error("Error updating messages:", error);
       toast.error(error.response?.data?.message || "Error submitting request.");
@@ -251,11 +269,9 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
   //purpose nito para makapag implement ako ng loading...
   const acceptfeedback = async (data, accpetID) => {
     setLoading(true);
-    console.log("para sa Data",data)
-    console.log("para sa Datas",accpetID)
     try {
       await acceptVerification(data, accpetID); // Call the function
-      handlesend(data)
+      handlesend(data);
     } finally {
       setLoading(false);
     }
@@ -272,7 +288,7 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
       ToAdminCount.length > 0 ||
       (role === "Technician" && CountSpecificData > 0) ||
       (role === "user" && msgcount > 0) ? (
-        <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full px-2">
+        <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full px-2">
           {role === "admin" && ToAdminCount
             ? AdminMsg + ToAdminCount.length
             : role === "Technician"
@@ -287,7 +303,11 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
             animate="visible"
             exit="exit"
             variants={dropdownVariants}
-            className="absolute bg-white/30 backdrop-blur-md shadow-lg rounded-md text-align: justify  xs:w-60 lg:w-80 top-full right-0 mt-4 p-4 text-black border border-white/20 h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800"
+            className="absolute bg-white/30 backdrop-blur-md shadow-lg rounded-md text-align: justify 
+            xs:w-60 lg:w-80 top-full right-0 mt-4 p-4 text-black border border-white/20 
+            max-h-[400px] overflow-y-auto 
+            scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800
+          "
           >
             {role === "admin" &&
             (request?.length > 0 || ToAdmin?.length > 0) ? (
@@ -299,11 +319,26 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
                   .slice(0, 30) // Get only the latest 30
                   .map((req, index) => (
                     <div key={index} className="mb-2">
-                      <h1 className="text-lg font-bold text-gray-700">
-                        {req.Department
-                          ? `${req.Department} / ${req.laboratoryName}`
-                          : req.laboratoryName}
-                      </h1>
+                      {(req.Department !== "N/A" ||
+                        req.laboratoryName !== "N/A") && (
+                        <h1 className="xs:text-sm sm:text-lg lg:text-lg font-bold text-gray-700">
+                          {req.Department !== "N/A" &&
+                          req.laboratoryName !== "N/A"
+                            ? `${req.Department} / ${req.laboratoryName}`
+                            : req.Department !== "N/A"
+                            ? req.Department
+                            : req.laboratoryName}
+                        </h1>
+                      )}
+
+                      {(req.CategoryName || req.EquipmentName) && (
+                        <h4 className="xs:text-sm sm:text-lg lg:text-lg text-gray-700">
+                          {req.CategoryName && req.EquipmentName
+                            ? `${req.CategoryName} / ${req.EquipmentName}`
+                            : req.CategoryName || req.EquipmentName}
+                        </h4>
+                      )}
+
                       <time className="text-sm text-gray-500 block">
                         {new Intl.DateTimeFormat("en-US", {
                           year: "numeric",
@@ -315,7 +350,6 @@ const {triggerSendEmail,setToAdmin}=useContext(PostEmailContext)
                           hour12: true,
                         }).format(new Date(req.DateTime))}
                       </time>
-
                       {/*Ternary Operator Instead of if-else */}
                       <p className="text-gray-500">
                         {ToAdmin.includes(req) ? (

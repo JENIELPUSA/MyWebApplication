@@ -20,7 +20,6 @@ exports.AssignEquipment = AsyncErrorHandler(async (req, res) => {
     });
 });
 
-
 exports.displayAssign = AsyncErrorHandler(async (req, res) => {
   // Apply API features (filter, sort, limit, paginate) using the query
   const features = new Apifeatures(assign.find(), req.query)
@@ -32,7 +31,6 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
   // Fetch filtered and paginated results
   const filterAssign = await features.query;
 
-
   // Aggregation pipeline to join other collections with the filtered assignments
   const assigns = await assign.aggregate([
     {
@@ -40,7 +38,7 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
         _id: { $in: filterAssign.map((tool) => tool._id) }
       }
     },
-    // First lookup: Join 'laboratories' collection
+    // Left join 'laboratories' collection
     {
       $lookup: {
         from: 'laboratories',
@@ -52,10 +50,10 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
     {
       $unwind: {
         path: '$LaboratoryInfo',
-        preserveNullAndEmptyArrays: true
+        preserveNullAndEmptyArrays: true // Left join behavior
       }
     },
-    // Second lookup: Join 'Encharge' collection
+    // Left join 'users' collection (Encharge)
     {
       $lookup: {
         from: 'users',
@@ -67,10 +65,10 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
     {
       $unwind: {
         path: '$EnchargeInfo',
-        preserveNullAndEmptyArrays: true
+        preserveNullAndEmptyArrays: true // Left join behavior
       }
     },
-    // Third lookup: Join 'department' collection
+    // Left join 'departments' collection
     {
       $lookup: {
         from: 'departments',
@@ -82,10 +80,10 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
     {
       $unwind: {
         path: '$DepartmentInfo',
-        preserveNullAndEmptyArrays: true
+        preserveNullAndEmptyArrays: true // Left join behavior
       }
     },
-    // Fourth lookup: Join 'equipments' collection
+    // Left join 'equipment' collection
     {
       $lookup: {
         from: 'equipment',
@@ -97,10 +95,10 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
     {
       $unwind: {
         path: '$EquipmentsInfo',
-        preserveNullAndEmptyArrays: true
+        preserveNullAndEmptyArrays: true // Left join behavior
       }
     },
-    // Fifth lookup: Join 'categories' collection
+    // Left join 'categories' collection
     {
       $lookup: {
         from: 'categories',
@@ -112,40 +110,38 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
     {
       $unwind: {
         path: '$CategoryInfo',
-        preserveNullAndEmptyArrays: true
+        preserveNullAndEmptyArrays: true // Left join behavior
       }
     },
-    // Group by LaboratoryName (to ensure no duplicates)
+    // Group by LaboratoryName to remove duplicates
     {
       $group: {
-        _id: '$LaboratoryInfo.LaboratoryName', // Group by LaboratoryName
-        assignCount: { $sum: 1 }, // Count the number of assignments per laboratory
-        assignLabId: { $first: '$_id' }, // Keep the Assignlab ID
+        _id: '$LaboratoryInfo.LaboratoryName',
+        assignCount: { $sum: 1 },
+        assignLabId: { $first: '$_id' },
         laboratoryId: { $first: '$LaboratoryInfo._id' },
         departmentId: { $first: '$DepartmentInfo._id' },
-        enchargeId : {$first: '$EnchargeInfo._id' },
+        enchargeId: { $first: '$EnchargeInfo._id' },
         encharge: { $first: '$EnchargeInfo' },
         departmentName: { $first: '$DepartmentInfo.DepartmentName' },
         equipments: {
-          $push: {
+          $addToSet: {
             $mergeObjects: [
               '$EquipmentsInfo',
               { categoryName: '$CategoryInfo.CategoryName' },
             ],
-          },
+          }
         },
-        categories: { $addToSet: '$CategoryInfo.CategoryName' },
-    
+        categories: { $addToSet: '$CategoryInfo.CategoryName' }
       }
     },
-    // Project the grouped data
     {
       $project: {
-        _id:1,
-        assignCount: 1, // Include the count of assignments
-        assignLabId: 1, // Include the Assignlab ID in the result
+        _id: 1,
+        assignCount: 1,
+        assignLabId: 1,
         laboratoryId: 1,
-        departmentId:1,
+        departmentId: 1,
         laboratoryName: '$_id',
         encharge: {
           $concat: [
@@ -157,16 +153,18 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
         departmentName: 1,
         equipments: 1,
         enchargeId: 1,
-        equipmentsCount: { $size: { $ifNull: ['$equipments', []] } } 
+        equipmentsCount: {
+          $size: { $ifNull: ['$equipments', []] }
+        }
       }
     }
   ]);
-  // Return the aggregated result
   res.status(200).json({
     status: 'success',
     data: assigns
   });
 });
+
 
 exports.UpdateEquipments = AsyncErrorHandler(async (req, res, next) => {
   const { id } = req.params;

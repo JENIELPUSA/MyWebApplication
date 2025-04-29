@@ -102,7 +102,8 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
     };
 
     try {
-      const res = await axios.patch(
+      if(!id)return
+      await axios.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${id}`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }

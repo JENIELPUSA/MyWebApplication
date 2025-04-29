@@ -34,7 +34,7 @@ export const MessagePostProvider = ({ children }) => {
       updatesendMsg();
     }
   }, [sendMsg]);
-
+console.log("PARA SA SEND POST",SendPost)
   // Function to send a new maintenance request
   const fetchsendPost = async () => {
     if (!SendPost) return;
