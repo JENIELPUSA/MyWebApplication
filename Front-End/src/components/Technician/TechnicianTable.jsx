@@ -39,7 +39,7 @@ function TechnicianTable() {
       socket.off("adminNotification");
       socket.off("SMSNotification");
     };
-  }, [socket]);
+  }, []);
   // Mag uupdate ang dropdown kapag may seacrhQuery na nalagay
   //dito ipinapasa ang reference na na input sa search
   const handleSearchChange = (e) => {
@@ -126,7 +126,7 @@ function TechnicianTable() {
     } finally {
       setLoading(false);
     }
-  }, [authToken, socket]); // ✅ Include dependencies
+  }, [authToken, socket]); //  Include dependencies
   
 
   return (

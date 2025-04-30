@@ -6,7 +6,7 @@ const LoadingTableSpinner = ({ message = "Loading Data...", section = "General" 
   useEffect(() => {
     const interval = setInterval(() => {
       setCount((prev) => (prev < 100 ? prev + 1 : prev)); // Stop at 100%
-    }, 500); // Increment every 500ms
+    }, 200); // Increment every 500ms
 
     return () => clearInterval(interval); // Cleanup on unmount
   }, []);

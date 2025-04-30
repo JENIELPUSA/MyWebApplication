@@ -26,7 +26,7 @@ const io = socketIo(server, {
   },
   transports: ["websocket", "polling"],
   pingInterval: 25000,
-  pingTimeout: 5000,
+  pingTimeout: 60000,
 });
 
 // Store io instance for global event handling

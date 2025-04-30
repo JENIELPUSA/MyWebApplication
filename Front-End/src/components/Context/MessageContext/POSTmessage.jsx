@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from "react";
+import React, { createContext, useState, useEffect, useContext,useCallback } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
@@ -28,13 +28,12 @@ export const MessagePostProvider = ({ children }) => {
       updatesendPost();
     }
   }, [SendPatch]);
-
+  
   useEffect(() => {
     if (sendMsg) {
       updatesendMsg();
     }
   }, [sendMsg]);
-console.log("PARA SA SEND POST",SendPost)
   // Function to send a new maintenance request
   const fetchsendPost = async () => {
     if (!SendPost) return;
@@ -68,31 +67,33 @@ console.log("PARA SA SEND POST",SendPost)
     }
   };
 
-  // Function to update maintenance request
-  const updatesendPost = async () => {
+  const updatesendPost = useCallback(async () => {
     if (!SendPatch) return;
-
+  
     try {
       const response = await axios.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${SendPatch}`,
         { Status: "Under Maintenance" },
-        { withCredentials: true,
-          headers: { Authorization: `Bearer ${authToken}` } }
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${authToken}` },
+        }
       );
-
-      if (response.status === 200) {
+  
+      if (response.data?.status === "success") {
         socket.emit("newRequest", {
-          message: "Maintenance request updated!",
+          message: "Admin Approved Your request!",
           data: response.data.data,
         });
       } else {
-        toast.error("Failed to update request.");
+        toast.error(response.data.message || "Failed to add description");
       }
     } catch (error) {
       console.error("Error updating request:", error);
       toast.error(error.response?.data?.message || "An unexpected error occurred.");
     }
-  };
+  }, [SendPatch, authToken]);
+  
 
   // Function to update message request
   const updatesendMsg = async () => {
