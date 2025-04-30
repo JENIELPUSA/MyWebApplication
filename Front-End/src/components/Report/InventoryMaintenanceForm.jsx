@@ -42,7 +42,9 @@ function InventoryMaintenanceForm({ onClose }) {
 
       try {
         const response = await axios.get(
-          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
+          `${
+            import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+          }/api/v1/departments`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -73,7 +75,11 @@ function InventoryMaintenanceForm({ onClose }) {
     // Add your PDF generation logic here
     try {
       const res = await axios.get(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/getSpecificMaintenances?Department=${values.department}&from=${values.from}&to=${values.to}&Status=${values.status}`,
+        `${
+          import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+        }/api/v1/MaintenanceRequest/getSpecificMaintenances?Department=${
+          values.department
+        }&from=${values.from}&to=${values.to}&Status=${values.status}`,
         { headers: { Authorization: `Bearer ${token}` }, responseType: "blob" }
       );
       // If the request is successful, handle the file download
@@ -84,6 +90,9 @@ function InventoryMaintenanceForm({ onClose }) {
       document.body.appendChild(link); // Append the link to the DOM
       link.click(); // Trigger the download
       document.body.removeChild(link);
+
+      toast.success("PDF successfully generated and downloaded!");
+
       clear();
     } catch (error) {
       if (
@@ -207,8 +216,8 @@ function InventoryMaintenanceForm({ onClose }) {
           </div>
 
           {/* Date Range */}
-          <div className="flex gap-4 mb-4">
-            <div className="w-1/2">
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="sm:w-1/2">
               <label className="block mb-1 text-sm text-slate-600">
                 From Date
               </label>
@@ -220,7 +229,7 @@ function InventoryMaintenanceForm({ onClose }) {
                 className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
               />
             </div>
-            <div className="w-1/2">
+            <div className="sm:w-1/2">
               <label className="block mb-1 text-sm text-slate-600">
                 To Date
               </label>

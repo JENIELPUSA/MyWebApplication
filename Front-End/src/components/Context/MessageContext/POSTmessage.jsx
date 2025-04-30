@@ -66,8 +66,7 @@ export const MessagePostProvider = ({ children }) => {
       toast.error(error.response?.data?.message || "An unexpected error occurred.");
     }
   };
-
-  const updatesendPost = useCallback(async () => {
+  const updatesendPost = async () => {
     if (!SendPatch) return;
   
     try {
@@ -92,7 +91,8 @@ export const MessagePostProvider = ({ children }) => {
       console.error("Error updating request:", error);
       toast.error(error.response?.data?.message || "An unexpected error occurred.");
     }
-  }, [SendPatch, authToken]);
+  };
+  
   
 
   // Function to update message request

@@ -6,7 +6,6 @@ router
   .route('/getEquipment')
   .get(
     authController.protect,
-    authController.restrict("admin"),
     EquipmentController.getSpecificEquipment
   );
 router

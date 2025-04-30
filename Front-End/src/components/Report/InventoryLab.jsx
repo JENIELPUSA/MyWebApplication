@@ -65,8 +65,7 @@ function InventoryLab({ onClose }) {
     // Get selected department from state
     const selectedDepartment = values.department;
   
-    // Do your logic (API call, generate PDF, etc.)
-    console.log("Selected Department:", selectedDepartment);
+ 
   
     try {
       // Make the API request to generate the PDF
@@ -82,6 +81,7 @@ function InventoryLab({ onClose }) {
       link.setAttribute('download', `Department_Labs_${Date.now()}.pdf`);  // Specify the file name
       document.body.appendChild(link);  // Append the link to the DOM
       link.click();  // Trigger the download
+      toast.success("PDF successfully generated and downloaded!");
       document.body.removeChild(link);  // Clean up by removing the link from the DOM
     } catch (error) {
       if (

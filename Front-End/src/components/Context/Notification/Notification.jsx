@@ -103,10 +103,10 @@ const Notification = ({ toggleTechnicianModal }) => {
         }
 
         if (msgId) {
-          await updatesendMsg(msgId);
+          updatesendMsg(msgId);
         }
 
-        await fetchRequestData();
+        fetchRequestData();
       }
     } catch (error) {
       toast.error(
@@ -116,11 +116,15 @@ const Notification = ({ toggleTechnicianModal }) => {
   };
 
   const onSelectMessage = async (request, message) => {
-    await setSendPatch(request);
-    await setSendMsg(message);
-    await fetchDisplayMessgae();
-    await fetchRequestData();
+    setSendPatch(request); // no need to await
+    setSendMsg(message);   // no need to await
+  
+    await Promise.all([
+      fetchDisplayMessgae(),
+      fetchRequestData()
+    ]);
   };
+  
   const dropdownVariants = {
     hidden: { opacity: 0, y: -10, scale: 0.95 },
     visible: {
@@ -172,9 +176,9 @@ const Notification = ({ toggleTechnicianModal }) => {
 
   const acceptVerification = useCallback(async (req, msgId) => {
     const requestID = req.RequestID;
-    setupdateSched(req.RequestID);
-    getSpecificID(requestID);
-    
+    setupdateSched(requestID);
+    getSpecificID(requestID); // optionally await if needed
+  
     const feedbackData = {
       Status: "Success",
       feedback: values.feedback,
@@ -183,19 +187,21 @@ const Notification = ({ toggleTechnicianModal }) => {
   
     const feedbackDataMsg = { read: true };
   
-    await updateRequest({
-      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${requestID}`,
-      updateData: feedbackData,
-      withCredentials: true,
-      socketEvent: "newRequest",
-    });
-  
-    await updateRequest({
-      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${msgId}`,
-      updateData: feedbackDataMsg,
-      withCredentials: true,
-      socketEvent: "newRequest",
-    });
+    // Sabayin ang dalawang request
+    await Promise.all([
+      updateRequest({
+        url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${requestID}`,
+        updateData: feedbackData,
+        withCredentials: true,
+        socketEvent: "newRequest",
+      }),
+      updateRequest({
+        url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${msgId}`,
+        updateData: feedbackDataMsg,
+        withCredentials: true,
+        socketEvent: "newRequest",
+      }),
+    ]);
   
     fetchDisplayMessgae();
     fetchRequestData();

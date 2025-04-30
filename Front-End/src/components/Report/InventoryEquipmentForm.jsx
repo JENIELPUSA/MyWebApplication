@@ -34,7 +34,11 @@ function InventoryEquipmentForm({ onClose }) {
     e.preventDefault();
     try {
       const res = await axios.get(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/getEquipment?from=${values.from}&to=${values.to}&status=${values.status}`,
+        `${
+          import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+        }/api/v1/equipment/getEquipment?from=${values.from}&to=${
+          values.to
+        }&status=${values.status}`,
         { headers: { Authorization: `Bearer ${token}` }, responseType: "blob" }
       );
 
@@ -45,7 +49,7 @@ function InventoryEquipmentForm({ onClose }) {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
+      toast.success("PDF successfully generated and downloaded!");
       clear();
     } catch (error) {
       if (
@@ -125,9 +129,11 @@ function InventoryEquipmentForm({ onClose }) {
           </div>
 
           {/* Date Range */}
-          <div className="flex gap-4 mb-4">
-            <div className="w-1/2">
-              <label className="block mb-1 text-sm text-slate-600">From Date</label>
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="sm:w-1/2">
+              <label className="block mb-1 text-sm text-slate-600">
+                From Date
+              </label>
               <input
                 type="date"
                 name="from"
@@ -136,8 +142,10 @@ function InventoryEquipmentForm({ onClose }) {
                 className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
               />
             </div>
-            <div className="w-1/2">
-              <label className="block mb-1 text-sm text-slate-600">To Date</label>
+            <div className="sm:w-1/2">
+              <label className="block mb-1 text-sm text-slate-600">
+                To Date
+              </label>
               <input
                 type="date"
                 name="to"
@@ -160,12 +168,15 @@ function InventoryEquipmentForm({ onClose }) {
         {/* Selected Filters Display */}
         {(values.department || values.status || values.from || values.to) && (
           <div className="mt-6 bg-slate-50 border border-slate-200 p-4 rounded-md shadow-sm">
-            <h5 className="text-slate-700 font-semibold mb-2">Selected Filters</h5>
+            <h5 className="text-slate-700 font-semibold mb-2">
+              Selected Filters
+            </h5>
             <ul className="text-sm text-slate-600 list-disc list-inside space-y-1">
               {values.department && (
                 <li>
                   <span className="font-medium">Department:</span>{" "}
-                  {departments.find((d) => d._id === values.department)?.DepartmentName || "N/A"}
+                  {departments.find((d) => d._id === values.department)
+                    ?.DepartmentName || "N/A"}
                 </li>
               )}
               {values.status && (

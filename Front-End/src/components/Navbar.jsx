@@ -230,42 +230,11 @@ function Navbar() {
                   {/* Reports Dropdown */}
                   <div className="relative">
                     <button
-                      onClick={() => setIsReportsOpen(!isReportsOpen)}
+                      onClick={() => toggleModal("reportmobile")}
                       className="block px-11 py-1 w-full text-left hover:bg-blue-200"
                     >
                       Reports
                     </button>
-
-                    <AnimatePresence>
-                      {isReportsOpen && (
-                        <motion.div
-                          initial="hidden"
-                          animate="visible"
-                          exit="exit"
-                          variants={dropdownVariants}
-                          className="absolute bg-white shadow-lg rounded-md w-40 left-full top-0 ml-2 p-2 text-sm text-gray-700"
-                        >
-                          <button
-                            onClick={() => toggleModal("report")}
-                            className="block px-4 py-2 w-full hover:bg-blue-200"
-                          >
-                            Equipment Report
-                          </button>
-                          <button
-                            onClick={() => toggleModal("labreport")}
-                            className="block px-4 py-2 w-full hover:bg-blue-200"
-                          >
-                            Laboratory Report
-                          </button>
-                          <button
-                            onClick={() => toggleModal("maintenancereport")}
-                            className="block px-4 py-2 w-full hover:bg-blue-200"
-                          >
-                            Maintenance History Report
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
                   </div>
 
                   <button
@@ -385,12 +354,6 @@ function Navbar() {
                 >
                   {/* Menu Items */}
                   <div className=" mt-2 space-y-2">
-                    <button
-                      onClick={() => toggleModal("reportmobile")}
-                      className="block w-full text-center text-white  font-medium py-2 px-4 rounded hover:bg-blue-500"
-                    >
-                      Report
-                    </button>
                     <button
                       onClick={() => toggleModal("forgot")}
                       className="block w-full text-center text-white  font-medium py-2 px-4 rounded hover:bg-blue-500"
