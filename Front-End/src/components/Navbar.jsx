@@ -50,7 +50,7 @@ function Navbar() {
       socket.off("adminNotification", handleNotification);
       socket.off("SMSNotification", handleNotification);
     };
-  }, []);
+  }, [socket]);
 
   
 

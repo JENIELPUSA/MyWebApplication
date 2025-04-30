@@ -1,5 +1,5 @@
 import "react-toastify/dist/ReactToastify.css";
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext,useCallback } from "react";
 import { UserDisplayContext } from "../Context/User/DisplayUser";
 import { ToastContainer, toast } from "react-toastify";
 import axios from "axios";
@@ -44,7 +44,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
     triggerSendEmail(message);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -71,12 +71,10 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
             message: "Admin Already Assign Technician to your Laboratory!",
             Status: "Pending",
           });
-
           socket.emit("newRequest", {
             message: "A new maintenance request!",
             data: result.data,
           });
-
           setTimeout(() => {
             onClose();
           }, 2000);
@@ -120,10 +118,9 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
             Status: "Accepted",
           });
           socket.emit("newRequest", {
-            message: "A new maintenance request!",
-            data: result.data,
+            message: "Admin Approved Your request!",
+            data: response.data.data,
           });
-
           setValues({ Remarks: "" });
           setTimeout(() => {
             onClose();
@@ -143,7 +140,16 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
         setIsLoading(false);
       }
     }
-  };
+  },[  authToken,
+    values,
+    data,
+    remarkdata,
+    socket,
+    onClose,
+    fetchRequestData,
+    setSendPost,
+    handlesend,
+    setToTechnician,]);
 
   return (
     <motion.div

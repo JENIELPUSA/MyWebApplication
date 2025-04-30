@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext, useRef, useCallback } from "react";
 import { FaBell } from "react-icons/fa";
 import { RequestDisplayContext } from "../MaintenanceRequest/DisplayRequest";
 import { MessageDisplayContext } from "../MessageContext/DisplayMessgae";
@@ -170,39 +170,39 @@ const Notification = ({ toggleTechnicianModal }) => {
     }
   };
 
-  const acceptVerification = async (req, msgId) => {
+  const acceptVerification = useCallback(async (req, msgId) => {
     const requestID = req.RequestID;
     setupdateSched(req.RequestID);
     getSpecificID(requestID);
+    
     const feedbackData = {
       Status: "Success",
       feedback: values.feedback,
       DateTimeAccomplish: new Date(),
     };
+  
     const feedbackDataMsg = { read: true };
-
+  
     await updateRequest({
-      url: `${
-        import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
-      }/api/v1/MaintenanceRequest/${requestID}`,
+      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${requestID}`,
       updateData: feedbackData,
       withCredentials: true,
       socketEvent: "newRequest",
     });
-
+  
     await updateRequest({
-      url: `${
-        import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
-      }/api/v1/MessageRequest/${msgId}`,
+      url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${msgId}`,
       updateData: feedbackDataMsg,
       withCredentials: true,
       socketEvent: "newRequest",
     });
+  
     fetchDisplayMessgae();
     fetchRequestData();
-  };
+  }, [values.feedback, updateRequest, fetchDisplayMessgae, fetchRequestData]);
+  
 
-  const updatesendMsg = async (data) => {
+  const updatesendMsg = useCallback(async (data) => {
     const feedbackDataMsg = {
       read: true,
     };
@@ -214,7 +214,7 @@ const Notification = ({ toggleTechnicianModal }) => {
       withCredentials: true, // Sending an object instead of just the text
       socketEvent: "newRequest",
     });
-  };
+  },[updateRequest]);
 
   const handlesend = (data) => {
     setToAdmin(data);

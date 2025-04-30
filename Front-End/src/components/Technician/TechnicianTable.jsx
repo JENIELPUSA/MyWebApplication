@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
 import TechForm from "./TechnicianForm";
 import { ToastContainer, toast } from "react-toastify";
@@ -39,7 +39,7 @@ function TechnicianTable() {
       socket.off("adminNotification");
       socket.off("SMSNotification");
     };
-  }, []);
+  }, [socket]);
   // Mag uupdate ang dropdown kapag may seacrhQuery na nalagay
   //dito ipinapasa ang reference na na input sa search
   const handleSearchChange = (e) => {
@@ -84,24 +84,27 @@ function TechnicianTable() {
   const currentRows = filteredRequests?.slice(indexOfFirstRow, indexOfLastRow);
   const totalPages = Math.ceil(filteredRequests?.length / rowsPerPage);
 
-  const handleAddRemarks = (remarksData) => {
+  const handleAddRemarks = useCallback((remarksData) => {
     setsenddata(remarksData);
     setIsModalOpen(true);
-  };
+  },[]);
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
   };
 
-  const handleAccomplished = async (datapass) => {
+  const handleAccomplished = useCallback(async (datapass) => {
     setLoading(true);
     try {
       const response = await axios.patch(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${datapass._id}`, // Fixed URL
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${datapass._id}`,
         { feedbackread: true },
-        {withCredentials: true, headers: { Authorization: `Bearer ${authToken}` } }
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${authToken}` },
+        }
       );
-
+  
       if (response.status === 200 && response.data.status === "success") {
         const result = response.data;
         setSendPost({
@@ -109,10 +112,10 @@ function TechnicianTable() {
           message: "I need your Feedback to Accomplished a report.",
           Status: "Accepted",
         });
-
+  
         socket.emit("newRequest", {
           message: "Message successfully updated!",
-          data: response.data.data, // Pass request data
+          data: result.data,
         });
       }
     } catch (error) {
@@ -120,10 +123,11 @@ function TechnicianTable() {
       toast.error(
         error.response?.data?.message || "An unexpected error occurred."
       );
-    }finally {
+    } finally {
       setLoading(false);
     }
-  };
+  }, [authToken, socket]); // ✅ Include dependencies
+  
 
   return (
     <div className="overflow-x-auto bg-white dark:bg-neutral-700 p-4 rounded-lg shadow-md">
@@ -300,10 +304,11 @@ function TechnicianTable() {
 
   {isModalOpen && (
     <TechForm
-      isOpen={isModalOpen}
-      remarkdata={senddata}
-      onClose={handleCloseModal}
-    />
+    isOpen={isModalOpen}
+    remarkdata={senddata}
+    onClose={handleCloseModal}
+    socket={socket} //
+  />
   )}
 </div>
 
