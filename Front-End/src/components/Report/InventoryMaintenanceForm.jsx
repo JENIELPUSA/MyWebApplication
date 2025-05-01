@@ -209,9 +209,8 @@ function InventoryMaintenanceForm({ onClose }) {
             >
               <option value="">Select Status</option>
               <option value="Pending">Pending</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
+              <option value="UnderMaintenance">In Progress</option>
+              <option value="Success">Completed</option>
             </select>
           </div>
 

@@ -14,6 +14,7 @@ import {
   FaTimesCircle,
 } from "react-icons/fa";
 import LoadingTableSpinner from "../ReusableComponent/loadingTableSpiner";
+
 function TechnicianTable() {
   const [loadings, setLoading] = useState(false);
   const { authToken } = useContext(AuthContext);
@@ -22,15 +23,17 @@ function TechnicianTable() {
   const [senddata, setsenddata] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
-  const [selectedLaboratory, setSelectedLaboratory] = useState(""); 
-  const [laboratoryOptions, setLaboratoryOptions] = useState([]); 
+  const [selectedLaboratory, setSelectedLaboratory] = useState("");
+  const [laboratoryOptions, setLaboratoryOptions] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 4;
+  const [loadingId, setLoadingId] = useState(null);
+  const [clickedRows, setClickedRows] = useState(new Set());
   const { setSendPost } = useContext(MessagePOSTcontext);
-    const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
+  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
     withCredentials: true,
-    transports: ['websocket'], // optional pero maganda para mas mabilis
-  }); 
+    transports: ["websocket"], // optional pero maganda para mas mabilis
+  });
   useEffect(() => {
     socket.on("adminNotification");
     socket.on("SMSNotification");
@@ -87,47 +90,54 @@ function TechnicianTable() {
   const handleAddRemarks = useCallback((remarksData) => {
     setsenddata(remarksData);
     setIsModalOpen(true);
-  },[]);
+  }, []);
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
   };
 
-  const handleAccomplished = useCallback(async (datapass) => {
-    setLoading(true);
-    try {
-      const response = await axios.patch(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${datapass._id}`,
-        { feedbackread: true },
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${authToken}` },
+  const handleAccomplished = useCallback(
+    async (datapass) => {
+      if (loadingId) return; // Prevent another button from loading if one is already in progress
+      setLoadingId(datapass._id);
+      try {
+        const response = await axios.patch(
+          `${
+            import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+          }/api/v1/MaintenanceRequest/${datapass._id}`,
+          { feedbackread: true },
+          {
+            withCredentials: true,
+            headers: { Authorization: `Bearer ${authToken}` },
+          }
+        );
+
+        if (response.status === 200 && response.data.status === "success") {
+          const result = response.data;
+          setSendPost({
+            ...result,
+            message: "I need your Feedback to Accomplished a report.",
+            Status: "Accepted",
+          });
+
+          socket.emit("newRequest", {
+            message: "Message successfully updated!",
+            data: result.data,
+          });
+
+          setClickedRows((prev) => new Set(prev).add(datapass._id));
         }
-      );
-  
-      if (response.status === 200 && response.data.status === "success") {
-        const result = response.data;
-        setSendPost({
-          ...result,
-          message: "I need your Feedback to Accomplished a report.",
-          Status: "Accepted",
-        });
-  
-        socket.emit("newRequest", {
-          message: "Message successfully updated!",
-          data: result.data,
-        });
+      } catch (error) {
+        console.error("Error updating message:", error);
+        toast.error(
+          error.response?.data?.message || "An unexpected error occurred."
+        );
+      } finally {
+        setLoadingId(null);
       }
-    } catch (error) {
-      console.error("Error updating message:", error);
-      toast.error(
-        error.response?.data?.message || "An unexpected error occurred."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [authToken, socket]); //  Include dependencies
-  
+    },
+    [authToken, socket, loadingId]
+  ); //  Include dependencies
 
   return (
     <div className="overflow-x-auto bg-white dark:bg-neutral-700 p-4 rounded-lg shadow-md">
@@ -176,7 +186,7 @@ function TechnicianTable() {
             <tr>
               <th className="xs:text-xs px-4 sm:px-6 py-3">Ref#</th>
               <th className="xs:text-xs px-4 sm:px-6 py-3">Equipment</th>
-              <th className="xs:text-xs px-4 sm:px-6 py-3">Description</th>  
+              <th className="xs:text-xs px-4 sm:px-6 py-3">Description</th>
               <th className="xs:text-xs px-4 sm:px-6 py-3">Status</th>
               <th className="xs:text-xs px-4 sm:px-6 py-3">Department</th>
               <th className="xs:text-xs px-4 sm:px-6 py-3">Laboratory</th>
@@ -260,9 +270,16 @@ function TechnicianTable() {
                       item.remarksread === true && (
                         <button
                           onClick={() => handleAccomplished(item)}
-                          className="mt-3 flex items-center justify-center rounded-full w-full bg-green-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white transition duration-150 ease-in-out hover:bg-green-600 focus:outline-none h-10"
+                          className={`px-4 py-2 bg-green-500 text-white rounded-md ${
+                            clickedRows.has(item._id)
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                          disabled={
+                            clickedRows.has(item._id) || loadingId === item._id
+                          } 
                         >
-                          {loadings ? <LoadingSpinner /> : "Done"}
+                          {loadingId === item._id ? <LoadingSpinner /> : "Done"}
                         </button>
                       )}
                   </td>
@@ -274,44 +291,46 @@ function TechnicianTable() {
       </div>
 
       <div className="mt-5 flex items-center justify-between text-sm flex-wrap gap-3">
-  <p>
-    Showing{" "}
-    <strong>
-      {indexOfFirstRow + 1}-{Math.min(indexOfLastRow, filteredRequests?.length)}
-    </strong>{" "}
-    of <strong>{filteredRequests?.length}</strong>
-  </p>
+        <p>
+          Showing{" "}
+          <strong>
+            {indexOfFirstRow + 1}-
+            {Math.min(indexOfLastRow, filteredRequests?.length)}
+          </strong>{" "}
+          of <strong>{filteredRequests?.length}</strong>
+        </p>
 
-  <div className="flex space-x-2">
-    <button
-      className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
-      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-      disabled={currentPage === 1}
-    >
-      Previous
-    </button>
+        <div className="flex space-x-2">
+          <button
+            className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
 
-    {/* Page number buttons hidden */}
+          {/* Page number buttons hidden */}
 
-    <button
-      className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
-      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-      disabled={currentPage === totalPages}
-    >
-      Next
-    </button>
-  </div>
+          <button
+            className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+            }
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
 
-  {isModalOpen && (
-    <TechForm
-    isOpen={isModalOpen}
-    remarkdata={senddata}
-    onClose={handleCloseModal}
-    socket={socket} //
-  />
-  )}
-</div>
-
+        {isModalOpen && (
+          <TechForm
+            isOpen={isModalOpen}
+            remarkdata={senddata}
+            onClose={handleCloseModal}
+            socket={socket} //
+          />
+        )}
+      </div>
     </div>
   );
 }

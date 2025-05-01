@@ -6,49 +6,53 @@ const PDFDocument = require("pdfkit");
 const path = require("path");
 const fs = require("fs");
 const CustomError = require("../Utils/CustomError");
-const Equipment = require('../Models/Equipment'); // Equipment model
-const RequestMaintenance = require('../Models/RequestMaintenance'); // MaintenanceRequest model
-const Assign = require('../Models/AssigningEquipment')
-const IncomingMaintenance = require('../Models/UnreadIncomingMaintenance')
+const Equipment = require("../Models/Equipment"); // Equipment model
+const RequestMaintenance = require("../Models/RequestMaintenance"); // MaintenanceRequest model
+const Assign = require("../Models/AssigningEquipment");
+const IncomingMaintenance = require("../Models/UnreadIncomingMaintenance");
 
 // Mapping of collections and their corresponding field names
 const collectionFieldMapping = {
   RequestMaintenance: "Equipments", // 'Equipments' is the field that references the Equipment model
-  Assign:"Equipments",
-  IncomingMaintenance:"Equipments",
-
+  Assign: "Equipments",
+  IncomingMaintenance: "Equipments",
 };
 
-// Delete equipment and related documents from other collections
+// Purpose ang code na ito ay para once may ma remove na Equipment ay lahat na releted ay ma remove
+//pero naka base siya collectionMapping
 exports.deleteEquipmentAndRelated = async (req, res, next) => {
-  const { equipmentID } = req.params; // Assuming equipmentID is passed as a parameter
+  const { equipmentID } = req.params;
 
   try {
-    // Loop through the collectionFieldMapping and delete documents from each collection
-    for (const [collectionName, fieldName] of Object.entries(collectionFieldMapping)) {
-      const collection = mongoose.model(collectionName); // Get the model for the collection
+    // Mag-loop sa collectionFieldMapping at tanggalin ang mga dokumento mula sa bawat koleksyon
+    for (const [collectionName, fieldName] of Object.entries(
+      collectionFieldMapping
+    )) {
+      const collection = mongoose.model(collectionName); //kinukuha yung model sa collection
 
-      // Query to find documents that match the equipmentID in the respective field
+      // Query upang hanapin ang mga dokumento na tumutugma sa equipmentID sa kaukulang field
       const relatedDocs = await collection.find({ [fieldName]: equipmentID });
 
       if (relatedDocs.length > 0) {
-        // Delete all documents that match the equipmentID in this collection
+        // Tanggalin ang lahat ng dokumento na tumutugma sa equipmentID sa koleksyong ito
+
         await collection.deleteMany({ [fieldName]: equipmentID });
-        console.log(`Deleted ${relatedDocs.length} documents from ${collectionName}`);
+        console.log(
+          `Deleted ${relatedDocs.length} documents from ${collectionName}`
+        );
       }
     }
 
     // Finally, delete the equipment document from the Equipment collection
     await Equipment.deleteOne({ _id: equipmentID });
-    console.log('Equipment document deleted successfully.');
+    console.log("Equipment document deleted successfully.");
 
     res.status(200).json({
       status: "success",
       message: "Equipment and related documents deleted successfully.",
     });
-
   } catch (error) {
-    console.error('Error deleting related documents:', error);
+    console.error("Error deleting related documents:", error);
     res.status(500).json({
       status: "fail",
       message: "Error occurred while deleting equipment and related documents.",
@@ -56,31 +60,36 @@ exports.deleteEquipmentAndRelated = async (req, res, next) => {
   }
 };
 
-// Delete equipment and related documents from other collections
+// Purpose ang code na ito ay para once may ma remove na Equipment ay lahat na releted ay ma remove
+//pero naka base siya collectionMapping
 exports.RemoverelatedData = async (req, res, next) => {
   const { equipmentID } = req.params; // Assuming equipmentID is passed as a parameter
 
   try {
-    // Loop through the collectionFieldMapping and delete documents from each collection
-    for (const [collectionName, fieldName] of Object.entries(collectionFieldMapping)) {
-      const collection = mongoose.model(collectionName); // Get the model for the collection
+    // Mag-loop sa collectionFieldMapping at tanggalin ang mga dokumento mula sa bawat koleksyon
+    for (const [collectionName, fieldName] of Object.entries(
+      collectionFieldMapping
+    )) {
+      const collection = mongoose.model(collectionName); // Kunin ang modelo para sa koleksyon
 
-      // Query to find documents that match the equipmentID in the respective field
+      // Query upang hanapin ang mga dokumento na tumutugma sa equipmentID sa kaukulang field
       const relatedDocs = await collection.find({ [fieldName]: equipmentID });
 
       if (relatedDocs.length > 0) {
-        // Delete all documents that match the equipmentID in this collection
+        // Tanggalin ang lahat ng dokumento na tumutugma sa equipmentID sa koleksyong ito
+
         await collection.deleteMany({ [fieldName]: equipmentID });
-        console.log(`Deleted ${relatedDocs.length} documents from ${collectionName}`);
+        console.log(
+          `Deleted ${relatedDocs.length} documents from ${collectionName}`
+        );
       }
     }
     res.status(200).json({
       status: "success",
       message: "Equipment and related documents deleted successfully.",
     });
-
   } catch (error) {
-    console.error('Error deleting related documents:', error);
+    console.error("Error deleting related documents:", error);
     res.status(500).json({
       status: "fail",
       message: "Error occurred while deleting equipment and related documents.",
@@ -391,7 +400,9 @@ exports.getSpecificEquipment = AsyncErrorHandler(async (req, res, next) => {
   ]);
 
   if (!Equipment || Equipment.length === 0) {
-    return next(new CustomError("No equipment found for the given filters", 404));
+    return next(
+      new CustomError("No equipment found for the given filters", 404)
+    );
   }
 
   // PDF Generation
@@ -437,13 +448,22 @@ exports.getSpecificEquipment = AsyncErrorHandler(async (req, res, next) => {
     .moveDown(2);
 
   // Table Setup
-  const tableHeaders = ["Date", "Brand", "Specification", "Status", "Laboratory", "Department"];
+  const tableHeaders = [
+    "Date",
+    "Brand",
+    "Specification",
+    "Status",
+    "Laboratory",
+    "Department",
+  ];
   const columnWidths = [80, 80, 100, 80, 80, 80];
   const tableWidth = columnWidths.reduce((a, b) => a + b, 0);
-  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const pageWidth =
+    doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const startXTable = doc.page.margins.left + (pageWidth - tableWidth) / 2;
   const rowHeight = 25;
-  const pageHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
+  const pageHeight =
+    doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
   let currentY = doc.y;
 
   // Table Headers
@@ -458,7 +478,10 @@ exports.getSpecificEquipment = AsyncErrorHandler(async (req, res, next) => {
   });
 
   currentY += rowHeight;
-  doc.moveTo(startXTable, currentY).lineTo(startXTable + tableWidth, currentY).stroke();
+  doc
+    .moveTo(startXTable, currentY)
+    .lineTo(startXTable + tableWidth, currentY)
+    .stroke();
   currentY += 5;
   doc.font("Helvetica").fontSize(10);
 
@@ -477,7 +500,10 @@ exports.getSpecificEquipment = AsyncErrorHandler(async (req, res, next) => {
         );
       });
       currentY += rowHeight;
-      doc.moveTo(startXTable, currentY).lineTo(startXTable + tableWidth, currentY).stroke();
+      doc
+        .moveTo(startXTable, currentY)
+        .lineTo(startXTable + tableWidth, currentY)
+        .stroke();
       currentY += 5;
       doc.font("Helvetica").fontSize(10);
     }
@@ -511,12 +537,16 @@ exports.getSpecificEquipment = AsyncErrorHandler(async (req, res, next) => {
     currentY += rowHeight;
   });
 
-  doc.moveTo(startXTable, currentY).lineTo(startXTable + tableWidth, currentY).stroke();
+  doc
+    .moveTo(startXTable, currentY)
+    .lineTo(startXTable + tableWidth, currentY)
+    .stroke();
   doc.moveDown(1);
 
   // Footer
-  doc.fontSize(10).text("Generated by EPDO", doc.page.margins.left, currentY + 10);
+  doc
+    .fontSize(10)
+    .text("Generated by EPDO", doc.page.margins.left, currentY + 10);
 
   doc.end();
 });
-
