@@ -5,7 +5,7 @@ import { io } from "socket.io-client";
 import "react-toastify/dist/ReactToastify.css";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
 import { motion } from "framer-motion";
-
+import socket from "../../socket";
 
 // Gawa ka ng new instance ng socket client
 function AddRequest({
@@ -20,11 +20,6 @@ function AddRequest({
   const { addDescription,customError} = useContext(
     RequestDisplayContext
   );
-
-  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
-  withCredentials: true,
-  transports: ['websocket'], // optional pero maganda para mas mabilis
-}); 
   if (!isOpen) return null;
   const [animateExit, setAnimateExit] = useState(false);
   const [values, setValues] = useState({
@@ -43,7 +38,6 @@ function AddRequest({
     setIsLoading(true); // Disable the button
     // Ensure addDescription is called and awaited first
     const result=await addDescription(
-
       values.Description,
       EquipmentID,
       LaboratoryID,

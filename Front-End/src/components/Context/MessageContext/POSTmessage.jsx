@@ -3,7 +3,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
 import { io } from "socket.io-client";
-import socket from "../../../../../Back-End/Utils/socket";
+import socket from "../../../socket";
 
 // Create Context
 export const MessagePOSTcontext = createContext();

@@ -5,6 +5,7 @@ import { AuthContext } from "../AuthContext";
 import {io} from 'socket.io-client'
 import { PostEmailContext } from "../EmailContext/SendNotificationContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
+import socket from "../../../socket";
 export const RequestDisplayContext = createContext();
 
 export const DisplayRequestProvider = ({ children }) => {
@@ -24,11 +25,7 @@ export const DisplayRequestProvider = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
   const [customError, setCustomError] = useState("");
-  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
-    withCredentials: true,
-    transports: ["websocket", "polling"],
-  });
-
+ 
   useEffect(() => {
     if (!authToken) {
       setRequest([]);

@@ -21,12 +21,8 @@ import {
 } from "framer-motion";
 import { PostEmailContext } from "../EmailContext/SendNotificationContext";
 import { AddAssignContext } from "../AssignContext/AddAssignContext";
-import { io } from "socket.io-client";
+import socket from "../../../socket";
 
-const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
-  withCredentials: true,
-  transports: ["websocket", "polling"],
-});
 
 const Notification = ({ toggleTechnicianModal }) => {
   const { role, authToken } = useContext(AuthContext);
@@ -232,7 +228,7 @@ const Notification = ({ toggleTechnicianModal }) => {
         await fetchDisplayMessgae();
         await fetchRequestData();
 
-        // ✅ Clear textarea after submission
+        // Clear textarea after submission
         setValues((prev) => ({
           ...prev,
           [requestID]: "",

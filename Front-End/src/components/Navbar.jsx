@@ -15,7 +15,7 @@ import InventoryLab from "./Report/InventoryLab";
 import InventoryMaintenanceForm from "./Report/InventoryMaintenanceForm";
 import InventoryEquipmentForm from "./Report/InventoryEquipmentForm";
 import ModalReport from "./Report/ModalReport";
-import socket from "../../../Back-End/Utils/socket";
+import socket from "../socket";
 function Navbar() {
   const { role, email } = useContext(AuthContext);
   const { logout } = useAuth();
@@ -38,20 +38,24 @@ function Navbar() {
   });
 
   useEffect(() => {
-    // Listen for notifications
-    const handleNotification = () => {
-      setHasUnread(true); // update badge
+    const handleAdminNotification = (data) => {
+      console.log("Admin notification received:", data);
+      // Example: fetchRequestData(); or setHasUnread(true);
     };
-
-    socket.on("adminNotification", handleNotification);
-    socket.on("SMSNotification", handleNotification);
-
+  
+    const handleSMSNotification = (data) => {
+      console.log("SMS notification received:", data);
+    };
+  
+    socket.on("adminNotification", handleAdminNotification);
+    socket.on("SMSNotification", handleSMSNotification);
+  
     return () => {
-      socket.off("adminNotification", handleNotification);
-      socket.off("SMSNotification", handleNotification);
+      socket.off("adminNotification", handleAdminNotification);
+      socket.off("SMSNotification", handleSMSNotification);
     };
   }, []);
-
+  
   
 
   const toggleModal = (modalName, data) => {

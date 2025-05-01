@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 import io from "socket.io-client";
 export const AuthContext = createContext();
-import socket from "../../../../Back-End/Utils/socket";
+import socket from "../../socket";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 export const AuthProvider = ({ children }) => {
