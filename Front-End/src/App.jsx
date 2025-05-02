@@ -62,7 +62,7 @@ function App() {
                                                 <SocketListener />
                                                 <Routes>
                                                   <Route
-                                                    path="/login"
+                                                    path=""
                                                     element={<Login />}
                                                   />
                                                   <Route
