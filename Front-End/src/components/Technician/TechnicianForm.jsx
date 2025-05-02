@@ -5,11 +5,12 @@ import { ToastContainer, toast } from "react-toastify";
 import axios from "axios";
 import { AuthContext } from "../Context/AuthContext";
 import { io } from "socket.io-client";
+import socket from "../../socket";
 import { motion } from "framer-motion";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
 import { MessagePOSTcontext } from "../Context/MessageContext/POSTmessage";
 import { PostEmailContext } from "../Context/EmailContext/SendNotificationContext";
-function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
+function TechnicianForm({ isOpen, data, remarkdata, onClose,acceptNewDtaa }) {
   const { setSendPost } = useContext(MessagePOSTcontext);
   const [animateExit, setAnimateExit] = useState(false);
   const { fetchRequestData, request } = useContext(RequestDisplayContext); // Connect to the backend server
@@ -18,10 +19,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
   const { users } = useContext(UserDisplayContext);
   const [isLoading, setIsLoading] = useState(false);
   const [enchargeDropdownOpen, setEnchargeDropdownOpen] = useState(false);
-  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
-    withCredentials: true,
-    transports: ["websocket"], // optional pero maganda para mas mabilis
-  });
+
   const encharges = users.filter((user) => user.role === "Technician");
   if (!isOpen) return null;
 
@@ -63,7 +61,6 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
           toast.success("Successfully Assigned!");
           handlesend(response);
           setToTechnician(result);
-          fetchRequestData();
           setValues({ Encharge: "" });
           //ibig sabihin nito isinasama ang message sa result
           setSendPost({
@@ -109,7 +106,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
 
         if (response.data?.status === "success") {
           const result = response.data;
-          toast.success("Successfully Send!");
+          acceptNewDtaa(response.data.data)
           //ibig sabihin nito isinasama ang message sa result
           setSendPost({
             ...result,
@@ -146,7 +143,6 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose }) {
     remarkdata,
     socket,
     onClose,
-    fetchRequestData,
     setSendPost,
     handlesend,
     setToTechnician,]);

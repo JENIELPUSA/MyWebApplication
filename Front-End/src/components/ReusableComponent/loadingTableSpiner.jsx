@@ -3,14 +3,6 @@ import { useState, useEffect } from "react";
 const LoadingTableSpinner = ({ message = "Loading Data...", section = "General" }) => {
   const [count, setCount] = useState(0);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCount((prev) => (prev < 100 ? prev + 1 : prev)); // Stop at 100%
-    }, 100); 
-
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, []);
-
   return (
     <table className="w-full">
       <tbody>
@@ -38,7 +30,7 @@ const LoadingTableSpinner = ({ message = "Loading Data...", section = "General" 
                 ></path>
               </svg>
               <span className="ml-2">
-                {message} {`(${count}%)`} - {section}
+                {message}
               </span>
             </div>
           </td>

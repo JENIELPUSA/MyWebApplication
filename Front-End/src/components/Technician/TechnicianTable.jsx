@@ -6,6 +6,7 @@ import axios from "axios";
 import { AuthContext } from "../Context/AuthContext";
 import { io } from "socket.io-client";
 import { MessagePOSTcontext } from "../Context/MessageContext/POSTmessage";
+import socket from "../../socket";
 import LoadingSpinner from "../ReusableComponent/loadingSpiner";
 import {
   FaClock,
@@ -18,7 +19,7 @@ import LoadingTableSpinner from "../ReusableComponent/loadingTableSpiner";
 function TechnicianTable() {
   const [loadings, setLoading] = useState(false);
   const { authToken } = useContext(AuthContext);
-  const { request, loading } = useContext(RequestDisplayContext);
+  const { request, loading,setRequest } = useContext(RequestDisplayContext);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [senddata, setsenddata] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,19 +31,25 @@ function TechnicianTable() {
   const [loadingId, setLoadingId] = useState(null);
   const [clickedRows, setClickedRows] = useState(new Set());
   const { setSendPost } = useContext(MessagePOSTcontext);
-  const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
-    withCredentials: true,
-    transports: ["websocket"], // optional pero maganda para mas mabilis
-  });
-  useEffect(() => {
-    socket.on("adminNotification");
-    socket.on("SMSNotification");
 
+  useEffect(() => {
+    const handleAdminNotification = (data) => {
+      // handle admin notification here
+      console.log("Admin notification received:", data);
+    }; 
+    const handleSMSNotification = (data) => {
+      // handle SMS notification here
+      console.log("SMS notification received:", data);
+    };
+    socket.on("adminNotification", handleAdminNotification);
+    socket.on("SMSNotification", handleSMSNotification);
+  
     return () => {
-      socket.off("adminNotification");
-      socket.off("SMSNotification");
+      socket.off("adminNotification", handleAdminNotification);
+      socket.off("SMSNotification", handleSMSNotification);
     };
   }, []);
+  
   // Mag uupdate ang dropdown kapag may seacrhQuery na nalagay
   //dito ipinapasa ang reference na na input sa search
   const handleSearchChange = (e) => {
@@ -95,6 +102,11 @@ function TechnicianTable() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
   };
+
+    const handleAddNewData = (newEquip) => {
+      toast.success("Remarks assigned successfully");
+      setRequest((prevEquipment) => [...prevEquipment, newEquip]);
+    };
 
   const handleAccomplished = useCallback(
     async (datapass) => {
@@ -328,6 +340,7 @@ function TechnicianTable() {
             remarkdata={senddata}
             onClose={handleCloseModal}
             socket={socket} //
+            acceptNewDtaa={handleAddNewData}
           />
         )}
       </div>

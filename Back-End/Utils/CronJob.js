@@ -4,7 +4,7 @@ const socketIO = require('socket.io-client'); // For sending notifications via S
 
 // Replace with your actual server URL
 // Set up Socket.IO client to send notifications to the server
-const socket = socketIO(`https://mywebapplicationapi.onrender.com`);
+const socket = socketIO(`wss://mywebapplicationapi.onrender.com`);
 // Ensure the socket connection is established before emitting notifications
 socket.on('connect', () => {
   cron.schedule('0 7 * * *', async () => {
@@ -16,7 +16,8 @@ socket.on('connect', () => {
       const schedules = await Schedule.find({
         nextMaintenanceDate: { $lte: today, $ne: null },
         notified: false,
-      });     
+      });  
+         
       for (const schedule of schedules) {
         const nextMaintenanceDate = new Date(schedule.nextMaintenanceDate);
         console.log("Next Maintenance Date:", nextMaintenanceDate.toISOString());

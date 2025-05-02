@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 
 // Initialize socket connection
-const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_BASEURL, {
+const socket = io(import.meta.env.VITE_REACT_APP_BACKEND_socket_url, {
   transports: ["websocket"],
   reconnection: true,
   reconnectionAttempts: 5,

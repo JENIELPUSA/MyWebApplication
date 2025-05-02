@@ -99,12 +99,9 @@ const Notification = ({ toggleTechnicianModal }) => {
             data: response.data.data, // Pass updated data
           });
         }
-
         if (msgId) {
           updatesendMsg(msgId);
         }
-
-        fetchRequestData();
       }
     } catch (error) {
       toast.error(
@@ -124,10 +121,7 @@ const Notification = ({ toggleTechnicianModal }) => {
       await new Promise((res) => setTimeout(res, 1000)); // Simulate some operation delay
       setSendPatch(request); // Set the data to be sent
       setSendMsg(message); // Set the message data
-
       setClickedRows((prev) => new Set(prev).add(request)); // Add to clicked rows
-
-      await Promise.all([fetchDisplayMessgae(), fetchRequestData()]); // Simultaneous fetches
       console.log("Operation completed for RequestID:", request);
     } catch (error) {
       console.error("Error occurred during operation:", error);
@@ -224,10 +218,6 @@ const Notification = ({ toggleTechnicianModal }) => {
         ]);
 
         handlesend();
-
-        await fetchDisplayMessgae();
-        await fetchRequestData();
-
         // Clear textarea after submission
         setValues((prev) => ({
           ...prev,
@@ -240,7 +230,7 @@ const Notification = ({ toggleTechnicianModal }) => {
         console.log("Resetting loading state.");
       }
     },
-    [values, updateRequest, fetchDisplayMessgae, fetchRequestData]
+    [values, updateRequest]
   );
 
   const updatesendMsg = useCallback(
@@ -304,35 +294,6 @@ const Notification = ({ toggleTechnicianModal }) => {
       toast.error(error.response?.data?.message || "Error submitting request.");
     }
   }
-  //purpose nito para makapag implement ako ng loading...
-  const handleAccept = async (requestID, id) => {
-    setLoading(true); // Show "Processing..."
-    try {
-      await onSelectMessage(requestID, id); // Call the function
-    } finally {
-      setLoading(false); // Reset after operation completes
-    }
-  };
-  //purpose nito para makapag implement ako ng loading...
-  const acceptaproved = async (req) => {
-    setLoading(true);
-    try {
-      await acceptRemarks(req); // Call the function
-    } finally {
-      setLoading(false); // Reset after operation completes
-    }
-  };
-
-  //purpose nito para makapag implement ako ng loading...
-  const acceptfeedback = async (data, accpetID) => {
-    setLoading(true);
-    try {
-      await acceptVerification(data, accpetID); // Call the function
-      handlesend(data);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="relative text-white cursor-pointer">
