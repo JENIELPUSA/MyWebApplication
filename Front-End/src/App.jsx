@@ -60,7 +60,7 @@ function App() {
                                             <LaboratorytProvider>
                                               <BrowserRouter>
                                                 <SocketListener />
-                                                <Routes>
+                                                <Routes basename="/tothepoint_login" >
                                                   <Route
                                                     path=""
                                                     element={<Login />}
