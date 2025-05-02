@@ -1,13 +1,14 @@
 const dotenv = require("dotenv");
-dotenv.config({ path: "./config.env" });
 const mongoose = require("mongoose");
 const http = require("http");
 const socketIo = require("socket.io");
 const app = require("./app");
-let adminSocketId = null; // To store the admin's socket ID
 const user = require("./Models/usermodel");
 const sendEmail = require("../Back-End/Utils/email");
 const IncomingNotification = require("./Models/UnreadIncomingMaintenance");
+
+dotenv.config({ path: "./config.env" });
+
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception! Shutting down...");
@@ -20,22 +21,22 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin:process.env.FRONTEND_URL,  // Use the environment variable
+    origin: process.env.FRONTEND_URL, // Use the environment variable for frontend URL
     methods: ["GET", "POST"],
-    credentials: true,  // Allow cookies and auth headers
+    credentials: true, // Allow cookies and auth headers
   },
-  transports: ["websocket", "polling"],
-  pingInterval: 25000,
-  pingTimeout: 60000,
+  transports: ["websocket"], // Force websocket transport for better performance
+  pingInterval: 25000, // Interval to ping clients
+  pingTimeout: 60000, // Timeout for ping response
 });
 
 // Store io instance for global event handling
 app.set("io", io);
 
-// Socket.io event handling
+let adminSocketId = null; // To store the admin's socket ID
 let messageCount = 0; // Track new notifications count
 
-
+// Socket.io event handling
 io.on("connection", (socket) => {
   // Register user and admin socket ID
   socket.on("register-user", (userId, role) => {
@@ -52,6 +53,7 @@ io.on("connection", (socket) => {
     messageCount++; // Increment the count
     console.log("New request received:", data);
 
+    // Send notification to all connected clients
     io.emit("adminNotification", {
       message: "A new request has been added!",
       data: data,
@@ -80,15 +82,15 @@ io.on("connection", (socket) => {
           Laboratory: data.Laboratory,
         });
         console.log("Admin is offline. Notification saved to DB.");
-  
+
         // Get all admin users
         const admins = await user.find({ role: "admin" });
         const resetUrl = `http://localhost:5173/login`;
         // Construct message
         const msg = `
-          Please check your dashboard.A new maintenance request has been submitted and requires your attention.\nClick to login: ${resetUrl}
+          Please check your dashboard. A new maintenance request has been submitted and requires your attention.\nClick to login: ${resetUrl}
         `;
-  
+
         // Send individual email to each admin
         for (const admin of admins) {
           await sendEmail({
@@ -97,16 +99,11 @@ io.on("connection", (socket) => {
             text: msg,
           });
         }
-  
       } catch (err) {
-        console.error(
-          "Failed to handle offline admin notification:",
-          err.message
-        );
+        console.error("Failed to handle offline admin notification:", err.message);
       }
     }
   });
-  
 
   // Reset notification count when cleared
   socket.on("clearNotifications", () => {
@@ -129,7 +126,7 @@ io.on("connection", (socket) => {
 // Connect to MongoDB
 mongoose
   .connect(process.env.CONN_STR)
-  .then(() => console.log(" DB connected successfully"))
+  .then(() => console.log("DB connected successfully"))
   .catch((err) => {
     console.error("Database connection error:", err.message);
     process.exit(1);
@@ -150,4 +147,5 @@ process.on("unhandledRejection", (err) => {
   });
 });
 
+// Include your cron job if applicable
 require("./Utils/CronJob");
