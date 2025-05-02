@@ -108,8 +108,8 @@ exports.login = AsyncErrorHandler(async (req, res, next) => {
     console.log("Session set:", req.session);
     
     // Respond
-    return res.status(200).json({
-      status: 'success',
+    return res.status(200).send({
+      status: 'Success',
       userId: user._id,
       role: user.role,
       token,

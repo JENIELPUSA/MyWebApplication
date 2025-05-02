@@ -32,28 +32,18 @@ function Login() {
     e.preventDefault();
     if (!handleValidation()) return;
   
-    setIsLoading(true);
+    setIsLoading(true); // Show loading spinner
   
-    try {
-      const response = await login(values.email, values.password);
-      console.log("Login response:", response); // 🕵️‍♂️ Inspect mo ito
+    const response = await login(values.email, values.password);
   
-      // Use the correct access based on response structure
-      const status = response?.status || response?.data?.status;
-  
-      if (status === "success") {
-        setTimeout(() => {
-          navigate("/dashboardfinal");
-          setIsLoading(false);
-        }, 1000);
-      } else {
-        setIsLoading(false);
-        toast.error(response.message || "Login failed");
-      }
-    } catch (error) {
-      setIsLoading(false);
-      console.error("Login error:", error);
-      toast.error("An unknown error occurred");
+    if (response.success) {
+      setTimeout(() => {
+        navigate("/dashboardfinal");
+        setIsLoading(false); // After navigate, pwede mo nang itigil ang loading (optional depende sa flow mo)
+      }, 1000); // Stay loading habang naghihintay ng 2 seconds
+    } else {
+      setIsLoading(false); // Stop loading pag error
+      toast.error(response.message);
     }
   };
   
