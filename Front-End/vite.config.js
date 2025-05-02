@@ -1,15 +1,10 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+// vite.config.js
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    proxy: {
-      "/socket.io": {
-        target: "http://localhost:3000", // Adjust to match your backend server port
-        ws: true, // Enable WebSocket support
-        changeOrigin: true,
-      },
-    },
+  build: {
+    outDir: 'dist', // This specifies where the build files go (default is 'dist')
   },
-})
+});
