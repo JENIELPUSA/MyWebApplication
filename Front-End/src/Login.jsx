@@ -31,22 +31,30 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!handleValidation()) return;
-  
+
     setIsLoading(true); // Show loading spinner
-  
-    const response = await login(values.email, values.password);
-  
-    if (response.success) {
-      setTimeout(() => {
-        navigate("/dashboardfinal");
-        setIsLoading(false); // After navigate, pwede mo nang itigil ang loading (optional depende sa flow mo)
-      }, 1000); // Stay loading habang naghihintay ng 2 seconds
-    } else {
-      setIsLoading(false); // Stop loading pag error
-      toast.error(response.message);
+
+    try {
+        const response = await login(values.email, values.password);
+
+        // Ensure response is not undefined and has the expected structure
+        if (response && response.Success) {
+            setTimeout(() => {
+                navigate("/dashboardfinal");
+                setIsLoading(false); // After navigating, stop the loading spinner
+            }, 1000); // Stay loading while waiting for 1 second
+        } else {
+            setIsLoading(false); // Stop loading if there's an error
+            toast.error(response?.message || "An unknown error occurred.");
+        }
+    } catch (error) {
+        setIsLoading(false); // Stop loading in case of an error
+        toast.error("An error occurred during login. Please try again.");
+        console.error("Login error: ", error); // Log the error for debugging
     }
-  };
-  
+};
+
+
 
   return (
     <motion.div
