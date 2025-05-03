@@ -4,7 +4,6 @@ import { UserDisplayContext } from "../Context/User/DisplayUser";
 import { ToastContainer, toast } from "react-toastify";
 import axios from "axios";
 import { AuthContext } from "../Context/AuthContext";
-import { io } from "socket.io-client";
 import socket from "../../socket";
 import { motion } from "framer-motion";
 import { RequestDisplayContext } from "../Context/MaintenanceRequest/DisplayRequest";
@@ -66,7 +65,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose,acceptNewDtaa }) {
           setSendPost({
             ...result,
             message: "Admin Already Assign Technician to your Laboratory!",
-            Status: "Pending",
+            Status: "Pending"
           });
           socket.emit("newRequest", {
             message: "A new maintenance request!",

@@ -36,7 +36,7 @@ function DashboardCard() {
     <div className="xs:m-3 lg:m-10 font-poppins">
       {error && <div className="text-red-500 mb-4">{error}</div>}
       <div className="flex flex-wrap -mx-6 xs:-mt-5 lg:mt-4 h-full ">
-        {role === "admin" ? (
+        {role === "Admin" ? (
           <>
             {/* User Card - Only for Admin */}
             <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:-mb-1 sm:mb-6 lg:mb-6">
@@ -89,7 +89,7 @@ function DashboardCard() {
               </div>
             </div>
           </>
-        ) : role === "user" ? (
+        ) : role === "User" ? (
           <>
             {/* User Dashboard */}
             <div className="w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0 xs:-mb-1 sm:mb-6 lg:mb-6">

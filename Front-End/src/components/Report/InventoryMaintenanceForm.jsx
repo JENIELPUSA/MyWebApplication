@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useRef } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { ToastContainer, toast } from "react-toastify";
@@ -12,6 +12,9 @@ function InventoryMaintenanceForm({ onClose }) {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
   const [customError, setCustomError] = useState("");
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [selectedStatus, setSelectedStatus] = useState("Select Status");
+    const dropdownRef = useRef(null);
   const [values, setValues] = useState({
     department: "",
     status: "",
@@ -26,7 +29,15 @@ function InventoryMaintenanceForm({ onClose }) {
       from: "",
       to: "",
     });
+  }; 
+  
+  
+  const handleRoleSelect = (status) => {
+    setSelectedStatus(status);
+    setValues((prevValues) => ({ ...prevValues, status }));
+    setDropdownOpen(false);
   };
+
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -198,20 +209,30 @@ function InventoryMaintenanceForm({ onClose }) {
             )}
           </div>
 
-          {/* Status Dropdown */}
-          <div className="mb-4">
-            <label className="block mb-1 text-sm text-slate-600">Status</label>
-            <select
-              name="status"
-              value={values.status}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+
+          <div className="relative mb-4" ref={dropdownRef}>
+            <label className="text-sm text-slate-600 mb-1 block">Status</label>
+            <button
+              type="button"
+              className="w-full p-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 text-left"
+              onClick={() => setDropdownOpen((prev) => !prev)}
             >
-              <option value="">Select Status</option>
-              <option value="Pending">Pending</option>
-              <option value="UnderMaintenance">In Progress</option>
-              <option value="Success">Completed</option>
-            </select>
+              {selectedStatus}
+            </button>
+            {dropdownOpen && (
+              <div className="absolute left-0 right-0 mt-1 z-10 bg-white border border-gray-300 rounded-md shadow-lg">
+                {["Pending", "Under Maintenance","Success"].map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                    onClick={() => handleRoleSelect(status)}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Date Range */}

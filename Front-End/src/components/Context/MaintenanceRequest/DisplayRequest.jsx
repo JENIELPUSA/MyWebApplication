@@ -69,13 +69,13 @@ export const DisplayRequestProvider = ({ children }) => {
 
       const requestData = res?.data.data || []; // Ensure it's always an array
       setView(requestData);
-      if (role === "admin") {
+      if (role === "Admin") {
         const specificAdminMsg = requestData?.filter(
           (msg) => msg?.read === false
         );
         setRequest(requestData);
         setAdminMsg(specificAdminMsg?.length);
-      } else if (role === "Technician" || role === "user") {
+      } else if (role === "Technician" || role === "User") {
         const specificMessages = requestData?.filter(
           (msg) => msg?.UserId === userId
         );
@@ -121,7 +121,6 @@ export const DisplayRequestProvider = ({ children }) => {
         setShowModal(true);
         setToAdmin(response.data);
         handlesend();
-        fetchRequestData();
         socket.on("connect", () => {
           console.log("Connected to socket server:", socket.id);
           socket.emit("newRequest", {

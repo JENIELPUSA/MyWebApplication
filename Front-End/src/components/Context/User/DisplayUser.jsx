@@ -56,6 +56,7 @@ export const UserDisplayProvider = ({ children }) => {
           LastName: values.LastName,
           email: values.email,
           password: values.password,
+          role: values.role
         },
         {
           headers: { Authorization: `Bearer ${authToken}` },
@@ -93,6 +94,7 @@ export const UserDisplayProvider = ({ children }) => {
         Middle: values.Middle,
         LastName: values.LastName,
         email: values.email,
+        role: values.role
       };
   
       if (values.password) {

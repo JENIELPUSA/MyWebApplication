@@ -9,11 +9,11 @@ router.route('/')
     
 
 router.route('/:id')
-    .delete(authController.protect,authController.restrict('admin'),userController.deleteUser)
-    .patch(authController.protect,authController.restrict('admin'),userController.Updateuser)
-    .get(authController.protect,authController.restrict('admin'),userController.Getiduser)
+    .delete(authController.protect,authController.restrict('Admin'),userController.deleteUser)
+    .patch(authController.protect,authController.restrict('Admin'),userController.Updateuser)
+    .get(authController.protect,authController.restrict('Admin'),userController.Getiduser)
 router.route('/updatePassword').patch(
-        authController.protect,authController.restrict('admin'),
+        authController.protect,authController.restrict('Admin'),
         userController.updatePassword
 )
     

@@ -111,7 +111,7 @@ function Navbar() {
             toggleTechnicianModal={(data) => toggleModal("technician", data)}
           />
 
-        {role === "admin" && (
+        {role === "Admin" && (
           <div className="relative management-dropdown">
             <button
               className="md:hidden text-2xl text-white flex items-center"
@@ -259,7 +259,7 @@ function Navbar() {
           </div>
         )}
 
-        {role === "user" && (
+        {role === "User" && (
           <div className="relative management-dropdown">
             <button
               className="text-white items-center hidden md:flex"

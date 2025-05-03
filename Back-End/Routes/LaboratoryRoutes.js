@@ -6,7 +6,7 @@ router
   .route("/")
   .post(
     authController.protect,
-    authController.restrict("admin"),
+    authController.restrict("Admin"),
     LaboratoryController.createLaboratory
   )
   .get(authController.protect, LaboratoryController.DisplayLaboratory);
@@ -15,12 +15,12 @@ router
   .route("/:id")
   .delete(
     authController.protect,
-    authController.restrict("admin"),
+    authController.restrict("Admin"),
     LaboratoryController.deleteLaboratory
   )
   .patch(
     authController.protect,
-    authController.restrict("admin"),
+    authController.restrict("Admin"),
     LaboratoryController.UpdateLab
   );
 router

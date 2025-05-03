@@ -75,10 +75,10 @@ const Notification = ({ toggleTechnicianModal }) => {
 
   useEffect(() => {
     if (isNotificationOpen) {
-      if (role === "user" && msg.length > 0 && hasUnread) {
+      if (role === "User" && msg.length > 0 && hasUnread) {
         const allLaboratoryIds = msg.map((item) => item._id);
         ReadOnUpdate(allLaboratoryIds);
-      } else if (role === "admin" && ToAdmin?.length > 0) {
+      } else if (role === "Admin" && ToAdmin?.length > 0) {
         const allLaboratoryIds = ToAdmin.map((item) => item._id);
         ReadOnUpdate(allLaboratoryIds);
       }
@@ -162,7 +162,7 @@ const Notification = ({ toggleTechnicianModal }) => {
           ...result,
           message: `The assigned request in ${requestInfo.Department} / ${requestInfo.laboratoryName} has been completed!`,
           Status: "Accepted",
-          role: "admin",
+          role: "Admin",
         });
 
         setValues({ Remarks: "" });
@@ -302,12 +302,12 @@ const Notification = ({ toggleTechnicianModal }) => {
         onClick={() => setIsNotificationOpen(!isNotificationOpen)}
       />
 
-      {(role === "admin" && AdminMsg) ||
+      {(role === "Admin" && AdminMsg) ||
       ToAdminCount.length > 0 ||
       (role === "Technician" && CountSpecificData > 0) ||
-      (role === "user" && msgcount > 0) ? (
+      (role === "User" && msgcount > 0) ? (
         <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full px-2">
-          {role === "admin" && ToAdminCount
+          {role === "Admin" && ToAdminCount
             ? AdminMsg + ToAdminCount.length
             : role === "Technician"
             ? CountSpecificData
@@ -332,7 +332,7 @@ const Notification = ({ toggleTechnicianModal }) => {
             scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800
           "
           >
-            {role === "admin" &&
+            {role === "Admin" &&
             (request?.length > 0 || ToAdmin?.length > 0) ? (
               <>
                 {/*Merge and Sort All Notifications */}
@@ -397,7 +397,7 @@ const Notification = ({ toggleTechnicianModal }) => {
                     </div>
                   ))}
               </>
-            ) : (role === "Technician" && msgcount > 0) || role === "user" ? (
+            ) : (role === "Technician" && msgcount > 0) || role === "User" ? (
               [...msg]
                 .filter((item) => item?.DateTime) // Remove undefined/null DateTime
                 .sort((a, b) => new Date(b.DateTime) - new Date(a.DateTime)) // Sort by latest DateTime
@@ -457,7 +457,7 @@ const Notification = ({ toggleTechnicianModal }) => {
                     )}
 
                     {/* User View */}
-                    {role === "user" && (
+                    {role === "User" && (
                       <div>
                         <time className="text-sm text-gray-500 block">
                           {new Intl.DateTimeFormat("en-US", {

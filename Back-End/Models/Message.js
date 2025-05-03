@@ -31,8 +31,8 @@ const messageSchema = new mongoose.Schema({
   },
   role: { 
     type: String, 
-    enum: ["admin", "user", "Technician"], 
-    default: "user",
+    enum: ["Admin", "User", "Technician"], 
+    default: "User",
     required: true 
   }, 
   read: { type: Boolean, default: false },

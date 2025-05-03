@@ -65,12 +65,13 @@ exports.deleteUser = AsyncErrorHandler(async (req, res) => {
 });
 
 exports.Updateuser = AsyncErrorHandler(async (req, res, next) => {
-    const { FirstName, LastName, email} =
+    const { FirstName, LastName, email,role} =
     req.body;
   if (
     !FirstName ||
     !LastName ||
-    !email
+    !email||
+    !role
   ) {
     return res.status(400).json({
       status: "fail",
@@ -121,19 +122,20 @@ exports.updatePassword = AsyncErrorHandler(async (req, res, next) => {
 });
 
 exports.signup = AsyncErrorHandler(async (req, res, next) => {
-  const { FirstName, Middle, LastName, email, password } = req.body;
+  const { FirstName, Middle, LastName, email, password,role } = req.body;
   user
     .findOne({ email: email })
     .then((user) => {
       if (user) {
         res.json("Already Have an Account!");
       } else {
-        User.create({
+        user.create({
           FirstName: FirstName,
           Middle: Middle,
           LastName: LastName,
           email: email,
           password: password,
+          role:role
         })
           .then((result) => res.json(result))
 

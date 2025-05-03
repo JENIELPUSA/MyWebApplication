@@ -36,9 +36,9 @@ export const DisplayMessageProvider = ({ children }) => {
 
       const MessageData = res?.data.data;
 
-      if (role === "user") {
+      if (role === "User") {
         const SpecificMessages = MessageData?.filter(
-          (msg) => msg.EnchrageId === userId && msg.role == "user"
+          (msg) => msg.EnchrageId === userId && msg.role == "User"
         );
         setMessage(SpecificMessages);
         const unreadMessages = SpecificMessages?.filter(
@@ -53,14 +53,14 @@ export const DisplayMessageProvider = ({ children }) => {
         setCountPending(SpecificMessages?.length);
         setMessage(SpecificMessages);
         setmsgCount(SpecificMessages?.length);
-      } else if (role === "admin") {
-        const SpecificMessagesAdmin = MessageData.filter(
-          (msg) => msg.role === "admin"
+      } else if (role === "Admin") {
+        const SpecificMessagesAdmin = MessageData?.filter(
+          (msg) => msg.role === "Admin"
         );
         setToAdmin(SpecificMessagesAdmin);
 
         // Count unread messages correctly
-        const unreadCount = SpecificMessagesAdmin.filter(
+        const unreadCount = SpecificMessagesAdmin?.filter(
           (msg) => msg.readonUser === false
         );
         setToAdminCount(unreadCount);

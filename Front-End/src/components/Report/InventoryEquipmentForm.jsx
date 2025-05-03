@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../Context/AuthContext";
 
 function InventoryEquipmentForm({ onClose }) {
   const [departments, setDepartments] = useState([]);
   const token = localStorage.getItem("token");
   const [customError, setCustomError] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState("Select Status");
+  const dropdownRef = useRef(null);
 
   const [values, setValues] = useState({
     status: "",
@@ -23,6 +24,7 @@ function InventoryEquipmentForm({ onClose }) {
       from: "",
       to: "",
     });
+    setSelectedStatus("Select Status");
   };
 
   const handleInputChange = (e) => {
@@ -34,12 +36,11 @@ function InventoryEquipmentForm({ onClose }) {
     e.preventDefault();
     try {
       const res = await axios.get(
-        `${
-          import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
-        }/api/v1/equipment/getEquipment?from=${values.from}&to=${
-          values.to
-        }&status=${values.status}`,
-        { headers: { Authorization: `Bearer ${token}` }, responseType: "blob" }
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/getEquipment?from=${values.from}&to=${values.to}&status=${values.status}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: "blob",
+        }
       );
 
       const fileURL = window.URL.createObjectURL(new Blob([res.data]));
@@ -62,7 +63,7 @@ function InventoryEquipmentForm({ onClose }) {
           try {
             const errorData = JSON.parse(reader.result);
             setCustomError(errorData.message || "Something went wrong.");
-          } catch (e) {
+          } catch {
             setCustomError("Unexpected error occurred.");
           }
         };
@@ -74,6 +75,26 @@ function InventoryEquipmentForm({ onClose }) {
       }
     }
   };
+
+  const handleRoleSelect = (status) => {
+    setSelectedStatus(status);
+    setValues((prevValues) => ({ ...prevValues, status }));
+    setDropdownOpen(false);
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Auto-clear error after 5 seconds
   useEffect(() => {
@@ -114,21 +135,32 @@ function InventoryEquipmentForm({ onClose }) {
           </p>
 
           {/* Status Dropdown */}
-          <div className="mb-4">
-            <label className="block mb-1 text-sm text-slate-600">Status</label>
-            <select
-              name="status"
-              value={values.status}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+          <div className="relative mb-4" ref={dropdownRef}>
+            <label className="text-sm text-slate-600 mb-1 block">Status</label>
+            <button
+              type="button"
+              className="w-full p-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 text-left"
+              onClick={() => setDropdownOpen((prev) => !prev)}
             >
-              <option value="">Select Status</option>
-              <option value="Available">Available</option>
-              <option value="Not Available">Not Available</option>
-            </select>
+              {selectedStatus}
+            </button>
+            {dropdownOpen && (
+              <div className="absolute left-0 right-0 mt-1 z-10 bg-white border border-gray-300 rounded-md shadow-lg">
+                {["Available", "Not Available"].map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                    onClick={() => handleRoleSelect(status)}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Date Range */}
+          {/* Date Range Inputs */}
           <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <div className="sm:w-1/2">
               <label className="block mb-1 text-sm text-slate-600">
@@ -165,7 +197,7 @@ function InventoryEquipmentForm({ onClose }) {
           </button>
         </form>
 
-        {/* Selected Filters Display */}
+        {/* Selected Filters Summary */}
         {(values.department || values.status || values.from || values.to) && (
           <div className="mt-6 bg-slate-50 border border-slate-200 p-4 rounded-md shadow-sm">
             <h5 className="text-slate-700 font-semibold mb-2">

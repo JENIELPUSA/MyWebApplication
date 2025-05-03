@@ -237,6 +237,7 @@ function Equipment({
               )}
             </div>
 
+
             {/* Serial Number Field */}
             <div className="w-full">
               <label className="xs:text-xs sm:text-sm block mb-1 text-sm text-slate-600">

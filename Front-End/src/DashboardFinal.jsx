@@ -165,8 +165,8 @@ const Breadcrumbs = ({ current }) => (
 const DashboardContent = ({ role, laboratoryData, onSelect }) => (
   <div>
     <DashboardCard Laboratory={laboratoryData} />
-    {role === "admin" && <AdminDashboard />}
-    {role === "user" && (
+    {role === "Admin" && <AdminDashboard />}
+    {role === "User" && (
       <UserDashboard onSelect={onSelect} laboratoryData={laboratoryData} />
     )}
     {role === "Technician" && <TechnicianDashboard />}
@@ -208,8 +208,8 @@ const TechnicianDashboard = () => (
 );
 
 const getDashboardTitle = (role) => {
-  if (role === "admin") return "Dashboard";
-  if (role === "user") return "In-Charge";
+  if (role === "Admin") return "Dashboard";
+  if (role === "User") return "In-Charge";
   if (role === "Technician") return "Technician";
   return "Dashboard";
 };

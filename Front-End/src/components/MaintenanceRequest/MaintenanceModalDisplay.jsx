@@ -213,7 +213,7 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
             <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-left text-sm">Status</th>
             <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-left text-sm">Feedback</th>
             <th className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-center text-sm">
-              {role === "user" ? (
+              {role === "User" ? (
                 <button
                   onClick={() =>
                     handleAddClick(
@@ -277,7 +277,7 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
                 </td>
                 <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-sm">{requestData.feedback}</td>
                 <td className="xs:text-xs sm:text-sm lg:text-sm border border-gray-300 p-2 text-center text-sm">
-                  {role === "admin" && (
+                  {role === "Admin" && (
                     <button onClick={() => handleDeleteSpecificData(requestData)} className="xs:text-xs sm:text-sm lg:text-sm text-red-500 mx-1">
                       DELETE
                     </button>

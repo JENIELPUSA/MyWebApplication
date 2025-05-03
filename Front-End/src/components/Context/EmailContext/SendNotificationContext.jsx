@@ -26,7 +26,7 @@ export const AddEmailProvider = ({ children }) => {
         setIsEmail(TechEmail);
         console.log("Technician Emails:", TechEmail);
       } else if (toAdmin) {
-        const adminUsers = users?.filter(user => user.role === "admin");
+        const adminUsers = users?.filter(user => user.role === "Admin");
         const adminEmail = adminUsers?.map(admin => admin.email);
         setIsEmail(adminEmail);
       }

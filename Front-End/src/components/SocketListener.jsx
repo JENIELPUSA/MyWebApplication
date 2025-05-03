@@ -14,7 +14,7 @@ const SocketListener = () => {
       socket.emit("register-user", userId, role);
     }
 
-    if (role === "admin") {
+    if (role === "Admin") {
       // Handle maintenance notifications for admin
       const handleNotification = (data) => {
         console.log("New maintenance notification:", data);
