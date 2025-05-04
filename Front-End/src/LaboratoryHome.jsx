@@ -10,33 +10,13 @@ import { motion } from "framer-motion";
 
 function DashboardFinal() {
   const location = useLocation();
+  const laboratory = location.state?.laboratory;
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
   const token = localStorage.getItem("token");
 
-  console.log("From location.state:", location.state?.laboratory);
-  console.log("From localStorage:", localStorage.getItem("laboratory"));
-
-  const [laboratory, setLaboratory] = useState(() => {
-    const fromState = location.state?.laboratory;
-    const fromStorage = localStorage.getItem("laboratory");
-  
-    try {
-      return fromState || (fromStorage && JSON.parse(fromStorage));
-    } catch (err) {
-      console.error("Failed to parse localStorage data", err);
-      return null;
-    }
-  });
-  
-
-useEffect(()=>{
-  if(laboratory){
-    localStorage.setItem("laboratory",JSON.stringify(laboratory));
-  }
-},[laboratory])
-
   // Fetch data only if laboratory is available
+  
   useEffect(() => {
     if (laboratory && laboratory._id) {
       const fetchData = async () => {

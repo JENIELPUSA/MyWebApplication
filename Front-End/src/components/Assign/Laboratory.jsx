@@ -10,7 +10,6 @@ import { motion } from "framer-motion";
 
 const Laboratory = ({ onClose }) => {
   const location = useLocation();
-  const selectedLabs = location.state?.selectedLab;
   const [isModalAddForm, setAddFormOpen] = useState(false);
   const { Assignlaboratories } = useContext(AssignContext); // Access context
   const [currentPage, setCurrentPage] = useState(1);
@@ -18,6 +17,22 @@ const Laboratory = ({ onClose }) => {
   const [selectedLab, setSelectedLab] = useState(null);
   const navigate = useNavigate();
   const { laboratories, loading } = useContext(LaboratoryDisplayContext);
+
+
+  // Load from location.state or localStorage
+const selectedLabsFromState = location.state?.selectedLab;
+
+const [selectedLabs, setSelectedLabs] = useState(() => {
+  const saved = localStorage.getItem("selectedLab");
+  return saved ? JSON.parse(saved) : selectedLabsFromState || "";
+});
+
+useEffect(() => {
+  if (selectedLabsFromState) {
+    localStorage.setItem("selectedLab", JSON.stringify(selectedLabsFromState));
+    setSelectedLabs(selectedLabsFromState);
+  }
+}, [selectedLabsFromState]);
 
 
 
@@ -127,9 +142,6 @@ const Laboratory = ({ onClose }) => {
                   className="flex justify-center items-center bg-blue-500 hover:bg-blue-600 w-12 h-12 rounded-md"
                 >
                   <i className="fas fa-desktop"></i>
-                </button>
-                <button className="flex justify-center items-center bg-blue-500 hover:bg-blue-600 w-12 h-12 rounded-md">
-                  <i className="fas fa-trash"></i>
                 </button>
               </div>
             </div>

@@ -60,9 +60,6 @@ const AssignLab = () => {
   const handleSelectDisplay = (selectedLab,lab) => {
     console.log("Selected Lab:", selectedLab);
     navigate("/LaboratoryAssign", { state: { selectedLab } }); // Send data to another route
-
-localStorage.setItem("laboratory", JSON.stringify(lab));
-
   };
 
   if (error) return <p>Error: {error}</p>;
