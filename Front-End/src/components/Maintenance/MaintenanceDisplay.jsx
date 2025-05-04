@@ -21,13 +21,21 @@ function MaintenanceDisplay() {
   const { displayData, DeleteType } = useContext(AddTypeMaintenance);
   const [equipmentsPerPage] = useState(6);
 
-const [selectedLab, setSelectedLab]=useState(()=>{
-  const saveLab =localStorage.getItem("selectedLab");
-  return saveLab? JSON.parse(saveLab): location.state?.selectedAssignEquipment || {}
+
+    // I-save ang laboratory data sa localStorage
+    useEffect(() => {
+      if (laboratory) {
+        localStorage.setItem("laboratory", JSON.stringify(laboratory));
+      }
+    }, [laboratory]);
   
-})
-
-
+    // I-retrieve ang laboratory data mula sa localStorage (kapag may available na data)
+    useEffect(() => {
+      const savedLab = localStorage.getItem("laboratory");
+      if (savedLab) {
+        setAssignEquipments(JSON.parse(savedLab));
+      }
+    }, []);
 
   // Store equipment list from location.state only once
   useEffect(() => {
@@ -35,15 +43,6 @@ const [selectedLab, setSelectedLab]=useState(()=>{
       location.state?.selectedAssignEquipment?.equipments || [];
     setAssignEquipments(equipments);
   }, [location.state]);
-
-
-  useEffect(() => {
-    if (selectedLab) {
-      localStorage.setItem("selectedLab", JSON.stringify(selectedLab));
-    }
-  }, [selectedLab]);
-
-
 
   const handleSelectEquipment = (equipment, laboratory) => {
     setSendDataEquip(equipment);
