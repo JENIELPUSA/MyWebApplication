@@ -12,7 +12,6 @@ function MaintenanceDisplay() {
   const [isOpenMaintenanceModal, setOpenMaintenanceModal] = useState(false);
   const [isTypesofMaintenanceModal, setTypesofMaintenanceModal] =
     useState(false);
-  const [assignEquipments, setAssignEquipments] = useState([]);
   const [SendDataLab, setSendDataLab] = useState(null);
   const [SendDataEquip, setSendDataEquip] = useState(null);
 
@@ -24,6 +23,13 @@ function MaintenanceDisplay() {
   const laboratoryData = location.state?.selectedAssignEquipment;
 
 
+  const [assignEquipments, setAssignEquipments] = useState(() => {
+    const saved = localStorage.getItem("assignedEquipments");
+    return saved ? JSON.parse(saved) : [];
+  });
+  
+
+console.log(assignEquipments)
   const [laboratory,setlaboartory]=useState(()=>{
     const saved = localStorage.getItem("selectedLabsData");
     //Kung may nahanap na data sa localStorage (saved), ito ay iko-convert mula sa string pabalik sa JavaScript object gamit ang JSON.parse(saved).
@@ -37,6 +43,7 @@ function MaintenanceDisplay() {
       //Ang JSON.stringify ay ginagamit para gawing string ang object (kasi localStorage ay tanging string lang ang kayang itago)
       localStorage.setItem("selectedLabsData", JSON.stringify(laboratoryData));
       setlaboartory(laboratoryData);
+      console.log("fwqffq",laboratoryData)
     }
   }, [laboratoryData]);//ito ay dependencies kungmay nabago mag render yan siya
   
@@ -46,6 +53,11 @@ function MaintenanceDisplay() {
   useEffect(() => {
     const equipments =
       location.state?.selectedAssignEquipment?.equipments || [];
+
+      if (equipments.length > 0) {
+        localStorage.setItem("assignedEquipments", JSON.stringify(equipments));
+      }
+
     setAssignEquipments(equipments);
   }, [location.state]);
 
