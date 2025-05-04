@@ -17,25 +17,30 @@ function MaintenanceDisplay() {
   const [SendDataEquip, setSendDataEquip] = useState(null);
 
   const location = useLocation();
-  const laboratory = location.state?.selectedAssignEquipment || {};
+  
   const { displayData, DeleteType } = useContext(AddTypeMaintenance);
   const [equipmentsPerPage] = useState(6);
 
+  const laboratoryData = location.state?.selectedAssignEquipment;
 
-    // I-save ang laboratory data sa localStorage
-    useEffect(() => {
-      if (laboratory) {
-        localStorage.setItem("laboratory", JSON.stringify(laboratory));
-      }
-    }, [laboratory]);
+
+  const [laboratory,setlaboartory]=useState(()=>{
+    const saved = localStorage.getItem("selectedLabsData");
+    //Kung may nahanap na data sa localStorage (saved), ito ay iko-convert mula sa string pabalik sa JavaScript object gamit ang JSON.parse(saved).
+    return saved ? JSON.parse(saved) : laboratoryData || "";
+  })
+
+  useEffect(() => {
+    //for example may value na siya na "HeadOffice" na galing sa return sa taas
+    if (laboratoryData) {
+      //Kapag may laman ang laboratoryData, isinasave ito sa localStorage gamit ang localStorage.setItem.
+      //Ang JSON.stringify ay ginagamit para gawing string ang object (kasi localStorage ay tanging string lang ang kayang itago)
+      localStorage.setItem("selectedLabsData", JSON.stringify(laboratoryData));
+      setlaboartory(laboratoryData);
+    }
+  }, [laboratoryData]);//ito ay dependencies kungmay nabago mag render yan siya
   
-    // I-retrieve ang laboratory data mula sa localStorage (kapag may available na data)
-    useEffect(() => {
-      const savedLab = localStorage.getItem("laboratory");
-      if (savedLab) {
-        setAssignEquipments(JSON.parse(savedLab));
-      }
-    }, []);
+  
 
   // Store equipment list from location.state only once
   useEffect(() => {
