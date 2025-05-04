@@ -19,20 +19,26 @@ const Laboratory = ({ onClose }) => {
   const { laboratories, loading } = useContext(LaboratoryDisplayContext);
 
 
-  // Load from location.state or localStorage
+//para sa pagawa ng localStorage //yang selectedLab na yan yan ang susi para
+//magtrigger ang mga data kasi dyaan na nakabase ang  filter na data
+//para pag refresh hindi mag empty ang UI natin
 const selectedLabsFromState = location.state?.selectedLab;
 
 const [selectedLabs, setSelectedLabs] = useState(() => {
   const saved = localStorage.getItem("selectedLab");
+  //Kung may nahanap na data sa localStorage (saved), ito ay iko-convert mula sa string pabalik sa JavaScript object gamit ang JSON.parse(saved).
   return saved ? JSON.parse(saved) : selectedLabsFromState || "";
 });
 
 useEffect(() => {
+  //for example may value na siya na "HeadOffice" na galing sa return sa taas
   if (selectedLabsFromState) {
+    //Kapag may laman ang selectedLabsFromState, isinasave ito sa localStorage gamit ang localStorage.setItem.
+    //Ang JSON.stringify ay ginagamit para gawing string ang object (kasi localStorage ay tanging string lang ang kayang itago)
     localStorage.setItem("selectedLab", JSON.stringify(selectedLabsFromState));
     setSelectedLabs(selectedLabsFromState);
   }
-}, [selectedLabsFromState]);
+}, [selectedLabsFromState]);//ito ay dependencies kungmay nabago mag render yan siya
 
 
 

@@ -21,12 +21,29 @@ function MaintenanceDisplay() {
   const { displayData, DeleteType } = useContext(AddTypeMaintenance);
   const [equipmentsPerPage] = useState(6);
 
+const [selectedLab, setSelectedLab]=useState(()=>{
+  const saveLab =localStorage.getItem("selectedLab");
+  return saveLab? JSON.parse(saveLab): location.state?.selectedAssignEquipment || {}
+  
+})
+
+
+
   // Store equipment list from location.state only once
   useEffect(() => {
     const equipments =
       location.state?.selectedAssignEquipment?.equipments || [];
     setAssignEquipments(equipments);
   }, [location.state]);
+
+
+  useEffect(() => {
+    if (selectedLab) {
+      localStorage.setItem("selectedLab", JSON.stringify(selectedLab));
+    }
+  }, [selectedLab]);
+
+
 
   const handleSelectEquipment = (equipment, laboratory) => {
     setSendDataEquip(equipment);
