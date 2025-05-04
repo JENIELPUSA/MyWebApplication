@@ -24,12 +24,13 @@ const Laboratory = ({ onClose }) => {
 //para pag refresh hindi mag empty ang UI natin
 const selectedLabsFromState = location.state?.selectedLab;
 
+//gamitin lang ito kung halimbawa mag refresh na empty ang page
 const [selectedLabs, setSelectedLabs] = useState(() => {
   const saved = localStorage.getItem("selectedLabs");
   //Kung may nahanap na data sa localStorage (saved), ito ay iko-convert mula sa string pabalik sa JavaScript object gamit ang JSON.parse(saved).
   return saved ? JSON.parse(saved) : selectedLabsFromState || "";
 });
-
+//gamitin lang ito kung halimbawa mag refresh na empty ang page
 useEffect(() => {
   //for example may value na siya na "HeadOffice" na galing sa return sa taas
   if (selectedLabsFromState) {

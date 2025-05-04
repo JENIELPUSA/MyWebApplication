@@ -7,7 +7,7 @@ const AssignLab = () => {
   const [uniqueLaboratories, setUniqueLaboratories] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 3; // Items per page for pagination
+  const itemsPerPage = 6; // Items per page for pagination
   const navigate = useNavigate();
 
   // useEffect to process unique laboratories

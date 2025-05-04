@@ -22,20 +22,18 @@ function MaintenanceDisplay() {
 
   const laboratoryData = location.state?.selectedAssignEquipment;
 
-
+//gamitin lang ito kung halimbawa mag refresh na empty ang page
   const [assignEquipments, setAssignEquipments] = useState(() => {
     const saved = localStorage.getItem("assignedEquipments");
     return saved ? JSON.parse(saved) : [];
   });
-  
-
-console.log(assignEquipments)
+  //gamitin lang ito kung halimbawa mag refresh na empty ang page
   const [laboratory,setlaboartory]=useState(()=>{
     const saved = localStorage.getItem("selectedLabsData");
     //Kung may nahanap na data sa localStorage (saved), ito ay iko-convert mula sa string pabalik sa JavaScript object gamit ang JSON.parse(saved).
     return saved ? JSON.parse(saved) : laboratoryData || "";
   })
-
+//gamitin lang ito kung halimbawa mag refresh na empty ang page
   useEffect(() => {
     //for example may value na siya na "HeadOffice" na galing sa return sa taas
     if (laboratoryData) {
@@ -48,7 +46,7 @@ console.log(assignEquipments)
   }, [laboratoryData]);//ito ay dependencies kungmay nabago mag render yan siya
   
   
-
+//gamitin lang ito kung halimbawa mag refresh na empty ang page
   // Store equipment list from location.state only once
   useEffect(() => {
     const equipments =

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { io } from "socket.io-client";
-
+import MonthlyTableGraph from "./MonthlyGraph";
 import Navbar from "./components/Navbar";
 import DashboardCard from "./components/DashboardCard";
 import AssignLab from "./components/Assign/AssignLab";
@@ -24,11 +24,9 @@ function DashboardFinal({ specificData }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-
   const laboratory = location.state?.laboratory;
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
-  
 
   const handleSelectDisplay = (selectedAssignEquipment) => {
     navigate("/RequestMaintenances", { state: { selectedAssignEquipment } });
@@ -41,7 +39,9 @@ function DashboardFinal({ specificData }) {
     const fetchData = async () => {
       try {
         const response = await axios.get(
-          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
+          `${
+            import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+          }/api/v1/departments`,
           {
             headers: { Authorization: `Bearer ${authToken}` },
           }
@@ -119,8 +119,8 @@ const LaboratoryView = ({ laboratory }) => (
 );
 
 const DashboardView = ({ role, laboratoryData, onSelect }) => (
-  <div className="flex-1 flex flex-col relative z-10">
-    <div className=" sm:px-10 flex-grow flex flex-col gap-4 sm:gap-10">
+  <div className="flex-1 flex flex-col relative z-10 sm:px-8 lg:px-16">
+    <div className=" sm:px-10 flex-grow flex flex-col gap-2 sm:gap-10">
       <DashboardHeader title={getDashboardTitle(role)} />
       <DashboardContent
         role={role}
@@ -133,7 +133,9 @@ const DashboardView = ({ role, laboratoryData, onSelect }) => (
 
 const DashboardHeader = ({ title }) => (
   <div className="flex justify-between items-center py-4 border-b border-gray-200">
-    <div className=" lg:text-3xl sm:text-2xl xs:text-lg text-3xl font-bold text-blue-600">{title}</div>
+    <div className=" lg:text-3xl sm:text-2xl xs:text-lg text-3xl font-bold text-blue-600">
+      {title}
+    </div>
     <Breadcrumbs current={title} />
   </div>
 );
@@ -174,15 +176,25 @@ const DashboardContent = ({ role, laboratoryData, onSelect }) => (
 );
 
 const AdminDashboard = () => (
-  <div className="flex flex-col lg:flex-row gap-6">
-    {/*purpose nito hidden md:block tinatago ang DashboardPieChart if tapos na sa tablet pababa*/}
-    <div className="p-6 rounded-lg flex-[1] hidden md:block">
-      <DashboardPieChart />
+<div className="flex flex-col lg:flex-row gap-2">
+  {/* Left side: Two items stacked vertically */}
+  <div className="flex flex-col lg:w-[calc(25%-1.5rem)] gap-3">
+    <div className="rounded-lg flex-[1] hidden md:block">
+    <MonthlyTableGraph />
     </div>
-    <div className="xs:mx-2 xs:p-4 mb-auto rounded-lg shadow-lg flex-[2] bg-white">
+    <div className="rounded-lg flex-[2] hidden md:block">
+    <DashboardPieChart />
+    </div>
+  </div>
+
+  {/* Right side: One item (AssignLab), grows to match the height of two left-side items */}
+  <div className="flex flex-col gap-6 xs:mx-2 xs:p-4 mb-auto rounded-lg shadow-lg flex-[1] bg-white lg:w-[calc(75%-1.5rem)] lg:h-full">
+    <div className="flex-grow">
       <AssignLab />
     </div>
   </div>
+</div>
+
 );
 
 const UserDashboard = ({ onSelect, laboratoryData }) => (
@@ -201,9 +213,9 @@ const TechnicianDashboard = () => (
     <div className="rounded-lg bg-transparent lg:w-1/4 w-full min-w-[300px] hidden md:block">
       <DashboardPieChart />
     </div>
-      <div className="w-full overflow-x-auto">
-        <TechnicianTable />
-      </div>
+    <div className="w-full overflow-x-auto">
+      <TechnicianTable />
+    </div>
   </div>
 );
 

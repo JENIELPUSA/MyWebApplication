@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
-import io from "socket.io-client";
 export const AuthContext = createContext();
 import socket from "../../socket";
 import { ToastContainer, toast } from "react-toastify";
@@ -87,6 +86,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("laboratory");
     localStorage.removeItem("selectedLabsData");
     localStorage.removeItem("assignedEquipments")
+    localStorage.removeItem("maintenanceRequests")
     // Clear state
     setAuthToken(null);
     setRole(null);
@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }) => {
     console.log("UserID after removal:", localStorage.getItem("userId")); // Should be null
 
     // Reload the page after logout
-    window.location.reload();
+    window.location.href = "";
   };
   <ToastContainer />
   return (

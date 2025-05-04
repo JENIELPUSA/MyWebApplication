@@ -622,6 +622,29 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
 });
 
 
+exports.getMonthlyMaintenanceGraph=AsyncErrorHandler(async(req,res,next)=>{
+  try {
+    const data = await requestmaintenance.aggregate([
+      {
+        $project: {
+          month: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+        },
+      },
+      {
+        $group: {
+          _id: "$month",
+          total: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+})
+
+
 
 
 

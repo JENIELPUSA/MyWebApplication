@@ -20,4 +20,8 @@ router
   .route("/getSpecificMaintenances")
   .get(authController.protect,MaintenanceRoute.getSpecificMaintenance);
 
+  router
+  .route("/monthly-requests")
+  .get(authController.protect,MaintenanceRoute.getMonthlyMaintenanceGraph);
+
 module.exports = router;

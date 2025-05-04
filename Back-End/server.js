@@ -86,7 +86,7 @@ io.on("connection", (socket) => {
 
         // Get all admin users
         const admins = await user.find({ role: "admin" });
-        const resetUrl = `http://localhost:5173/login`;
+        const resetUrl = `https://myapp-xk0w.onrender.com`;
         // Construct message
         const msg = `
           Please check your dashboard. A new maintenance request has been submitted and requires your attention.\nClick to login: ${resetUrl}
