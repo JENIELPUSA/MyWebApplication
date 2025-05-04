@@ -10,10 +10,19 @@ import { motion } from "framer-motion";
 
 function DashboardFinal() {
   const location = useLocation();
-  const laboratory = location.state?.laboratory;
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
   const token = localStorage.getItem("token");
+
+const [laboratory, setLaboratory]=useState(
+  location.state?.laboratory || JSON.parse(localStorage.getItem("laboratory"))
+);
+
+useEffect(()=>{
+  if(laboratory){
+    localStorage.setItem("laboratory",JSON.stringify(laboratory));
+  }
+},[laboratory])
 
   // Fetch data only if laboratory is available
   useEffect(() => {
