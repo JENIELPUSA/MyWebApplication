@@ -14,9 +14,21 @@ function DashboardFinal() {
   const [error, setError] = useState(null);
   const token = localStorage.getItem("token");
 
-const [laboratory, setLaboratory]=useState(
-  location.state?.laboratory || JSON.parse(localStorage.getItem("laboratory"))
-);
+  console.log("From location.state:", location.state?.laboratory);
+  console.log("From localStorage:", localStorage.getItem("laboratory"));
+
+  const [laboratory, setLaboratory] = useState(() => {
+    const fromState = location.state?.laboratory;
+    const fromStorage = localStorage.getItem("laboratory");
+  
+    try {
+      return fromState || (fromStorage && JSON.parse(fromStorage));
+    } catch (err) {
+      console.error("Failed to parse localStorage data", err);
+      return null;
+    }
+  });
+  
 
 useEffect(()=>{
   if(laboratory){

@@ -57,9 +57,12 @@ const AssignLab = () => {
   };
 
   // Handle selection of a lab and navigate with data
-  const handleSelectDisplay = (selectedLab) => {
+  const handleSelectDisplay = (selectedLab,lab) => {
     console.log("Selected Lab:", selectedLab);
     navigate("/LaboratoryAssign", { state: { selectedLab } }); // Send data to another route
+
+localStorage.setItem("laboratory", JSON.stringify(lab));
+
   };
 
   if (error) return <p>Error: {error}</p>;
@@ -99,7 +102,7 @@ const AssignLab = () => {
                 Number of Laboratories: {lab.count}
               </p>
               <button
-                onClick={() => handleSelectDisplay(lab.departmentName)} // Pass selected lab
+                onClick={() => handleSelectDisplay(lab.departmentName,lab)} // Pass selected lab
                 className="px-4 py-2 text-white bg-blue-700 rounded-lg hover:bg-blue-800"
               >
                 View
