@@ -25,7 +25,7 @@ const Laboratory = ({ onClose }) => {
 const selectedLabsFromState = location.state?.selectedLab;
 
 const [selectedLabs, setSelectedLabs] = useState(() => {
-  const saved = localStorage.getItem("selectedLab");
+  const saved = localStorage.getItem("selectedLabs");
   //Kung may nahanap na data sa localStorage (saved), ito ay iko-convert mula sa string pabalik sa JavaScript object gamit ang JSON.parse(saved).
   return saved ? JSON.parse(saved) : selectedLabsFromState || "";
 });
@@ -35,7 +35,7 @@ useEffect(() => {
   if (selectedLabsFromState) {
     //Kapag may laman ang selectedLabsFromState, isinasave ito sa localStorage gamit ang localStorage.setItem.
     //Ang JSON.stringify ay ginagamit para gawing string ang object (kasi localStorage ay tanging string lang ang kayang itago)
-    localStorage.setItem("selectedLab", JSON.stringify(selectedLabsFromState));
+    localStorage.setItem("selectedLabs", JSON.stringify(selectedLabsFromState));
     setSelectedLabs(selectedLabsFromState);
   }
 }, [selectedLabsFromState]);//ito ay dependencies kungmay nabago mag render yan siya
