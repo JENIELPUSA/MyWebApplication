@@ -52,13 +52,15 @@ console.log(assignEquipments)
   // Store equipment list from location.state only once
   useEffect(() => {
     const equipments =
-      location.state?.selectedAssignEquipment?.equipments || [];
+      location.state?.selectedAssignEquipment?.equipments;
 
-      if (equipments.length > 0) {
+      
+  if (equipments && equipments.length > 0) {
         localStorage.setItem("assignedEquipments", JSON.stringify(equipments));
+        setAssignEquipments(equipments);
       }
 
-    setAssignEquipments(equipments);
+
   }, [location.state]);
 
   const handleSelectEquipment = (equipment, laboratory) => {
