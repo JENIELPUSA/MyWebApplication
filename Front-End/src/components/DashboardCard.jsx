@@ -33,13 +33,13 @@ function DashboardCard() {
   ).length;
 
   return (
-    <div className="xs:m-3 lg:m-10 font-poppins">
+    <div className="xs:m-4 lg:m-10 font-poppins">
       {error && <div className="text-red-500 mb-4">{error}</div>}
-      <div className="flex flex-wrap -mx-8 xs:-mt-2 lg:mt-4 h-full ">
+      <div className="flex flex-wrap -mx-6 xs:-mt-2 lg:mt-4 h-full ">
         {role === "Admin" ? (
           <>
             {/* User Card - Only for Admin */}
-            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:-mb-1 sm:mb-6 lg:mb-6">
+            <div className="w-full xs:px-3 sm:px:4 lg:px:4 sm:w-1/2 xl:w-1/3 xs:-mb-1 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-lg rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-700 hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-indigo-600 bg-opacity-75">
                   <MdPerson className="h-8 w-8 text-white" />
@@ -56,7 +56,7 @@ function DashboardCard() {
             </div>
 
             {/* Equipment Card */}
-            <div className="w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 sm:mt-0 xs:-mb-1 sm:mb-6 lg:mb-6">
+            <div className="xs:px-3 sm:px:4 lg:px:4 w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 sm:mt-0 xs:-mb-1 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-lg rounded-xl bg-gradient-to-r from-orange-500 to-orange-700 hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-orange-600 bg-opacity-75">
                   <MdBuild className="h-8 w-8 text-white" />
@@ -73,7 +73,7 @@ function DashboardCard() {
             </div>
 
             {/* Laboratories Card */}
-            <div className="w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0 xs:mb-1 sm:mb-6 lg:mb-6">
+            <div className="xs:px-3 sm:px:4 lg:px:4 w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0 xs:mb-1 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-lg rounded-xl bg-gradient-to-r from-pink-500 to-pink-700 hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-pink-600 bg-opacity-75">
                   <MdScience className="h-8 w-8 text-white" />
@@ -92,7 +92,7 @@ function DashboardCard() {
         ) : role === "User" ? (
           <>
             {/* User Dashboard */}
-            <div className="w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0 xs:-mb-1 sm:mb-6 lg:mb-6">
+            <div className="xs:px-3 sm:px:4 lg:px:4 w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0 xs:-mb-1 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl bg-white/30 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
                   <MdApartment className="h-8 w-8 text-gray-800" />
@@ -109,7 +109,7 @@ function DashboardCard() {
             </div>
 
 
-            <div className="w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0 xs:-mb-1 sm:mb-6 lg:mb-6">
+            <div className="xs:px-3 sm:px:4 lg:px:4 w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0 xs:-mb-1 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl bg-white/30 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
                 <MdScience className="h-8 w-8 text-gray-700" />
@@ -126,7 +126,7 @@ function DashboardCard() {
             </div>
 
 
-            <div className="w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0  xs:mb-2 sm:mb-6 lg:mb-6">
+            <div className="xs:px-3 sm:px:4 lg:px:4 w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0  xs:mb-2 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl bg-white/30 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
                 <MdBuild className="h-8 w-8 text-gray-700" />
@@ -145,7 +145,7 @@ function DashboardCard() {
         ) : role === "Technician" ? (
           <>
             {/* User Card - Only for Admin */}
-            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:mb-4 sm:mb-6 lg:mb-6">
+            <div className="xs:px-3 sm:px:4 lg:px:4 w-full sm:w-1/2 xl:w-1/3 xs:mb-4 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl  bg-gray-100 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
                   <MdBuild className="h-8 w-8 text-gray-800" />
@@ -162,7 +162,7 @@ function DashboardCard() {
               </div>
             </div>
 
-            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:mb-4 sm:mb-6 lg:mb-6">
+            <div className="w-full xs:px-3 sm:px:4 lg:px:4 sm:w-1/2 xl:w-1/3 xs:mb-4 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl  bg-gray-100 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
                   <MdBuild className="h-8 w-8 text-gray-800" />
@@ -179,7 +179,7 @@ function DashboardCard() {
               </div>
             </div>
 
-            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:mb-3 sm:mb-6 lg:mb-6">
+            <div className="w-full xs:px-3 sm:px:4 lg:px:4 sm:w-1/2 xl:w-1/3 xs:mb-3 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl  bg-gray-100 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
                   <MdBuild className="h-8 w-8 text-gray-800" />

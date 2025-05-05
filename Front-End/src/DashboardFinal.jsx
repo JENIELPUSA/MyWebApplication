@@ -76,7 +76,7 @@ function DashboardFinal({ specificData }) {
     initial={{ opacity: 0, y: 50 }}
     animate={isInView ? { opacity: 1, y: 0 } : {}}
     transition={{ duration: 0.6, ease: "easeOut" }}
-    className="w-full flex-1 px-2 2xs:px-3 xs:px-4 xm:px-6 sm:px-10 md:px-16 lg:px-20 xl:px-40 mx-auto py-4"
+    className="w-full flex-1 px-2 2xs:px-4 xs:px-4 xm:px-6 sm:px-10 md:px-16 lg:px-20 xl:px-40 mx-auto py-4"
   >
     {laboratory ? (
       <LaboratoryView laboratory={laboratory} />
