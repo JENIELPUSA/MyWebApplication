@@ -7,6 +7,9 @@ import { EquipmentDisplayContext } from "../EquipmentContext/DisplayContext.jsx"
 import { RequestDisplayContext } from "../MaintenanceRequest/DisplayRequest.jsx";
 import { SchedDisplayContext } from "../TypesOfSchedContext.jsx";
 import { AddTypeMaintenance } from "../TypesofMainten/addmaintenance.jsx";
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance.jsx";
 export const AddAssignContext = createContext();
 
 export const AddAssignProvider = ({ children }) => {
@@ -29,7 +32,7 @@ export const AddAssignProvider = ({ children }) => {
     setLoading(true); // Show loading indicator when starting the request
 
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/AssignEquipment`,
         {
           Equipments: values.id, // Selected equipment

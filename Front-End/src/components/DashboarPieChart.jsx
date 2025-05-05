@@ -76,7 +76,7 @@ function DashboardPieChart() {
   }, [Pending, undermaintenance, success]); // Re-render chart when any of these change
 
   return (
-    <div className="flex flex-col items-center bg-white dark:bg-neutral-700 rounded-lg shadow-md p-4">
+    <div className="flex flex-col items-center bg-white dark:bg-neutral-700 rounded-lg shadow-md p-4 hover:scale-105 hover:shadow-xl hover:shadow-blue-500/50">
       <h2 className="text-lg font-semibold mb-3 dark:text-gray-500">
         Task Status Overview
       </h2>

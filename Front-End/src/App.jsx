@@ -35,7 +35,11 @@ import { AddTypeMaintenanceProvider } from "./components/Context/TypesofMainten/
 import { SchedDisplayProvider } from "./components/Context/TypesOfSchedContext.jsx";
 import SocketListener from "./components/SocketListener.jsx";
 import { IncomingDisplayProvider } from "./components/Context/ProcessIncomingRequest/IncomingRequestContext.jsx";
+import AxiosInterceptor from "./components/AxiosInterceptor.jsx";
 function App() {
+
+
+  
   return (
     <AuthProvider> 
         <SchedDisplayProvider>
@@ -59,6 +63,7 @@ function App() {
                                           <UserProvider>
                                             <LaboratorytProvider>
                                               <BrowserRouter>
+                                              <AxiosInterceptor/>
                                                 <SocketListener />
                                                 <Routes basename="/tothepoint_login" >
                                                   <Route

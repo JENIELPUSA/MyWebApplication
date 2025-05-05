@@ -33,13 +33,13 @@ function DashboardCard() {
   ).length;
 
   return (
-    <div className="xs:m-3 font-poppins bg-white p-4 rounded-lg">
+    <div className="xs:m-3 lg:m-10 font-poppins">
       {error && <div className="text-red-500 mb-4">{error}</div>}
-      <div className="flex flex-wrap -mx-6 xs:-mt-5 lg:mt-4 h-full ">
+      <div className="flex flex-wrap -mx-8 xs:-mt-2 lg:mt-4 h-full ">
         {role === "Admin" ? (
           <>
             {/* User Card - Only for Admin */}
-            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:-mb-1 sm:mb-6 lg:mb-6 xs:pt-4 sm:pt-0">
+            <div className="w-full px-6 sm:w-1/2 xl:w-1/3 xs:-mb-1 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-lg rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-700 hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-indigo-600 bg-opacity-75">
                   <MdPerson className="h-8 w-8 text-white" />

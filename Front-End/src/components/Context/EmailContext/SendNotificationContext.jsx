@@ -3,6 +3,9 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { UserDisplayContext } from "../User/DisplayUser";
 import "react-toastify/dist/ReactToastify.css";
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 export const PostEmailContext = createContext();
 
@@ -44,10 +47,10 @@ export const AddEmailProvider = ({ children }) => {
 
     setIsSending(true); // Mark as sending
 
-    const resetUrl = `https://my-web-application-one.vercel.app/login`;
+    const resetUrl = `https://myapp-xk0w.onrender.com`;
 
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/emailSend`,
         {
           emails: isEmail,

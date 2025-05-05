@@ -9,7 +9,7 @@ import AssignLab from "./components/Assign/AssignLab";
 import DashboardPieChart from "./components/DashboarPieChart";
 import Laboratory from "./components/Assign/Laboratory";
 import TechnicianTable from "./components/Technician/TechnicianTable";
-
+import Footer from "./components/Footer";
 import { AuthContext } from "./components/Context/AuthContext";
 import { LaboratoryDisplayContext } from "./components/Context/Laboratory/Display";
 import { FilterSpecificAssignContext } from "./components/Context/AssignContext/FilterSpecificAssign";
@@ -64,42 +64,37 @@ function DashboardFinal({ specificData }) {
   }, [laboratory?._id, authToken]);
 
   return (
-    <div className="w-full bg-gray-300 flex flex-col min-h-screen">
-      <div className="top-0 left-0 w-full shadow-md bg-white z-50">
-        <Navbar />
-      </div>
+<div className="w-full bg-gray-300 flex flex-col min-h-screen">
+  {/* Navbar */}
+  <div className="w-full shadow-md bg-white z-50">
+    <Navbar />
+  </div>
 
-      <motion.main
-        ref={ref}
-        initial={{ opacity: 0, y: 50 }}
-        animate={isInView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="
-    w-full
-    flex-1
-    px-2
-    2xs:px-3
-    xs:px-4
-    xm:px-6
-    sm:px-10
-    md:px-16
-    lg:px-20
-    xl:px-40
-    mx-auto
-    py-4
-  "
-      >
-        {laboratory ? (
-          <LaboratoryView laboratory={laboratory} />
-        ) : (
-          <DashboardView
-            role={role}
-            laboratoryData={laboratoryData}
-            onSelect={handleSelectDisplay}
-          />
-        )}
-      </motion.main>
-    </div>
+  {/* Main Content with Motion Effect */}
+  <motion.main
+    ref={ref}
+    initial={{ opacity: 0, y: 50 }}
+    animate={isInView ? { opacity: 1, y: 0 } : {}}
+    transition={{ duration: 0.6, ease: "easeOut" }}
+    className="w-full flex-1 px-2 2xs:px-3 xs:px-4 xm:px-6 sm:px-10 md:px-16 lg:px-20 xl:px-40 mx-auto py-4"
+  >
+    {laboratory ? (
+      <LaboratoryView laboratory={laboratory} />
+    ) : (
+      <DashboardView
+        role={role}
+        laboratoryData={laboratoryData}
+        onSelect={handleSelectDisplay}
+      />
+    )}
+  </motion.main>
+
+  {/* Footer */}
+  <div className="w-full shadow-md bg-white z-50 mt-auto">
+    <Footer />
+  </div>
+</div>
+
   );
 }
 
@@ -176,25 +171,23 @@ const DashboardContent = ({ role, laboratoryData, onSelect }) => (
 );
 
 const AdminDashboard = () => (
-<div className="flex flex-col lg:flex-row gap-2">
-  {/* Left side: Two items stacked vertically */}
-  <div className="flex flex-col lg:w-[calc(25%-1.5rem)] gap-3">
-    <div className="rounded-lg flex-[1] hidden md:block">
-    <MonthlyTableGraph />
+  <div className="flex flex-col lg:flex-row xs:gap-0 sm:gap-2 lg:gap-2">
+    {/* Left side: Two items stacked vertically */}
+    <div className="flex flex-col lg:w-[calc(25%-1.5rem)] gap-3">
+      <div className="rounded-lg flex-[1] hidden md:block">
+        <MonthlyTableGraph />
+      </div>
+      <div className="rounded-lg flex-[2] hidden md:block">
+        <DashboardPieChart />
+      </div>
     </div>
-    <div className="rounded-lg flex-[2] hidden md:block">
-    <DashboardPieChart />
+    {/* Right side: One item (AssignLab), grows to match the height of two left-side items */}
+    <div className="flex flex-col gap-6 xs:mx-0 xs:p-4 mb-auto rounded-lg shadow-lg flex-[1] bg-white lg:w-[calc(75%-1.5rem)] lg:h-full">
+      <div className="flex-grow">
+        <AssignLab />
+      </div>
     </div>
   </div>
-
-  {/* Right side: One item (AssignLab), grows to match the height of two left-side items */}
-  <div className="flex flex-col gap-6 xs:mx-2 xs:p-4 mb-auto rounded-lg shadow-lg flex-[1] bg-white lg:w-[calc(75%-1.5rem)] lg:h-full">
-    <div className="flex-grow">
-      <AssignLab />
-    </div>
-  </div>
-</div>
-
 );
 
 const UserDashboard = ({ onSelect, laboratoryData }) => (

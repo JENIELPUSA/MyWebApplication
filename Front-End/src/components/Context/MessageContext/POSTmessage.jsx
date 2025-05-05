@@ -4,6 +4,9 @@ import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
 import { io } from "socket.io-client";
 import socket from "../../../socket";
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 // Create Context
 export const MessagePOSTcontext = createContext();
@@ -38,7 +41,7 @@ export const MessagePostProvider = ({ children }) => {
   const fetchsendPost = async () => {
     if (!SendPost) return;
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest`,
         {
           Status: SendPost.Status,
@@ -70,7 +73,7 @@ export const MessagePostProvider = ({ children }) => {
     if (!SendPatch) return;
   
     try {
-      const response = await axios.patch(
+      const response = await axiosInstance.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${SendPatch}`,
         { Status: "Under Maintenance" },
         {
@@ -100,7 +103,7 @@ export const MessagePostProvider = ({ children }) => {
     if (!sendMsg) return;
 
     try {
-      const response = await axios.patch(
+      const response = await axiosInstance.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${sendMsg}`,
         { Status: "Accepted" },
         { headers: { Authorization: `Bearer ${authToken}` } }

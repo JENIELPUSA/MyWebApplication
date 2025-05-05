@@ -1,6 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { AuthContext } from "./AuthContext";
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../ReusableComponent/axiosInstance";
 
 export const AssignContext = createContext();
 
@@ -26,7 +29,7 @@ export const AssignProvider = ({ children }) => {
   const fetchAssignData = async () => {
     if (!authToken) return;
     try {
-      const response = await axios.get(
+      const response = await axiosInstance.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/AssignEquipment`,
         {
           withCredentials: true,

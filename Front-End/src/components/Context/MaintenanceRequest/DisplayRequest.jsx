@@ -6,6 +6,9 @@ import {io} from 'socket.io-client'
 import { PostEmailContext } from "../EmailContext/SendNotificationContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 import socket from "../../../socket";
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 export const RequestDisplayContext = createContext();
 
 export const DisplayRequestProvider = ({ children }) => {
@@ -57,7 +60,7 @@ export const DisplayRequestProvider = ({ children }) => {
     if (!authToken) return;
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(
+      const res = await axiosInstance.get(
         `${
           import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
         }/api/v1/MaintenanceRequest`,
@@ -101,7 +104,7 @@ export const DisplayRequestProvider = ({ children }) => {
     department
   ) => {
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         `${
           import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
         }/api/v1/MaintenanceRequest`,

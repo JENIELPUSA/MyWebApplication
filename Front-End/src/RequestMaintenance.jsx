@@ -2,6 +2,7 @@ import React from "react";
 import Navbar from "./components/Navbar"; // Ensure correct import path
 import { useLocation } from "react-router-dom";
 import MaintenanceDisplay from "./components/Maintenance/MaintenanceDisplay";
+import Footer from "./components/Footer";
 function RequestMaintenance() {
   const location = useLocation();
 const laboratory = location.state?.selectedAssignEquipment;
@@ -22,6 +23,11 @@ const laboratory = location.state?.selectedAssignEquipment;
           <DashboardView />
         )}
       </div>
+
+        {/* Footer */}
+  <div className="w-full shadow-md bg-white z-50 mt-auto">
+    <Footer />
+  </div>
     </div>
   );
 }

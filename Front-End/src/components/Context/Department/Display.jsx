@@ -4,6 +4,9 @@ import { toast } from "react-toastify";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 import { AuthContext } from "../AuthContext";
 export const DepartmentDisplayContext = createContext();
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 export const DepartmentDisplayProvider = ({ children }) => {
 const { authToken } = useContext(AuthContext);
@@ -37,7 +40,7 @@ const { authToken } = useContext(AuthContext);
   const fetchCategoryData = async () => {
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`, {
+      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`, {
         withCredentials: true,
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -51,7 +54,7 @@ const { authToken } = useContext(AuthContext);
 
   const AddAcceptDepartment = async (values) => {
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
         {
           DepartmentName: values.DepartmentName,
@@ -94,7 +97,7 @@ const { authToken } = useContext(AuthContext);
         dataToSend.password = values.password;
       }
 
-      const response = await axios.patch(
+      const response = await axiosInstance.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${department}`,
         dataToSend,
         {
@@ -122,7 +125,7 @@ const { authToken } = useContext(AuthContext);
 
   const DeleteDepartment = async (departmentId) => {
     try {
-      const response = await axios.delete(
+      const response = await axiosInstance.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${departmentId}`,
         {
           withCredentials: true , headers: { Authorization: `Bearer ${authToken}` },

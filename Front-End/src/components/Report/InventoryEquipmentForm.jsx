@@ -46,7 +46,7 @@ function InventoryEquipmentForm({ onClose }) {
       const fileURL = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement("a");
       link.href = fileURL;
-      link.setAttribute("download", `Department_Labs_${Date.now()}.pdf`);
+      link.setAttribute("download", `Equipment${Date.now()}.pdf`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

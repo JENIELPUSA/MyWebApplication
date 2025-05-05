@@ -10,7 +10,7 @@ const crypto = require('crypto');
 const signToken = id => {
     return jwt.sign({ id }, process.env.SECRET_STR, {
         //importante ito dapat tugma siya sa back-end o sa app.js na session sa ttl and sa maxage
-        expiresIn: '1d' // 1 day
+        expiresIn:'1d' // 1 day
     });
 };
 
@@ -223,7 +223,7 @@ exports.forgotPassword = AsyncErrorHandler(async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Generate the reset URL
-    const resetUrl = `https://my-web-application-one.vercel.app/reset_password/${resetToken}`;
+    const resetUrl = `https://myapp-xk0w.onrender.com/reset_password/${resetToken}`;
     const message = `We have received a password reset request. Please use the below link to reset your password:\n\n${resetUrl} \n\nThis reset password link will be available for 10 minutes.`;
 
     try {

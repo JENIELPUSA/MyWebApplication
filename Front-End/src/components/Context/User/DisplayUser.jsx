@@ -4,6 +4,9 @@ import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 export const UserDisplayContext = createContext();
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 export const UserDisplayProvider = ({ children }) => {
   const [customError, setCustomError] = useState("");
@@ -30,7 +33,7 @@ export const UserDisplayProvider = ({ children }) => {
     if (!authToken) return;
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users`, {
+      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users`, {
         withCredentials: true ,
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -48,7 +51,7 @@ export const UserDisplayProvider = ({ children }) => {
 
   const AddUser = async (values) => {
     try {
-      const res = await axios.post(
+      const res = await axiosInstance.post(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users`,
         {
           FirstName: values.FirstName,
@@ -101,7 +104,7 @@ export const UserDisplayProvider = ({ children }) => {
         dataToSend.password = values.password;
       }
   
-      const response = await axios.patch(
+      const response = await axiosInstance.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users/${user}`,
         dataToSend,
         { headers: { Authorization: `Bearer ${authToken}` } }
@@ -137,7 +140,7 @@ export const UserDisplayProvider = ({ children }) => {
 
   const DeleteUser=async(userId)=>{
     try {
-      const response = await axios.delete(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users/${userId}`, {
+      const response = await axiosInstance.delete(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users/${userId}`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (response.data && response.data.status === "success") {

@@ -3,7 +3,9 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
 import { RequestDisplayContext } from "../MaintenanceRequest/DisplayRequest";
-
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 export const IncomingDisplayContext = createContext();
 
 export const IncomingDisplayProvider = ({ children }) => {
@@ -13,7 +15,7 @@ export const IncomingDisplayProvider = ({ children }) => {
   const fetchIncomingData = async () => {
     if (!authToken) return;
     try {
-      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/IncomingRequests`, {
+      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/IncomingRequests`, {
         withCredentials: true,
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -32,7 +34,7 @@ export const IncomingDisplayProvider = ({ children }) => {
         await Promise.all(
           departmentData.map(async item => {
             try {
-              await axios.delete(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/IncomingRequests/${item._id}`);
+              await axiosInstance.delete(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/IncomingRequests/${item._id}`);
             } catch (err) {
               console.error(`Failed to delete ${item._id}:`, err.message);
             }

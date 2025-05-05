@@ -2,6 +2,9 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 export const MessageDisplayContext = createContext();
 
@@ -24,7 +27,7 @@ export const DisplayMessageProvider = ({ children }) => {
   const fetchDisplayMessgae = async () => {
     if (!authToken) return;
     try {
-      const res = await axios.get(
+      const res = await axiosInstance.get(
         `${
           import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
         }/api/v1/MessageRequest`,

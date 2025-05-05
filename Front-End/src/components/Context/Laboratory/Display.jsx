@@ -3,6 +3,10 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext"; // Import AuthContext
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
+
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 export const LaboratoryDisplayContext = createContext();
 
 export const LaboratoryDisplayProvider = ({ children }) => {
@@ -39,7 +43,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
     if (!authToken) return;
     setLoading(true);
     try {
-      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`, {
+      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`, {
         headers: {
           withCredentials: true ,Authorization: `Bearer ${authToken}`, // Include the token in headers
         },
@@ -64,7 +68,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
 
   const AddedLaboratory = async (values) => {
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`,
         {
           department: values.department,
@@ -102,7 +106,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
 
   const UpdateLaboratory = async (LaboratoryId, values) => {
     try {
-      const response = await axios.patch(
+      const response = await axiosInstance.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory/${LaboratoryId}`,
         {
           department: values.department,
@@ -132,7 +136,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
 
   const DeleteLaboratory = async(laboratoryId)=>{
         try {
-          const response=await axios.delete(
+          const response=await axiosInstance.delete(
             `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory/${laboratoryId}`,
             {
               withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` },

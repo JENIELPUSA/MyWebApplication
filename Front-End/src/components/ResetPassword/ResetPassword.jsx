@@ -4,12 +4,13 @@ import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { motion } from 'framer-motion';
+import {AuthContext} from '../Context/AuthContext';
 function ResetPassword(onClose) {
   const [animateExit, setAnimateExit] = useState(false);
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const navigate = useNavigate();
     const { token } = useParams();
+    const {logout}=AuthContext();
 
     console.log('Token:', token);
 
@@ -33,9 +34,8 @@ function ResetPassword(onClose) {
             if (res.data.status === "Success") {
                 toast.success("SuccessFully Updated!");
                 setTimeout(() => {
-                    navigate('/login');
-                  }, 2000);
-                  
+                  logout();
+                  }, 2000);       
                 
             } else {
                 toast.error('Failed to reset password. Please try again.');

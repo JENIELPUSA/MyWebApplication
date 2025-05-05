@@ -3,7 +3,9 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
-
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 export const AddTypeMaintenance = createContext();
 
@@ -18,7 +20,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
   const fetchDisplayTypes = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get(
+      const res = await axiosInstance.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`,
         { withCredentials: true,
           headers: { Authorization: `Bearer ${token}` } }
@@ -41,7 +43,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
   // ADD new type maintenance
   const Types = async (equipment, type, Laboratory,department) => {
     try {
-      const res = await axios.post(
+      const res = await axiosInstance.post(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`,
         {
           equipmentType: equipment._id,
@@ -103,7 +105,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
 
     try {
       if(!id)return
-      await axios.patch(
+      await axiosInstance.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${id}`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -125,7 +127,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
     }
 
     try {
-      const response = await axios.delete(
+      const response = await axiosInstance.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${schedule._id}`,
         { 
           withCredentials: true,

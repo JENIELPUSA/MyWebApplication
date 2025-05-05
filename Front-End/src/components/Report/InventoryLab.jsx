@@ -78,7 +78,7 @@ function InventoryLab({ onClose }) {
       const fileURL = window.URL.createObjectURL(new Blob([res.data]));  // Create an object URL for the file
       const link = document.createElement('a');  // Create an anchor element
       link.href = fileURL;  // Set the file URL to the anchor's href
-      link.setAttribute('download', `Department_Labs_${Date.now()}.pdf`);  // Specify the file name
+      link.setAttribute('download', `Laboratory${Date.now()}.pdf`);  // Specify the file name
       document.body.appendChild(link);  // Append the link to the DOM
       link.click();  // Trigger the download
       toast.success("PDF successfully generated and downloaded!");

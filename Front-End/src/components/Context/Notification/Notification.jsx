@@ -22,6 +22,9 @@ import {
 import { PostEmailContext } from "../EmailContext/SendNotificationContext";
 import { AddAssignContext } from "../AssignContext/AddAssignContext";
 import socket from "../../../socket";
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 
 const Notification = ({ toggleTechnicianModal }) => {
@@ -87,7 +90,7 @@ const Notification = ({ toggleTechnicianModal }) => {
 
   const updateRequest = async ({ url, updateData, socketEvent, msgId }) => {
     try {
-      const response = await axios.patch(url, updateData, {
+      const response = await axiosInstance.patch(url, updateData, {
         withCredentials: true,
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -144,7 +147,7 @@ const Notification = ({ toggleTechnicianModal }) => {
   const getSpecificID = async (requestID) => {
     if (!authToken) return;
     try {
-      const response = await axios.get(
+      const response = await axiosInstance.get(
         `${
           import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
         }/api/v1/MaintenanceRequest/getbyId/${requestID}`,
@@ -279,7 +282,7 @@ const Notification = ({ toggleTechnicianModal }) => {
   async function ReadOnUpdate(Id) {
     if (!authToken) return;
     try {
-      const response = await axios.patch(
+      const response = await axiosInstance.patch(
         `${
           import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
         }/api/v1/MessageRequest`,

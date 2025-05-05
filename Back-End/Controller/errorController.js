@@ -53,6 +53,9 @@ const prodErrors =(res,error)=>{
 module.exports = (error, req, res, next) => {
    error.statusCode = error.statusCode || 500;
    error.status = error.status || 'error';
+
+   if (error.name === 'TokenExpiredError') error = handleExpiredJWT();
+   if (error.name === 'JsonWebTokenError') error = handleJWTError();
  
    if (process.env.NODE_ENV === 'development') {
      devErrors(res, error);

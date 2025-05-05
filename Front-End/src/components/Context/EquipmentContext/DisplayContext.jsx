@@ -3,6 +3,9 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+import axiosInstance from "../../ReusableComponent/axiosInstance";
 export const EquipmentDisplayContext = createContext();
 
 export const EquipmentDisplayProvider = ({ children }) => {
@@ -40,7 +43,7 @@ const [customError, setCustomError]=useState("")
     if (!authToken) return;
     setLoading(true); // Set loading to true before fetching data
     try {
-      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment`, {
+      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment`, {
         withCredentials: true ,
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -68,7 +71,7 @@ const [customError, setCustomError]=useState("")
 
   const sendaddEquipment = async (values) => {
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment`,
         {
           Category: values.Category, // Send the Category ID directly
@@ -108,7 +111,7 @@ const [customError, setCustomError]=useState("")
 
   const EditEquipmentData = async (equipmentID, values) => {
     try {
-      const response = await axios.patch(
+      const response = await axiosInstance.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${equipmentID}`, // Correctly pass the ID
         {
           Category: values.Category, // Send the category ID
@@ -149,7 +152,7 @@ const [customError, setCustomError]=useState("")
 
   const DeleteDatas = async (equipmentID) => {
     try {
-      const response = await axios.delete(
+      const response = await axiosInstance.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/delete/${equipmentID}`,
         {
           withCredentials: true ,
