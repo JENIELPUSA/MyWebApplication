@@ -31,61 +31,46 @@ function TechnicianTable() {
   const [loadingId, setLoadingId] = useState(null);
   const [clickedRows, setClickedRows] = useState(new Set());
   const { setSendPost } = useContext(MessagePOSTcontext);
-
+  const [newdata,setnewData]=useState([])
+  
   useEffect(() => {
-    const handleAdminNotification = (data) => {
-      // handle admin notification here
-      console.log("Admin notification received:", data);
-    }; 
-    const handleSMSNotification = (data) => {
-      // handle SMS notification here
-      console.log("SMS notification received:", data);
-    };
-    socket.on("adminNotification", handleAdminNotification);
-    socket.on("SMSNotification", handleSMSNotification);
-  
-    return () => {
-      socket.off("adminNotification", handleAdminNotification);
-      socket.off("SMSNotification", handleSMSNotification);
-    };
-  }, []);
-  
-  // Mag uupdate ang dropdown kapag may seacrhQuery na nalagay
-  //dito ipinapasa ang reference na na input sa search
+    if (Array.isArray(request)) {
+      const withTechnician = request.filter((item) =>
+        (Array.isArray(item.Technician) && item.Technician.length > 0) ||
+        (typeof item.Technician === 'string' && item.Technician.trim() !== "" && item.Technician !== "N/A")
+      );
+      setnewData(withTechnician);
+    }
+  }, [request]);
+
+
   const handleSearchChange = (e) => {
     const query = e.target.value.toLowerCase();
     setSearchQuery(query);
 
-    // Extract matching laboratories dynamically
-    const matchingLabs = request
-      .filter((item) => item.Ref.toLowerCase().includes(query))
-
-      //pagkatpos mahanap ang data ay
-      //kinukuha lang natin ang laboratoryName ng bawat tumutugmang item.
+    // Extract matching laboratories dynamically based on Ref match
+    const matchingLabs = newdata
+      .filter((item) => item.Ref?.toLowerCase().includes(query))
       .map((item) => item.laboratoryName);
 
     // Remove duplicates
-    //para hindi mag ulit2 ang pag print ng mga laboratory name sa dropdown
     setLaboratoryOptions([...new Set(matchingLabs)]);
   };
 
-  //  Filtering logic
-  const filteredRequests = request?.filter((item) => {
-    const matchesSearch =
-      item.Ref.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.laboratoryName.toLowerCase().includes(searchQuery.toLowerCase());
 
-    //filtering specific data or hinahanap ang data batay sa na select sa dropdown
-    //tinatawag ito na ternary Operator
-    const matchesStatus = selectedStatus
-      ? item.Status === selectedStatus
-      : true;
+  const filteredRequests = newdata.filter((item) => {
+    const refMatch = item.Ref?.toLowerCase().includes(searchQuery);
+    const labMatch = item.laboratoryName?.toLowerCase().includes(searchQuery);
+    const matchesSearch = refMatch || labMatch;
 
-    const matchesLaboratory = selectedLaboratory
-      ? item.laboratoryName === selectedLaboratory
-      : true;
+    const matchesStatus = selectedStatus ? item.Status === selectedStatus : true;
+    const matchesLaboratory = selectedLaboratory ? item.laboratoryName === selectedLaboratory : true;
 
-    return matchesSearch && matchesStatus && matchesLaboratory;
+    const hasTechnician =
+      (Array.isArray(item.Technician) && item.Technician.length > 0) ||
+      (typeof item.Technician === 'string' && item.Technician.trim() !== "" && item.Technician !== "N/A");
+
+    return matchesSearch && matchesStatus && matchesLaboratory && hasTechnician;
   });
 
   // Pagination Logic
@@ -105,7 +90,7 @@ function TechnicianTable() {
 
     const handleAddNewData = (newEquip) => {
       toast.success("Remarks assigned successfully");
-      setRequest((prevEquipment) => [...prevEquipment, newEquip]);
+       socket.emit("RequestMaintenance",newEquip)
     };
 
   const handleAccomplished = useCallback(
@@ -136,6 +121,8 @@ function TechnicianTable() {
             message: "Message successfully updated!",
             data: result.data,
           });
+
+          socket.emit("RequestMaintenance",(result))
 
           setClickedRows((prev) => new Set(prev).add(datapass._id));
         }
@@ -212,7 +199,7 @@ function TechnicianTable() {
                   <LoadingTableSpinner />
                 </td>
               </tr>
-            ) : currentRows.length === 0 ? (
+            ) : currentRows?.length === 0 ? (
               <tr>
                 <td
                   colSpan={7}
@@ -222,7 +209,7 @@ function TechnicianTable() {
                 </td>
               </tr>
             ) : (
-              currentRows.map((item, index) => (
+              currentRows.filter((item) => Array.isArray(item.Technician) ? item.Technician.length > 0 : !!item.Technician).map((item, index) => (
                 <tr
                   key={index}
                   className="border-b dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-300"
@@ -303,47 +290,42 @@ function TechnicianTable() {
       </div>
 
       <div className="mt-5 flex items-center justify-between text-sm flex-wrap gap-3">
-        <p>
-          Showing{" "}
-          <strong>
-            {indexOfFirstRow + 1}-
-            {Math.min(indexOfLastRow, filteredRequests?.length)}
-          </strong>{" "}
-          of <strong>{filteredRequests?.length}</strong>
-        </p>
+  <div className="flex items-center space-x-2">
+    {/* Previous Button */}
+    <button
+      className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
+      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+      disabled={currentPage === 1}
+    >
+      Previous
+    </button>
 
-        <div className="flex space-x-2">
-          <button
-            className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </button>
+    {/* Page Number Display */}
+    <p className="text-sm">
+      Page {currentPage} of {totalPages}
+    </p>
 
-          {/* Page number buttons hidden */}
+    {/* Next Button */}
+    <button
+      className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
+      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+      disabled={currentPage === totalPages}
+    >
+      Next
+    </button>
+  </div>
 
-          <button
-            className="px-3 py-1.5 text-sm bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50"
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </button>
-        </div>
+  {isModalOpen && (
+    <TechForm
+      isOpen={isModalOpen}
+      remarkdata={senddata}
+      onClose={handleCloseModal}
+      socket={socket}
+      acceptNewDtaa={handleAddNewData}
+    />
+  )}
+</div>
 
-        {isModalOpen && (
-          <TechForm
-            isOpen={isModalOpen}
-            remarkdata={senddata}
-            onClose={handleCloseModal}
-            socket={socket} //
-            acceptNewDtaa={handleAddNewData}
-          />
-        )}
-      </div>
     </div>
   );
 }

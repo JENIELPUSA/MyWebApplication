@@ -17,7 +17,7 @@ import InventoryEquipmentForm from "./Report/InventoryEquipmentForm";
 import ModalReport from "./Report/ModalReport";
 import socket from "../socket";
 function Navbar() {
-  const { role, email } = useContext(AuthContext);
+  const { role, email,fullName } = useContext(AuthContext);
   const { logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
@@ -37,26 +37,6 @@ function Navbar() {
     maintenancereport: false,
   });
 
-  useEffect(() => {
-    const handleAdminNotification = (data) => {
-      console.log("Admin notification received:", data);
-      // Example: fetchRequestData(); or setHasUnread(true);
-    };
-  
-    const handleSMSNotification = (data) => {
-      console.log("SMS notification received:", data);
-    };
-  
-    socket.on("adminNotification", handleAdminNotification);
-    socket.on("SMSNotification", handleSMSNotification);
-  
-    return () => {
-      socket.off("adminNotification", handleAdminNotification);
-      socket.off("SMSNotification", handleSMSNotification);
-    };
-  }, []);
-  
-  
 
   const toggleModal = (modalName, data) => {
     setModals((prev) => ({ ...prev, [modalName]: !prev[modalName] }));
@@ -102,7 +82,7 @@ function Navbar() {
     <nav className="font-poppins w-full bg-gradient-to-r from-blue-900 to-indigo-900 xs:px-4 sm-px-4 px-8 py-3 flex justify-between items-center sm:px-8 md:px-16 lg:px-40">
       <div className="flex items-center gap-x-2 text-white font-semibold text-xl">
         <FaUserCircle className="w-10 h-10" />
-        <span className="hidden md:block">{email}</span>
+        <span className="hidden md:block">{fullName}</span>
       </div>
       <div></div>
 

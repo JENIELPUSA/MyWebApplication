@@ -58,6 +58,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose,acceptNewDtaa }) {
         if (response.data?.status === "success") {
           const result = response.data;
           toast.success("Successfully Assigned!");
+          socket.emit("RequestMaintenance",response.data.data) 
           handlesend(response);
           setToTechnician(result);
           setValues({ Encharge: "" });
@@ -67,10 +68,7 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose,acceptNewDtaa }) {
             message: "Admin Already Assign Technician to your Laboratory!",
             Status: "Pending"
           });
-          socket.emit("newRequest", {
-            message: "A new maintenance request!",
-            data: result.data,
-          });
+          socket.emit("RequestMaintenance",response.data.data)
           setTimeout(() => {
             onClose();
           }, 2000);
@@ -112,10 +110,6 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose,acceptNewDtaa }) {
             message:
               "I need your verification to approve a remark from the technician.",
             Status: "Accepted",
-          });
-          socket.emit("newRequest", {
-            message: "Admin Approved Your request!",
-            data: response.data.data,
           });
           setValues({ Remarks: "" });
           setTimeout(() => {

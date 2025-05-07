@@ -1,8 +1,9 @@
 import "bootstrap/dist/css/bootstrap.min.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route} from "react-router-dom";
 import Login from "./Login";
 import ResetPassword from "./components/ResetPassword/ResetPassword.jsx";
 import "./index.css"; // Import your Tailwind CSS here
+import { useEffect } from "react";
 import ForgotPassword from "./ForgotPassword.jsx";
 import UserForm from "./UserForm";
 import DashboardFinal from "./DashboardFinal";
@@ -34,10 +35,26 @@ import { AddEmailProvider } from "./components/Context/EmailContext/SendNotifica
 import { AddTypeMaintenanceProvider } from "./components/Context/TypesofMainten/addmaintenance.jsx";
 import { SchedDisplayProvider } from "./components/Context/TypesOfSchedContext.jsx";
 import SocketListener from "./components/SocketListener.jsx";
+import socket from "./socket.js";
 import { IncomingDisplayProvider } from "./components/Context/ProcessIncomingRequest/IncomingRequestContext.jsx";
 import AxiosInterceptor from "./components/AxiosInterceptor.jsx";
 function App() {
 
+
+  useEffect(() => {
+    const handleAddMaintenance = (data) => {
+      console.log("Global handler:", data);
+      // Global dispatch or state update can go here if needed
+    };
+
+    if (!socket.hasListeners || !socket.hasListeners("AddMaintenance")) {
+      socket.on("AddMaintenance", handleAddMaintenance);
+    }
+
+    return () => {
+      socket.off("AddMaintenance", handleAddMaintenance);
+    };
+  }, []);
 
   
   return (

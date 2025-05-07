@@ -5,10 +5,10 @@ import { AuthContext } from "../AuthContext";
 import {io} from 'socket.io-client'
 import { PostEmailContext } from "../EmailContext/SendNotificationContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
-import socket from "../../../socket";
 //gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
 //mo siya sa reausable axiosInstances.jsx
 import axiosInstance from "../../ReusableComponent/axiosInstance";
+import socket from "../../../socket";
 export const RequestDisplayContext = createContext();
 
 export const DisplayRequestProvider = ({ children }) => {
@@ -47,6 +47,9 @@ export const DisplayRequestProvider = ({ children }) => {
         return () => clearTimeout(timer); // cleanup
       }
     }, [customError]);
+
+
+
   
   const handlesend = () => {
     triggerSendEmail(
@@ -85,7 +88,6 @@ export const DisplayRequestProvider = ({ children }) => {
         const CountSpecifiData = requestData?.filter(
           (msg) => msg.Status === "Pending" && msg.UserId === userId
         );
-        setCountSpecificData(CountSpecifiData?.length);
         setRequest(specificMessages); // Set the filtered data to state
       }
     } catch (error) {
@@ -157,6 +159,8 @@ export const DisplayRequestProvider = ({ children }) => {
   return (
     <RequestDisplayContext.Provider
       value={{
+        setCountSpecificData,
+        setAdminMsg,
         customError,
         view,
         isNewData,

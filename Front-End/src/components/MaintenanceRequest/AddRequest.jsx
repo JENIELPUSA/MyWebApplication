@@ -43,15 +43,11 @@ function AddRequest({
       LaboratoryID,
       DepartmentID
     );
-    if(result.success===true){
+    if(result?.success===true){
       onAddRequest(result.data)
       resetForm();
       onClose();
-        socket.emit("newRequest", {
-          message: "A new maintenance request!",
-          data: result.data,
-        })
-      
+        socket.emit("RequestMaintenance",result.data )  
     }
   };
 

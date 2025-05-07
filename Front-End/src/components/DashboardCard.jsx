@@ -20,6 +20,12 @@ function DashboardCard() {
     equipment?.filter((item) => item.status === "Available") ?? []
   ).length;
 
+
+  const withTechnician = request.filter((item) =>
+    (Array.isArray(item.Technician) && item.Technician.length > 0) ||
+    (typeof item.Technician === 'string' && item.Technician.trim() !== "" && item.Technician !== "N/A")
+  );
+
   const countUnder = (
     Array.isArray(request)
       ? request.filter((item) => item?.Status === "Under Maintenance")
@@ -152,7 +158,7 @@ function DashboardCard() {
                 </div>
                 <div className="mx-5">
                   <h4 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-800">
-                    {request?.length}
+                    {withTechnician?.length}
                   </h4>
                   <div className="text-sm sm:text-base text-gray-800">
                     {" "}

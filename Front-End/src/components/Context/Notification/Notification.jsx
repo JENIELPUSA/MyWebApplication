@@ -26,55 +26,110 @@ import socket from "../../../socket";
 //mo siya sa reausable axiosInstances.jsx
 import axiosInstance from "../../ReusableComponent/axiosInstance";
 
-
 const Notification = ({ toggleTechnicianModal }) => {
-  const { role, authToken } = useContext(AuthContext);
+  const { role, authToken,userId } = useContext(AuthContext);
   const { triggerSendEmail, setToAdmin } = useContext(PostEmailContext);
   const { setSendPatch, setSendMsg, setSendPost } =
     useContext(MessagePOSTcontext);
   const {
     AdminMsg,
+    setAdminMsg,
     request,
-    fetchRequestData,
-    CountSpecificData,
-    addDescription,
+    setRequest,
+    CountSpecificData,setCountSpecificData,fetchRequestData
   } = useContext(RequestDisplayContext);
-  const { ToAdminCount, ToAdmin, msg, msgcount, fetchDisplayMessgae } =
+  const { ToAdminCount, ToAdmin, msg, setMessage,msgcount,setmsgCount,fetchDisplayMessgae } =
     useContext(MessageDisplayContext);
   const [loading, setLoading] = useState(null);
   const [clickedRows, setClickedRows] = useState(new Set());
   const hasUnread = msg?.some((message) => message.readonUser === false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const { setupdateSched } = useContext(AddAssignContext);
+  const [CountBadge,setCountBadge]=useState([])
+  const [TechBadge,setTechBadge]=useState([])
 
   const [values, setValues] = useState({
     feedback: "",
   });
 
+useEffect(()=>{
+  if(role==="Admin"){
+         // Filter to get only 'Pending' status items
+         const pendingRequests = request?.filter((msg) => msg?.read === false);
+         // Log or display the filtered result
+         setCountBadge(pendingRequests.length);         
+
+  }else if(role==="Technician"){
+    const countSuccess = request.filter((item) =>
+      (
+        (Array.isArray(item.Technician) && item.Technician.length > 0) ||
+        (typeof item.Technician === 'string' && item.Technician.trim() !== "" && item.Technician !== "N/A")
+      ) &&
+      item.Status == "Pending" // Exclude items with Status === "Pending"
+    );
+    
+    setTechBadge(countSuccess.length)
+    console.log(countSuccess.length)
+  
+  }
+},[request,userId,role])
+
+
+
   //para sa soket io mag update ang badges kahit hindi kailangan e refresh ang buong component
   useEffect(() => {
-    // WebSocket Connection
-    socket.on("connect", () => {
-      console.log("Connected to WebSocket server:", socket.id);
-    });
-
-    //dito siya automatic na makaka recieve
-    const updateNotifications = () => {
-      fetchDisplayMessgae(); // Load new messages
-      fetchRequestData(); // Update related requests
+    // ADD handler
+    const handleAddMaintenance = (data) => {
+      setRequest((prev) => {
+        const exists = prev.some(
+          (item) => item._id?.toString() === data._id?.toString()
+        );
+        if (!exists) {
+          return [...prev, data];
+          
+        } else {
+          console.log("Item already exists, skipping add:", data._id);
+          return prev;
+        }
+        
+      });
+      
     };
 
-    // socket listeners
-    const events = ["adminNotification", "SMSNotification"];
 
-    events.forEach((event) => socket.on(event, updateNotifications));
-
-    // importante ito para masarado ang socket io prvent a data leak
+    const hanleSMSnotification=(data)=>{
+      fetchDisplayMessgae();
+    }
+  
+    // UPDATE handler
+    const handleUpdateMaintenance = (data) => {
+      setRequest((prev) => {
+        const index = prev.findIndex(
+          (item) => item._id?.toString() === data._id?.toString()
+        );
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = { ...updated[index], ...data };
+          console.log("Updated item:", data._id);
+          return updated;
+        }
+        return prev; // If not found, no update
+      });
+    };
+  
+    // Bind socket events
+    socket.on("Maintenance", handleAddMaintenance);
+    socket.on("UpdateMaintenance", handleUpdateMaintenance);
+    socket.on("SMSNotification",hanleSMSnotification)
+  
+    // Cleanup
     return () => {
-      socket.off("connect");
-      events.forEach((event) => socket.off(event, updateNotifications));
+      socket.off("AddMaintenance", handleAddMaintenance);
+      socket.off("UpdateMaintenance", handleUpdateMaintenance);
+      socket.off("SMSNotification",hanleSMSnotification)
     };
   }, []);
+  
 
   useEffect(() => {
     if (isNotificationOpen) {
@@ -101,6 +156,8 @@ const Notification = ({ toggleTechnicianModal }) => {
             message: "A new update has been made!",
             data: response.data.data, // Pass updated data
           });
+
+          socket.emit("RequestMaintenance",response.data.data)
         }
         if (msgId) {
           updatesendMsg(msgId);
@@ -125,7 +182,6 @@ const Notification = ({ toggleTechnicianModal }) => {
       setSendPatch(request); // Set the data to be sent
       setSendMsg(message); // Set the message data
       setClickedRows((prev) => new Set(prev).add(request)); // Add to clicked rows
-      console.log("Operation completed for RequestID:", request);
     } catch (error) {
       console.error("Error occurred during operation:", error);
     } finally {
@@ -195,7 +251,7 @@ const Notification = ({ toggleTechnicianModal }) => {
 
         const feedbackData = {
           Status: "Success",
-          feedback: values[requestID] || "", // ✅ Use per-request feedback
+          feedback: values[requestID] || "", //Use per-request feedback
           DateTimeAccomplish: new Date(),
         };
 
@@ -208,7 +264,7 @@ const Notification = ({ toggleTechnicianModal }) => {
             }/api/v1/MaintenanceRequest/${requestID}`,
             updateData: feedbackData,
             withCredentials: true,
-            socketEvent: "newRequest",
+            socketEvent: "RequestMaintenance",
           }),
           updateRequest({
             url: `${
@@ -247,7 +303,7 @@ const Notification = ({ toggleTechnicianModal }) => {
         }/api/v1/MessageRequest/${data}`,
         updateData: feedbackDataMsg,
         withCredentials: true, // Sending an object instead of just the text
-        socketEvent: "newRequest",
+        socketEvent: "RequestMaintenance",
       });
     },
     [updateRequest]
@@ -307,13 +363,13 @@ const Notification = ({ toggleTechnicianModal }) => {
 
       {(role === "Admin" && AdminMsg) ||
       ToAdminCount.length > 0 ||
-      (role === "Technician" && CountSpecificData > 0) ||
+      (role === "Technician" && TechBadge > 0) ||
       (role === "User" && msgcount > 0) ? (
         <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full px-2">
           {role === "Admin" && ToAdminCount
-            ? AdminMsg + ToAdminCount.length
+            ? CountBadge + ToAdminCount.length
             : role === "Technician"
-            ? CountSpecificData
+            ? TechBadge
             : msgcount}
         </span>
       ) : null}

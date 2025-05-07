@@ -61,6 +61,8 @@ export const MessagePostProvider = ({ children }) => {
           message: "Admin Approved Your request!",
           data: response.data.data,
         });
+
+     
       } else {
         toast.error(response.data.message || "Failed to add description");
       }
@@ -83,10 +85,7 @@ export const MessagePostProvider = ({ children }) => {
       );
   
       if (response.data?.status === "success") {
-        socket.emit("newRequest", {
-          message: "Admin Approved Your request!",
-          data: response.data.data,
-        });
+        socket.emit("RequestMaintenance",response.data.data)
       } else {
         toast.error(response.data.message || "Failed to add description");
       }

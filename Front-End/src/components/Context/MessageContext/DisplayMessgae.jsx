@@ -18,7 +18,6 @@ export const DisplayMessageProvider = ({ children }) => {
   useEffect(() => {
     if (!authToken) {
       setMessage([]);
-      // Stop loading when there is no token
       return;
     }
     fetchDisplayMessgae();
@@ -77,6 +76,8 @@ export const DisplayMessageProvider = ({ children }) => {
   return (
     <MessageDisplayContext.Provider
       value={{
+        setmsgCount,
+        setMessage,
         ToAdminCount,
         ToAdmin,
         countPending,
