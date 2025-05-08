@@ -85,22 +85,22 @@ const AssignLab = () => {
               key={lab._id}
               className="max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow-md dark:bg-gray-800 dark:border-gray-700 flex flex-col justify-center items-center transition-all transform hover:scale-105 hover:shadow-xl hover:shadow-blue-500/50"
             >
-              <div className="flex justify-center mb-4">
+              <div className="flex justify-center mb-2">
                 <img
                   src="/Image/logo.jpg"
                   alt="Lab Logo"
                   className="w-20 h-20 rounded-full"
                 />
               </div>
-              <h4 className="mb-2 text-center text-xl font-bold text-gray-700 ">
+              <h4 className="mb-2 text-center xs:text-sm sm:text-xl lg:text-xl font-bold text-gray-700 ">
                 {lab.departmentName || "N/A"}
               </h4>
-              <p className="mb-3 text-center text-sm text-gray-700 dark:text-gray-400">
+              <p className="mb-3 text-center xs:text-xs lg:text-sm sm:text-sm text-gray-700 dark:text-gray-400">
                 Number of Laboratories: {lab.count}
               </p>
               <button
                 onClick={() => handleSelectDisplay(lab.departmentName,lab)} // Pass selected lab
-                className="px-4 py-2 text-white bg-blue-700 rounded-lg hover:bg-blue-800"
+                className="px-4 xs:py-1 sm:py-2 lg:py-2 text-white bg-blue-700 rounded-lg hover:bg-blue-800"
               >
                 View
               </button>
