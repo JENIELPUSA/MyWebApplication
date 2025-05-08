@@ -128,7 +128,7 @@ const LaboratoryTable = ({ isOpen, onClose }) => {
         <div className="mb-4">
           <input
             type="text"
-            placeholder="Search Equipment..."
+            placeholder="Search Laboratory..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full p-2 border rounded-lg xs:text-sm xs:p-2 lg-p-2 lg:text-sm"
@@ -206,42 +206,38 @@ const LaboratoryTable = ({ isOpen, onClose }) => {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="flex flex-wrap gap-2 items-center justify-center mt-4">
-          {/* Prev Button */}
-          <button
-            onClick={() => paginate(currentPage - 1)}
-            className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded-full disabled:opacity-50"
-            disabled={currentPage === 1}
-          >
-            Prev
-          </button>
-
-          {/* Page Numbers */}
-          <div className="hidden md:flex flex-wrap justify-center gap-1 md:gap-2">
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i}
-                onClick={() => paginate(i + 1)}
-                className={`py-1 px-3 text-xs md:py-2 md:px-4 md:text-base rounded-full transition ${
-                  currentPage === i + 1
-                    ? "bg-blue-500 text-white"
-                    : "border border-gray-300 hover:bg-gray-100"
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
+      {/* Pagination */}
+      <div className="flex flex-row items-center justify-between flex-wrap mt-4 text-sm gap-2">
+          {/* Left side: Page X of Y */}
+          <div className="text-gray-700">
+            Page {currentPage} of {totalPages}
           </div>
 
-          {/* Next Button */}
-          <button
-            onClick={() => paginate(currentPage + 1)}
-            className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded-full disabled:opacity-50"
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </button>
+          {/* Right side: Prev and Next buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => paginate(currentPage - 1)}
+              className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded disabled:opacity-50"
+              disabled={currentPage === 1}
+            >
+              Prev
+            </button>
+
+            <button
+              onClick={() => paginate(currentPage + 1)}
+              className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded disabled:opacity-50"
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+
+        {/* Showing Info */}
+        <div className="mt-2 text-sm text-center text-gray-700">
+          Showing {(currentPage - 1) * laboratoryPerPage + 1} to{" "}
+          {Math.min(currentPage * laboratoryPerPage, filteredLaboratories.length)}{" "}
+          of {filteredLaboratories.length} results
         </div>
 
         {isModalAddForm && (

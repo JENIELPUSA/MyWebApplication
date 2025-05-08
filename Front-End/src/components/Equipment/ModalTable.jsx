@@ -103,7 +103,7 @@ const ModalTable = ({ isOpen, onClose }) => {
 
   // Filtered and paginated equipment data
   const filteredEquipment = equipment?.filter((equip) =>
-    (equip.Brand?.toLowerCase() || "").includes(searchTerm.toLowerCase())
+    (equip.SerialNumber?.toLowerCase() || "").includes(searchTerm.toLowerCase())
   );
   const totalPages = Math.ceil(filteredEquipment.length / equipmentsPerPage);
 
@@ -272,43 +272,41 @@ const ModalTable = ({ isOpen, onClose }) => {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="flex flex-wrap gap-2 items-center justify-center mt-4">
-          {/* Prev Button */}
-          <button
-            onClick={() => paginate(currentPage - 1)}
-            className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded-full disabled:opacity-50"
-            disabled={currentPage === 1}
-          >
-            Prev
-          </button>
+{/* Pagination */}
+<div className="flex flex-row items-center justify-between flex-wrap mt-4 text-sm gap-2">
 
-          {/* Page Numbers */}
-          <div className="hidden md:flex flex-wrap justify-center gap-1 md:gap-2">
-            {Array.from({ length: totalPages }, (_, i) => (
-              <button
-                key={i}
-                onClick={() => paginate(i + 1)}
-                className={`py-1 px-3 text-xs md:py-2 md:px-4 md:text-base rounded-full transition ${
-                  currentPage === i + 1
-                    ? "bg-blue-500 text-white"
-                    : "border border-gray-300 hover:bg-gray-100"
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
+  {/* Left side: Page X of Y */}
+  <div className="text-gray-700">
+    Page {currentPage} of {totalPages}
+  </div>
 
-          {/* Next Button */}
-          <button
-            onClick={() => paginate(currentPage + 1)}
-            className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded-full disabled:opacity-50"
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </button>
-        </div>
+  {/* Right side: Prev and Next buttons */}
+  <div className="flex items-center gap-2">
+    <button
+      onClick={() => paginate(currentPage - 1)}
+      className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded disabled:opacity-50"
+      disabled={currentPage === 1}
+    >
+      Prev
+    </button>
+
+    <button
+      onClick={() => paginate(currentPage + 1)}
+      className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded disabled:opacity-50"
+      disabled={currentPage === totalPages}
+    >
+      Next
+    </button>
+  </div>
+</div>
+
+{/* Showing Info */}
+<div className="mt-2 text-sm text-center text-gray-700">
+  Showing {(currentPage - 1) * equipmentsPerPage + 1} to{" "}
+  {Math.min(currentPage * equipmentsPerPage, filteredEquipment.length)} of{" "}
+  {filteredEquipment.length} results
+</div>
+
 
         {/* Modals */}
         {isModalOpen && (

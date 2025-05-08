@@ -8,6 +8,59 @@ const path=require('path');
 const fs = require('fs');
 require('pdfkit-table');
 
+const collectionFieldMapping = {
+  RequestMaintenance: "Laboratory",
+};
+
+exports.deleteLaboratory = async (req, res) => {
+  const { id: laboratoryID } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(laboratoryID)) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Invalid Laboratory ID.",
+    });
+  }
+
+  try {
+    let preventDeletion = false;
+
+    for (const [collectionName, fieldName] of Object.entries(collectionFieldMapping)) {
+      const collection = mongoose.model(collectionName);
+
+      const relatedDocs = await collection.find({
+        [fieldName]: new mongoose.Types.ObjectId(laboratoryID),
+      });
+
+      if (collectionName === "RequestMaintenance" && relatedDocs.length > 0) {
+        preventDeletion = true;
+        break;
+      }
+    }
+
+    if (preventDeletion) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Cannot delete: Laboratory is still referenced in RequestMaintenance.",
+      });
+    }
+
+    await Lab.findByIdAndDelete(laboratoryID);
+
+    return res.status(200).json({
+      status: "success",
+      message: "Laboratory deleted successfully.",
+    });
+  } catch (error) {
+    console.error("Delete error:", error.message);
+    return res.status(500).json({
+      status: "fail",
+      message: "Error occurred while deleting laboratory and related documents.",
+      error: error.message,
+    });
+  }
+};
+
 
 
 exports.createLaboratory = AsyncErrorHandler(async (req, res, next) => {
@@ -157,16 +210,7 @@ exports.DisplayLaboratory = AsyncErrorHandler(async (req, res) => {
       data: laboratory,
     });
   });
-  
 
-exports.deleteLaboratory = AsyncErrorHandler(async(req,res,next)=>{
-    await Lab.findByIdAndDelete(req.params.id)
-
-    res.status(200).json({
-        status:'success',
-        data:null
-     });
-  })
 
 
   exports.UpdateLab = AsyncErrorHandler(async (req, res, next) => {

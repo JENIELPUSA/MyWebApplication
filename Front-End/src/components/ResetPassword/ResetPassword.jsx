@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
@@ -10,10 +10,8 @@ function ResetPassword(onClose) {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const { token } = useParams();
-    const {logout}=AuthContext();
-
-    console.log('Token:', token);
-
+    const {logout}=useContext(AuthContext);
+    const navigate = useNavigate();
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -34,7 +32,7 @@ function ResetPassword(onClose) {
             if (res.data.status === "Success") {
                 toast.success("SuccessFully Updated!");
                 setTimeout(() => {
-                  logout();
+                  navigate("/");
                   }, 2000);       
                 
             } else {

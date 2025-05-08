@@ -90,7 +90,7 @@ function DashboardFinal({ specificData }) {
   </motion.main>
 
   {/* Footer */}
-  <div className="w-full shadow-md bg-white z-50 mt-auto">
+  <div className="w-full shadow-md bg-white mt-auto">
     <Footer />
   </div>
 </div>

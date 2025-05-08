@@ -19,6 +19,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
+  
   useEffect(() => {
     if (!authToken) {
       setLaboratories([]);
@@ -134,32 +135,33 @@ export const LaboratoryDisplayProvider = ({ children }) => {
     }
   };
 
-  const DeleteLaboratory = async(laboratoryId)=>{
-        try {
-          const response=await axiosInstance.delete(
-            `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory/${laboratoryId}`,
-            {
-              withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` },
-            }
-          );
-       
-             if (response.data && response.data.status === "success") {
-               setModalStatus("success");
-               setShowModal(true);
-               //para maka send pabalik sa component
-               return { success: true, data: response.data.data };
-             } else {
-               setModalStatus("failed");
-               setShowModal(true);
-               return { success: false, error: "Unexpected response from server." };
-             }
-           } catch (error) {
-             console.error("Error deleting Equipment:", error);
-             toast.error(
-               error.response?.data?.message || "Failed to delete Equipment."
-             );
-           }
-  }
+  const DeleteLaboratory = async (laboratoryId) => {
+    try {
+      const response = await axiosInstance.delete(
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory/${laboratoryId}`,
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${authToken}` },
+        }
+      );
+  
+      if (response.data && response.data.status === "success") {
+        setModalStatus("success");
+        setShowModal(true);
+        return { success: true, data: response.data.data };
+      } else {
+        setModalStatus("failed");
+        setShowModal(true);
+        return { success: false, error: "Unexpected response from server." };
+      }
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message || "Failed to delete Laboratory.";
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
 
   return (
     <LaboratoryDisplayContext.Provider
@@ -189,4 +191,5 @@ export const LaboratoryDisplayProvider = ({ children }) => {
       />
     </LaboratoryDisplayContext.Provider>
   );
+  
 };

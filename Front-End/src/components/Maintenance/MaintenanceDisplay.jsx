@@ -98,7 +98,7 @@ function MaintenanceDisplay() {
   );
 
   const filteredEquipment = uniqueEquipments.filter((equip) =>
-    (equip.Brand?.toLowerCase() || "").includes(searchTerm.toLowerCase())
+    (equip.SerialNumber?.toLowerCase() || "").includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredEquipment.length / equipmentsPerPage);
@@ -173,7 +173,7 @@ function MaintenanceDisplay() {
         <div className="mb-4">
           <input
             type="text"
-            placeholder="Search Equipment..."
+            placeholder="Search SerialNumber..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
