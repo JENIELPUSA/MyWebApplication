@@ -46,6 +46,10 @@ function AddRequest({
     if(result?.success===true){
       onAddRequest(result.data)
       socket.emit("RequestMaintenance",result.data )  
+      socket.emit("newRequest",{
+        message:"New Request Added",
+        data:result.data
+      })
       resetForm();
       onClose();
        

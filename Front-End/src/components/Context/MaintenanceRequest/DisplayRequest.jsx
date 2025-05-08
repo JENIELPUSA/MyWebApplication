@@ -126,13 +126,8 @@ export const DisplayRequestProvider = ({ children }) => {
         setShowModal(true);
         setToAdmin(response.data);
         handlesend();
-        socket.on("connect", () => {
-          console.log("Connected to socket server:", socket.id);
-          socket.emit("newRequest", {
-            message: "A new maintenance request!",
-            data: response.data.data,
-          });
-        });
+         socket.emit("RequestMaintenance",response.data.data )  
+       
         setNewData(response.data.data);
         return { success: true, data: response?.data.data };
       } else {
