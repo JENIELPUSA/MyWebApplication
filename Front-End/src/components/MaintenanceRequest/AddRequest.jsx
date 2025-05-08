@@ -45,9 +45,10 @@ function AddRequest({
     );
     if(result?.success===true){
       onAddRequest(result.data)
+      socket.emit("RequestMaintenance",result.data )  
       resetForm();
       onClose();
-        socket.emit("RequestMaintenance",result.data )  
+       
     }
   };
 

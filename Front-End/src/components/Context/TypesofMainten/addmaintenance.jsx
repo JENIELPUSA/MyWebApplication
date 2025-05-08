@@ -20,7 +20,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
   const fetchDisplayTypes = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axiosInstance.get(
+      const res = await axios.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`,
         { withCredentials: true,
           headers: { Authorization: `Bearer ${token}` } }
@@ -43,7 +43,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
   // ADD new type maintenance
   const Types = async (equipment, type, Laboratory,department) => {
     try {
-      const res = await axiosInstance.post(
+      const res = await axios.post(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`,
         {
           equipmentType: equipment._id,
@@ -105,7 +105,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
 
     try {
       if(!id)return
-      await axiosInstance.patch(
+      await axios.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${id}`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -127,7 +127,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
     }
 
     try {
-      const response = await axiosInstance.delete(
+      const response = await axios.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${schedule._id}`,
         { 
           withCredentials: true,
