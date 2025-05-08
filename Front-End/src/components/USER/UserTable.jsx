@@ -129,7 +129,9 @@ const UserTable = ({ isOpen, onClose }) => {
           <i className="fas fa-times"></i>
         </motion.button>
 
-        <h2 className="text-xl font-bold mb-4 xs:text-sm xs:p-2 lg-p-2 lg:text-lg">User Table</h2>
+        <h2 className="text-xl font-bold mb-4 xs:text-sm xs:p-2 lg-p-2 lg:text-lg">
+          User Table
+        </h2>
 
         <div className="mb-4">
           <input
@@ -145,15 +147,21 @@ const UserTable = ({ isOpen, onClose }) => {
           <table className="w-full text-left table-auto border-collapse mb-4 border border-gray-300">
             <thead>
               <tr>
-                <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-4 border-b border-gray-300">Name</th>
-                <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-4 border-b border-gray-300">Email</th>
-                <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-4 border-b border-gray-300">Role</th>
-                <th >
+                <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-4 border-b border-gray-300">
+                  Name
+                </th>
+                <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-4 border-b border-gray-300">
+                  Email
+                </th>
+                <th className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm p-4 border-b border-gray-300">
+                  Role
+                </th>
+                <th>
                   <button
                     onClick={() => handleAddClick()}
-                    className="xs:text-xs xs:p-2 lg:p-2 lg:text-sm px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600"
+                    className=" px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600"
                   >
-                    <FaPlus className="w-5 h-5" />
+                    <FaPlus className="xs:w-3 xs:h-3 sm:w-5 sm:h-5 lg:w-5 lg:h-5" />
                   </button>
                 </th>
               </tr>
@@ -176,8 +184,12 @@ const UserTable = ({ isOpen, onClose }) => {
                     } ${user.Middle ? user.Middle + " " : ""}${
                       user.LastName
                     }`}</td>
-                    <td className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm border border-gray-300 p-2">{user.email}</td>
-                    <td className=" xs:text-xs xs:p-2 lg-p-2 lg:text-sm border border-gray-300 p-2">{user.role}</td>
+                    <td className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm border border-gray-300 p-2">
+                      {user.email}
+                    </td>
+                    <td className=" xs:text-xs xs:p-2 lg-p-2 lg:text-sm border border-gray-300 p-2">
+                      {user.role}
+                    </td>
                     <td className="xs:text-xs xs:p-2 lg-p-2 lg:text-sm border p-2 flex space-x-2 justify-center">
                       <button
                         onClick={() => onUserSelect(user)}
@@ -231,8 +243,8 @@ const UserTable = ({ isOpen, onClose }) => {
         {/* Showing Info */}
         <div className="mt-2 text-sm text-center text-gray-700">
           Showing {(currentPage - 1) * usersPerPage + 1} to{" "}
-          {Math.min(currentPage * usersPerPage, filteredUsers.length)}{" "}
-          of {filteredUsers.length} results
+          {Math.min(currentPage * usersPerPage, filteredUsers.length)} of{" "}
+          {filteredUsers.length} results
         </div>
 
         {isAddFormOpen && (

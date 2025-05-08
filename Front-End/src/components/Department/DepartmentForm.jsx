@@ -32,9 +32,7 @@ const [animateExit, setAnimateExit] = useState(false);
   const addDepartment = async () => {
     const result=await AddAcceptDepartment(values)
     if(result?.success===true){
-      console.log(result)
       onAddDepartment(result.data);
-    
       setValues({ DepartmentName: "" });
     }
   };
@@ -62,6 +60,7 @@ const [animateExit, setAnimateExit] = useState(false);
         await editDepartment();
       } else {
         await addDepartment();
+        onClose()
       } 
   };
 
@@ -94,7 +93,7 @@ const [animateExit, setAnimateExit] = useState(false);
               <i className="fas fa-times"></i>
             </motion.button>
   
-        <h4 className="xs:text-lg sm:text-lg lg:text-2xl block text-2xl font-medium text-slate-800 mb-2">
+        <h4 className="xs:text-lg sm:text-lg lg:text-lg block text-2xl font-medium text-slate-800 mb-2">
           {department ? "Edit Department" : "Add Department"}
         </h4>
         {customError && (
@@ -102,7 +101,7 @@ const [animateExit, setAnimateExit] = useState(false);
             {customError}
           </div>
         )}
-        <p className="xs:text-sm sm:text-sm lg:text-2xl text-slate-500 font-light mb-6">
+        <p className="xs:text-sm sm:text-sm lg:text-sm text-slate-500 font-light mb-6">
           {department
             ? "Update the department details"
             : "Enter department details to register."}

@@ -95,8 +95,10 @@ function Equipment({
     setIsLoading(true);
     if (equipment) {
       await editEquipment(); // Edit the equipment
+      onClose()
     } else {
       await addEquipment(); // Add new equipment
+      onClose();
     }
   };
 

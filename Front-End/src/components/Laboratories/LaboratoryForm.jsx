@@ -103,8 +103,10 @@ function LaboratoryForm({
     try {
       if (laboratory) {
         await editLaboratory();
+        onClose()
       } else {
         await addLaboratory();
+        onClose()
       }
     } catch (error) {
       console.error("Error during submission:", error);
@@ -165,7 +167,7 @@ function LaboratoryForm({
         <h4 className="xs:text-lg sm:text-sm lg:text-2xl block text-2xl font-medium text-slate-800 mb-2">
           {laboratory ? "Edit Laboratory" : "Create Laboratory"}
         </h4>
-        <p className="xs:text-sm sm:text-sm lg:text-2xl text-slate-500 font-light mb-6">
+        <p className="xs:text-sm sm:text-sm lg:text-sm text-slate-500 font-light mb-6">
           {laboratory
             ? "Update the laboratory details"
             : "Enter laboratory details to register."}

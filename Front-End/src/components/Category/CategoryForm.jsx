@@ -57,8 +57,10 @@ function CategoryForm({ isOpen, onClose, category, onAddCategory, onUpdate }) {
     try {
       if (category) {
         await editCategory();
+        onClose()
       } else {
         await addCategory();
+        onClose()
       }
     } catch (error) {
       console.error("There was an error:", error);
