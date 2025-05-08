@@ -27,7 +27,7 @@ import socket from "../../../socket";
 import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 const Notification = ({ toggleTechnicianModal }) => {
-  const { role, authToken,userId } = useContext(AuthContext);
+  const { role, authToken, userId } = useContext(AuthContext);
   const { triggerSendEmail, setToAdmin } = useContext(PostEmailContext);
   const { setSendPatch, setSendMsg, setSendPost } =
     useContext(MessagePOSTcontext);
@@ -36,45 +36,51 @@ const Notification = ({ toggleTechnicianModal }) => {
     setAdminMsg,
     request,
     setRequest,
-    CountSpecificData,setCountSpecificData,fetchRequestData
+    CountSpecificData,
+    setCountSpecificData,
+    fetchRequestData,
   } = useContext(RequestDisplayContext);
-  const { ToAdminCount, ToAdmin, msg, setMessage,msgcount,setmsgCount,fetchDisplayMessgae } =
-    useContext(MessageDisplayContext);
+  const {
+    ToAdminCount,
+    ToAdmin,
+    msg,
+    setMessage,
+    msgcount,
+    setmsgCount,
+    fetchDisplayMessgae,
+  } = useContext(MessageDisplayContext);
   const [loading, setLoading] = useState(null);
   const [clickedRows, setClickedRows] = useState(new Set());
   const hasUnread = msg?.some((message) => message.readonUser === false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const { setupdateSched } = useContext(AddAssignContext);
-  const [CountBadge,setCountBadge]=useState([])
-  const [TechBadge,setTechBadge]=useState([])
+  const [CountBadge, setCountBadge] = useState([]);
+  const [TechBadge, setTechBadge] = useState([]);
 
   const [values, setValues] = useState({
     feedback: "",
   });
 
-useEffect(()=>{
-  if(role==="Admin"){
-         // Filter to get only 'Pending' status items
-         const pendingRequests = request?.filter((msg) => msg?.read === false);
-         // Log or display the filtered result
-         setCountBadge(pendingRequests.length);         
+  useEffect(() => {
+    if (role === "Admin") {
+      // Filter to get only 'Pending' status items
+      const pendingRequests = request?.filter((msg) => msg?.read === false);
+      // Log or display the filtered result
+      setCountBadge(pendingRequests.length);
+    } else if (role === "Technician") {
+      const countSuccess = request.filter(
+        (item) =>
+          ((Array.isArray(item.Technician) && item.Technician.length > 0) ||
+            (typeof item.Technician === "string" &&
+              item.Technician.trim() !== "" &&
+              item.Technician !== "N/A")) &&
+          item.Status == "Pending" // Exclude items with Status === "Pending"
+      );
 
-  }else if(role==="Technician"){
-    const countSuccess = request.filter((item) =>
-      (
-        (Array.isArray(item.Technician) && item.Technician.length > 0) ||
-        (typeof item.Technician === 'string' && item.Technician.trim() !== "" && item.Technician !== "N/A")
-      ) &&
-      item.Status == "Pending" // Exclude items with Status === "Pending"
-    );
-    
-    setTechBadge(countSuccess.length)
-    console.log(countSuccess.length)
-  
-  }
-},[request,userId,role])
-
-
+      setTechBadge(countSuccess.length);
+      console.log(countSuccess.length);
+    }
+  }, [request, userId, role]);
 
   //para sa soket io mag update ang badges kahit hindi kailangan e refresh ang buong component
   useEffect(() => {
@@ -86,21 +92,17 @@ useEffect(()=>{
         );
         if (!exists) {
           return [...prev, data];
-          
         } else {
           console.log("Item already exists, skipping add:", data._id);
           return prev;
         }
-        
       });
-      
     };
 
-
-    const hanleSMSnotification=(data)=>{
+    const hanleSMSnotification = (data) => {
       fetchDisplayMessgae();
-    }
-  
+    };
+
     // UPDATE handler
     const handleUpdateMaintenance = (data) => {
       setRequest((prev) => {
@@ -116,20 +118,19 @@ useEffect(()=>{
         return prev; // If not found, no update
       });
     };
-  
+
     // Bind socket events
     socket.on("Maintenance", handleAddMaintenance);
     socket.on("UpdateMaintenance", handleUpdateMaintenance);
-    socket.on("SMSNotification",hanleSMSnotification)
-  
+    socket.on("SMSNotification", hanleSMSnotification);
+
     // Cleanup
     return () => {
       socket.off("AddMaintenance", handleAddMaintenance);
       socket.off("UpdateMaintenance", handleUpdateMaintenance);
-      socket.off("SMSNotification",hanleSMSnotification)
+      socket.off("SMSNotification", hanleSMSnotification);
     };
   }, []);
-  
 
   useEffect(() => {
     if (isNotificationOpen) {
@@ -157,7 +158,7 @@ useEffect(()=>{
             data: response.data.data, // Pass updated data
           });
 
-          socket.emit("RequestMaintenance",response.data.data)
+          socket.emit("RequestMaintenance", response.data.data);
         }
         if (msgId) {
           updatesendMsg(msgId);
@@ -463,43 +464,38 @@ useEffect(()=>{
                 .map((req, index) => (
                   <div key={index} className="mb-2">
                     {/* Technician View */}
-                    {role === "Technician" && (
-                      <div>
-                        {req.message ===
-                          "Admin Already Assign Technician to your Laboratory!" && (
-                          <>
-                            <time className="text-sm text-gray-500 block">
-                              {new Intl.DateTimeFormat("en-US", {
-                                year: "numeric",
-                                month: "long",
-                                day: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                                hour12: true,
-                              }).format(new Date(req.DateTime))}
-                            </time>
-                            <p className="text-gray-500 font-bold">
-                              Admin has assigned you to troubleshoot equipment
-                              in {req.laboratoryName} / Ref#: {req.Ref}
-                            </p>
-                          </>
-                        )}
+                    {role === "Technician" ? (
+                      req.message ===
+                      "Admin Already Assign Technician to your Laboratory!" ? (
+                        <div>
+                          <time className="text-sm text-gray-500 block">
+                            {new Intl.DateTimeFormat("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                              hour12: true,
+                            }).format(new Date(req.DateTime))}
+                          </time>
+                          <p className="text-gray-500 font-bold">
+                            Admin has assigned you to troubleshoot equipment in{" "}
+                            {req.laboratoryName} / Ref#: {req.Ref}
+                          </p>
 
-                        {req.message ===
-                          "Admin Already Assign Technician to your Laboratory!" &&
-                          req.Status === "Pending" && (
+                          {req.Status === "Pending" && (
                             <button
                               onClick={() =>
                                 onSelectMessage(req.RequestID, req._id)
                               }
                               type="button"
                               className={`mt-3 flex items-center justify-center rounded-full w-full bg-primary px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-primary-3 transition duration-150 ease-in-out hover:bg-primary-accent-300 focus:outline-none h-10
-                              ${
-                                clickedRows.has(req.RequestID)
-                                  ? "opacity-50 cursor-not-allowed"
-                                  : ""
-                              }`}
+            ${
+              clickedRows.has(req.RequestID)
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+            }`}
                               disabled={
                                 clickedRows.has(req.RequestID) ||
                                 loading === req.RequestID
@@ -512,8 +508,11 @@ useEffect(()=>{
                               )}
                             </button>
                           )}
-                      </div>
-                    )}
+                        </div>
+                      ) : (
+                        <p>No Message Found!</p>
+                      )
+                    ) : null}
 
                     {/* User View */}
                     {role === "User" && (
