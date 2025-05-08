@@ -18,7 +18,7 @@ import LoadingTableSpinner from "../ReusableComponent/loadingTableSpiner";
 
 function TechnicianTable() {
   const [loadings, setLoading] = useState(false);
-  const { authToken } = useContext(AuthContext);
+  const { authToken ,fullName} = useContext(AuthContext);
   const { request, loading,setRequest } = useContext(RequestDisplayContext);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [senddata, setsenddata] = useState(null);
@@ -34,14 +34,18 @@ function TechnicianTable() {
   const [newdata,setnewData]=useState([])
   
   useEffect(() => {
-    if (Array.isArray(request)) {
-      const withTechnician = request.filter((item) =>
-        (Array.isArray(item.Technician) && item.Technician.length > 0) ||
-        (typeof item.Technician === 'string' && item.Technician.trim() !== "" && item.Technician !== "N/A")
+    if (Array.isArray(request) && fullName) {
+      const filtered = request.filter(
+        (item) =>
+          typeof item.Technician === "string" &&
+          item.Technician.toLowerCase().trim() === fullName.toLowerCase().trim()
       );
-      setnewData(withTechnician);
+      setnewData(filtered);
+      console.log("Filtered Requests (case-insensitive):", filtered);
     }
-  }, [request]);
+  }, [request, fullName]);
+  
+
 
 
   const handleSearchChange = (e) => {

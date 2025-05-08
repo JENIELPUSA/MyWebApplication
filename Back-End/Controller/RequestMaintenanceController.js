@@ -124,15 +124,16 @@ exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
         remarksread: 1,
         laboratoryName: { $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"] },
         UserId: "$TechnicianDetails._id",
-        Technician: {
-          $concat: [
-            "$TechnicianDetails.FirstName",
-            " ",
-            { $ifNull: ["$TechnicianDetails.Middle", ""] },
-            " ",
-            "$TechnicianDetails.LastName"
-          ]
-        },
+          Technician: {
+            $concat: [
+              "$TechnicianDetails.FirstName",
+              " ",
+              { $ifNull: ["$TechnicianDetails.Middle", ""] },
+              " ",
+              "$TechnicianDetails.LastName"
+            ]
+          }
+        ,
         DateTimeAccomplish: 1
       }
     }

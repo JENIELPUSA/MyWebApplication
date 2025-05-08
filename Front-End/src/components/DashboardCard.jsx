@@ -10,20 +10,28 @@ import { RequestDisplayContext } from "./Context/MaintenanceRequest/DisplayReque
 function DashboardCard() {
   const { laboratoryData } = useContext(FilterSpecificAssignContext);
   const { request } = useContext(RequestDisplayContext);
-  const { role } = useContext(AuthContext);
+  const { role, fullName } = useContext(AuthContext);
   const [error, setError] = useState(null);
   const { equipment } = useContext(EquipmentDisplayContext);
   const { laboratories } = useContext(LaboratoryDisplayContext);
   const { users } = useContext(UserDisplayContext);
 
+  const Assigned = request.filter(
+    (item) =>
+      typeof item.Technician === "string" &&
+      item.Technician.toLowerCase().trim() === fullName.toLowerCase().trim()
+  ).length;
+
   const availableEquipmentCount = (
     equipment?.filter((item) => item.status === "Available") ?? []
   ).length;
 
-
-  const withTechnician = request.filter((item) =>
-    (Array.isArray(item.Technician) && item.Technician.length > 0) ||
-    (typeof item.Technician === 'string' && item.Technician.trim() !== "" && item.Technician !== "N/A")
+  const withTechnician = request.filter(
+    (item) =>
+      (Array.isArray(item.Technician) && item.Technician.length > 0) ||
+      (typeof item.Technician === "string" &&
+        item.Technician.trim() !== "" &&
+        item.Technician !== "N/A")
   );
 
   const countUnder = (
@@ -114,15 +122,14 @@ function DashboardCard() {
               </div>
             </div>
 
-
             <div className="xs:px-3 sm:px:4 lg:px:4 w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0 xs:-mb-1 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl bg-white/30 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
-                <MdScience className="h-8 w-8 text-gray-700" />
+                  <MdScience className="h-8 w-8 text-gray-700" />
                 </div>
                 <div className="mx-5">
                   <h4 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-800">
-                  {laboratoryData?.laboratoryName}
+                    {laboratoryData?.laboratoryName}
                   </h4>
                   <div className="text-sm sm:text-base text-gray-800">
                     Laboratory
@@ -131,18 +138,17 @@ function DashboardCard() {
               </div>
             </div>
 
-
             <div className="xs:px-3 sm:px:4 lg:px:4 w-full mt-6 px-6 sm:w-1/2 xl:w-1/3 xl:mt-0  xs:mb-2 sm:mb-6 lg:mb-6">
               <div className="flex items-center px-5 py-6 shadow-xl rounded-xl bg-white/30 backdrop-blur-lg hover:shadow-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:translate-y-2 h-full">
                 <div className="p-3 rounded-full bg-white/50 shadow-md">
-                <MdBuild className="h-8 w-8 text-gray-700" />
+                  <MdBuild className="h-8 w-8 text-gray-700" />
                 </div>
                 <div className="mx-5">
                   <h4 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-800">
-                  {laboratoryData?.equipmentsCount}
+                    {laboratoryData?.equipmentsCount}
                   </h4>
                   <div className="text-sm sm:text-base text-gray-800">
-                  No. Equipments
+                    No. Equipments
                   </div>
                 </div>
               </div>
@@ -158,7 +164,7 @@ function DashboardCard() {
                 </div>
                 <div className="mx-5">
                   <h4 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-800">
-                    {withTechnician?.length}
+                    {Assigned}
                   </h4>
                   <div className="text-sm sm:text-base text-gray-800">
                     {" "}

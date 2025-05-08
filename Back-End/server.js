@@ -85,6 +85,16 @@ io.on("connection", (socket) => {
     // Aggregate related info (equipment, category, department, lab, etc.)
     const [extraInfo] = await requestmaintenance.aggregate([
       { $match: { _id: new mongoose.Types.ObjectId(requestId) } },
+
+          {
+            $lookup: {
+              from: "users",
+              localField: "Technician",
+              foreignField: "_id",
+              as: "TechnicianDetails"
+            }
+          },
+          { $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
           from: "equipment",
@@ -123,6 +133,15 @@ io.on("connection", (socket) => {
       { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
       {
         $project: {
+          Technician: {
+            $concat: [
+              "$TechnicianDetails.FirstName",
+              " ",
+              { $ifNull: ["$TechnicianDetails.Middle", ""] },
+              " ",
+              "$TechnicianDetails.LastName"
+            ]
+          },
           EquipmentName: { $ifNull: ["$EquipmentsInfo.Brand", "N/A"] },
           CategoryName: { $ifNull: ["$CategoryInfo.CategoryName", "N/A"] },
           Department: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
@@ -134,6 +153,7 @@ io.on("connection", (socket) => {
     // Merge the extra info into the original object
     const finalRequest = {
       ...originalRequest,
+      Technician:extraInfo?.Technician || "N/A",
       EquipmentName: extraInfo?.EquipmentName || "N/A",
       CategoryName: extraInfo?.CategoryName || "N/A",
       Department: extraInfo?.Department || "N/A",
