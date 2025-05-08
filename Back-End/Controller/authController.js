@@ -104,8 +104,10 @@ exports.login = AsyncErrorHandler(async (req, res, next) => {
       Middle: user.Middle,
       role: user.role,
     };
-  
-    console.log("Session set:", req.session);
+
+
+    const fullName = `${user.FirstName} ${user.Middle} ${user.LastName}`;
+
     
     // Respond
     return res.status(200).send({
@@ -113,7 +115,8 @@ exports.login = AsyncErrorHandler(async (req, res, next) => {
       userId: user._id,
       role: user.role,
       token,
-      email
+      email,
+      fullName
     });
   });
   

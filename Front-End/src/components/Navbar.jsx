@@ -17,7 +17,7 @@ import InventoryEquipmentForm from "./Report/InventoryEquipmentForm";
 import ModalReport from "./Report/ModalReport";
 import socket from "../socket";
 function Navbar() {
-  const { role, email,fullName } = useContext(AuthContext);
+  const { role, email,fullName} = useContext(AuthContext);
   const { logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
@@ -82,7 +82,13 @@ function Navbar() {
     <nav className="font-poppins w-full bg-gradient-to-r from-blue-900 to-indigo-900 xs:px-4 sm-px-4 px-8 py-3 flex justify-between items-center sm:px-8 md:px-16 lg:px-40">
       <div className="flex items-center gap-x-2 text-white font-semibold text-xl">
         <FaUserCircle className="w-10 h-10" />
-        <span className="hidden md:block">{fullName}</span>
+        <div className="flex flex-col">
+        <span className="xs:text-xs sm:text-sm lg:text-sm">{fullName}</span>
+        <span className="xs:text-xs sm:text-sm lg:text-sm">{email}</span>
+
+
+        </div>
+        
       </div>
       <div></div>
 

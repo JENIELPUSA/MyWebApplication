@@ -15,6 +15,7 @@ import { LaboratoryDisplayContext } from "./components/Context/Laboratory/Displa
 import { FilterSpecificAssignContext } from "./components/Context/AssignContext/FilterSpecificAssign";
 import { IncomingDisplayContext } from "./components/Context/ProcessIncomingRequest/IncomingRequestContext";
 import { motion, useInView } from "framer-motion";
+import MobileMenu from "./components/MobileMenu";
 function DashboardFinal({ specificData }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
@@ -88,7 +89,6 @@ function DashboardFinal({ specificData }) {
       />
     )}
   </motion.main>
-
   {/* Footer */}
   <div className="w-full shadow-md bg-white mt-auto">
     <Footer />

@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
   ); // Get token from localStorage
   const [role, setRole] = useState(localStorage.getItem("role") || null);
   const [email, setEmail] = useState(localStorage.getItem("email") || null);
+  const [fullName, setFullName] = useState(localStorage.getItem("fullName") || null);
   const [userId, setUserID] = useState(localStorage.getItem("userId") || null);
   // Set the token globally for all axios requests
   useEffect(() => {
@@ -44,23 +45,26 @@ export const AuthProvider = ({ children }) => {
         { withCredentials: true } 
       );      
 
-      
+      console.log("Login response:", res.data);
+
       if (res.data.status === "Success") {
+        const fullName=res.data.fullName;
         const token = res.data.token;
         const role = res.data.role;
         const email = res.data.email;
         const userId = res.data.userId; // Get the user ID from response
-
         // Store token, role, email, and userId in localStorage
         localStorage.setItem("token", token);
         localStorage.setItem("role", role);
         localStorage.setItem("email", email);
         localStorage.setItem("userId", userId); // Save ID
+        localStorage.setItem("fullName", fullName);
 
         // Set the token in global axios headers
         axios.defaults.headers["Authorization"] = `Bearer ${token}`;
 
         // Update the context
+        setFullName(fullName)
         setAuthToken(token);
         setRole(role);
         setEmail(email);
@@ -78,6 +82,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     // Clear local storage
+    localStorage.removeItem("fullName");
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     localStorage.removeItem("email");
@@ -106,7 +111,7 @@ export const AuthProvider = ({ children }) => {
   <ToastContainer />
   return (
     <AuthContext.Provider
-      value={{ email, authToken, role, login, logout, userId }}
+      value={{ email, authToken, role, login, logout, userId,fullName }}
     >
       {children}
     </AuthContext.Provider>
