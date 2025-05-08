@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { AuthContext } from "../AuthContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 //gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
 //mo siya sa reausable axiosInstances.jsx
@@ -12,18 +13,18 @@ export const AddTypeMaintenance = createContext();
 export const AddTypeMaintenanceProvider = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
 const [modalStatus, setModalStatus] = useState("success"); // or "fail"
-  const token = localStorage.getItem("token");
   const [displayData, setDisplayData] = useState([]);
   const [newEntries, setNewEntries] = useState(null);
+   const { authToken } = useContext(AuthContext);
 
   // GET all type maintenance
   const fetchDisplayTypes = useCallback(async () => {
-    if (!token) return;
+    if (!authToken) return;
     try {
       const res = await axios.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`,
         { withCredentials: true,
-          headers: { Authorization: `Bearer ${token}` } }
+          headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (res.data.status === "success") {
@@ -33,7 +34,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
       console.error("Error fetching display types:", error);
       toast.error("Failed to load maintenance types.");
     }
-  }, [token]);
+  }, [authToken]);
 
   // Auto-fetch when token or new entries change
   useEffect(() => {
@@ -52,7 +53,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
           Department:department
         },
         { withCredentials: true,
-          headers: { Authorization: `Bearer ${token}` } }
+          headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (res.data.status === "success") {
@@ -108,7 +109,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
       await axios.patch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${id}`,
         payload,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
     } catch (error) {
       console.error("Error updating schedule:", error);
@@ -131,7 +132,7 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${schedule._id}`,
         { 
           withCredentials: true,
-          headers: { Authorization: `Bearer ${token}` } }
+          headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if(response.data.status="success"){
