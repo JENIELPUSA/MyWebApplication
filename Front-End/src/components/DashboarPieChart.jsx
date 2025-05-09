@@ -1,17 +1,26 @@
-import React, { useEffect, useRef, useContext } from "react";
+import React, { useEffect, useRef, useContext,useState } from "react";
 import ApexCharts from "apexcharts";
 import { RequestDisplayContext } from "./Context/MaintenanceRequest/DisplayRequest";
-
+import { AuthContext } from "./Context/AuthContext";
 function DashboardPieChart() {
+  const [piedataTechnician,setPiedatatoTechnician]=useState([])
   const { request } = useContext(RequestDisplayContext);
   const chartRef = useRef(null);
+  const {fullName,role}=useContext(AuthContext)
+  const [pending,setPending]=useState([])
+  const[under,setUnder]=useState([])
+  const[Accomplish,setAccomplish]=useState([])
 
   // Save request to localStorage when it changes
   useEffect(() => {
-    if (request && Array.isArray(request)) {
-      localStorage.setItem("maintenanceRequests", JSON.stringify(request));
-    }
-  }, [request]);
+    const filteredPiedata = request.filter((item) => {
+      const techName = typeof item.Technician === "string" ? item.Technician.trim().toLowerCase() : "";
+      const targetName = fullName.trim().toLowerCase();
+      return item.UserId && techName === targetName;
+    });
+
+    setPiedatatoTechnician(filteredPiedata)
+  }, [request,fullName]);
 
   //for example may value na siya na "HeadOffice" na galing sa return sa taas
   //pag save sa local storage
@@ -19,31 +28,34 @@ function DashboardPieChart() {
     JSON.parse(localStorage.getItem("maintenanceRequests"));
   }, []);
 
-  const countUnder = (
-    Array.isArray(request)
-      ? request.filter((item) => item?.Status === "Under Maintenance")
-      : []
-  ).length;
+  useEffect(() => {
+    if (role === "Admin" && Array.isArray(request)) {
+      const undermaintenance = request.filter((item) => item?.Status === "Under Maintenance");
+      const countPending = request.filter((item) => item?.Status === "Pending");
+      const countSuccess = request.filter((item) => item?.Status === "Success");
+  
+      setUnder(undermaintenance.length);
+      setPending(countPending.length);
+      setAccomplish(countSuccess.length);
+    }else{
+      const undermaintenance = piedataTechnician.filter((item) => item?.Status === "Under Maintenance");
+      const countPending = piedataTechnician.filter((item) => item?.Status === "Pending");
+      const countSuccess = piedataTechnician.filter((item) => item?.Status === "Success");
+      setUnder(undermaintenance.length);
+      setPending(countPending.length);
+      setAccomplish(countSuccess.length);
+    }
+  }, [role, request,piedataTechnician]);
+  
 
-  const countPending = (
-    Array.isArray(request)
-      ? request.filter((item) => item?.Status === "Pending")
-      : []
-  ).length;
 
-  const countSuccess = (
-    Array.isArray(request)
-      ? request.filter((item) => item?.Status === "Success")
-      : []
-  ).length;
+  const total = pending + under + Accomplish;
 
-  const total = countPending + countUnder + countSuccess;
+  const success = (Accomplish / total) * 100;
 
-  const success = (countSuccess / total) * 100;
+  const undermaintenance = (under / total) * 100;
 
-  const undermaintenance = (countUnder / total) * 100;
-
-  const Pending = (countPending / total) * 100;
+  const Pending = (pending / total) * 100;
 
   useEffect(() => {
     if (!chartRef.current) return; // Prevent errors if ref is undefined

@@ -1,5 +1,5 @@
 import { MdPerson, MdBuild, MdScience, MdApartment } from "react-icons/md";
-import React, { useState, useContext } from "react";
+import React, { useState, useContext,useEffect } from "react";
 import { EquipmentDisplayContext } from "../components/Context/EquipmentContext/DisplayContext";
 import { LaboratoryDisplayContext } from "../components/Context/Laboratory/Display";
 import { UserDisplayContext } from "./Context/User/DisplayUser";
@@ -8,6 +8,7 @@ import { FilterSpecificAssignContext } from "./Context/AssignContext/FilterSpeci
 import { RequestDisplayContext } from "./Context/MaintenanceRequest/DisplayRequest.jsx";
 
 function DashboardCard() {
+    const [piedataTechnician,setPiedatatoTechnician]=useState([])
   const { laboratoryData } = useContext(FilterSpecificAssignContext);
   const { request } = useContext(RequestDisplayContext);
   const { role, fullName } = useContext(AuthContext);
@@ -15,36 +16,54 @@ function DashboardCard() {
   const { equipment } = useContext(EquipmentDisplayContext);
   const { laboratories } = useContext(LaboratoryDisplayContext);
   const { users } = useContext(UserDisplayContext);
+  const [pending, setPending] = useState([]);
+  const [under, setUnder] = useState([]);
+  const [Accomplish, setAccomplish] = useState([]);
+  const [Assigning,setAssigning]=useState([])
+  const [availables,setAvailables]=useState([])
 
-  const Assigned = request.filter(
-    (item) =>
-      typeof item.Technician === "string" &&
-      item.Technician.toLowerCase().trim() === fullName.toLowerCase().trim()
-  ).length;
+  // Save request to localStorage when it changes
+  useEffect(() => {
+    const filteredPiedata = request.filter((item) => {
+      const techName =
+        typeof item.Technician === "string"
+          ? item.Technician.trim().toLowerCase()
+          : "";
+      const targetName = fullName.trim().toLowerCase();
+      return item.UserId && techName === targetName;
+    });
 
-  const availableEquipmentCount = (
-    equipment?.filter((item) => item.status === "Available") ?? []
-  ).length;
+    setPiedatatoTechnician(filteredPiedata);
+  }, [request, fullName]);
 
-  const withTechnician = request.filter(
-    (item) =>
-      (Array.isArray(item.Technician) && item.Technician.length > 0) ||
-      (typeof item.Technician === "string" &&
-        item.Technician.trim() !== "" &&
-        item.Technician !== "N/A")
-  );
+  useEffect(() => {
+    if (role === "Admin") {
+      const availableEquipmentCount = (
+        equipment?.filter((item) => item.status === "Available") ?? []
+      );
 
-  const countUnder = (
-    Array.isArray(request)
-      ? request.filter((item) => item?.Status === "Under Maintenance")
-      : []
-  ).length;
-
-  const countSuccess = (
-    Array.isArray(request)
-      ? request.filter((item) => item?.Status === "Success")
-      : []
-  ).length;
+      setAvailables(availableEquipmentCount.length)
+    } else {
+      const Assigned = request.filter(
+        (item) =>
+          typeof item.Technician === "string" &&
+          item.Technician.toLowerCase().trim() === fullName.toLowerCase().trim()
+      );
+      const undermaintenance = piedataTechnician.filter(
+        (item) => item?.Status === "Under Maintenance"
+      );
+      const countPending = piedataTechnician.filter(
+        (item) => item?.Status === "Pending"
+      );
+      const countSuccess = piedataTechnician.filter(
+        (item) => item?.Status === "Success"
+      );
+      setAssigning(Assigned.length)
+      setUnder(undermaintenance.length);
+      setPending(countPending.length);
+      setAccomplish(countSuccess.length);
+    }
+  }, [role, request, piedataTechnician]);
 
   return (
     <div className="xs:m-4 lg:m-10 font-poppins">
@@ -77,7 +96,7 @@ function DashboardCard() {
                 </div>
                 <div className="mx-5">
                   <h4 className="text-xl sm:text-2xl md:text-3xl font-semibold text-white">
-                    {availableEquipmentCount}
+                    {availables}
                   </h4>
                   <div className="text-sm sm:text-base text-gray-200">
                     Available Equipment
@@ -164,7 +183,7 @@ function DashboardCard() {
                 </div>
                 <div className="mx-5">
                   <h4 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-800">
-                    {Assigned}
+                    {Assigning}
                   </h4>
                   <div className="text-sm sm:text-base text-gray-800">
                     {" "}
@@ -181,7 +200,7 @@ function DashboardCard() {
                 </div>
                 <div className="mx-5">
                   <h4 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-800">
-                    {countSuccess}
+                    {Accomplish}
                   </h4>
                   <div className="text-sm sm:text-base text-gray-800">
                     {" "}
@@ -198,7 +217,7 @@ function DashboardCard() {
                 </div>
                 <div className="mx-5">
                   <h4 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-800">
-                    {countUnder}
+                    {under}
                   </h4>
                   <div className="text-sm sm:text-base text-gray-800">
                     {" "}

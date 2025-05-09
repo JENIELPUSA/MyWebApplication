@@ -18,7 +18,7 @@ import LoadingTableSpinner from "../ReusableComponent/loadingTableSpiner";
 
 function TechnicianTable() {
   const [loadings, setLoading] = useState(false);
-  const { authToken ,fullName} = useContext(AuthContext);
+  const { authToken ,fullName,userId} = useContext(AuthContext);
   const { request, loading,setRequest } = useContext(RequestDisplayContext);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [senddata, setsenddata] = useState(null);
@@ -33,17 +33,23 @@ function TechnicianTable() {
   const { setSendPost } = useContext(MessagePOSTcontext);
   const [newdata,setnewData]=useState([])
   
-  useEffect(() => {
-    if (Array.isArray(request) && fullName) {
-      const filtered = request.filter(
-        (item) =>
-          typeof item.Technician === "string" &&
-          item.Technician.toLowerCase().trim() === fullName.toLowerCase().trim()
-      );
-      setnewData(filtered);
-      console.log("Filtered Requests (case-insensitive):", filtered);
-    }
-  }, [request, fullName]);
+
+
+useEffect(() => {
+  if (Array.isArray(request) && fullName) {
+    const filtered = request.filter((item) => {
+      const techName = typeof item.Technician === "string" ? item.Technician.trim().toLowerCase() : "";
+      const targetName = fullName.trim().toLowerCase();
+      return item.UserId && techName === targetName;
+    });
+
+    setnewData(filtered);
+    console.log("Filtered Requests (case-insensitive):", filtered);
+  } else {
+    console.log("NO Match");
+  }
+}, [request, fullName]);
+
   
 
 

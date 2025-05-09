@@ -27,7 +27,7 @@ import socket from "../../../socket";
 import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 const Notification = ({ toggleTechnicianModal }) => {
-  const { role, authToken, userId } = useContext(AuthContext);
+  const { role, authToken, userId,fullName } = useContext(AuthContext);
   const { triggerSendEmail, setToAdmin } = useContext(PostEmailContext);
   const { setSendPatch, setSendMsg, setSendPost } =
     useContext(MessagePOSTcontext);
@@ -66,17 +66,14 @@ const Notification = ({ toggleTechnicianModal }) => {
       // Filter to get only 'Pending' status items
       const pendingRequests = request?.filter((msg) => msg?.read === false);
       // Log or display the filtered result
+      console.log("ADMIN",pendingRequests)
       setCountBadge(pendingRequests.length);
     } else if (role === "Technician") {
-      const filteredList = request.filter(
-        (item) =>
-          item.UserId && // ← ito ang nag-eexclude ng walang UserId
-          ((Array.isArray(item.Technician) && item.Technician.length > 0) ||
-            (typeof item.Technician === "string" &&
-              item.Technician.trim() !== "" &&
-              item.Technician !== "N/A")) &&
-          item.Status === "Pending"
-      );
+      const filteredList = request.filter((item) => {
+        const techName = typeof item.Technician === "string" ? item.Technician.trim().toLowerCase() : "";
+        const targetName = fullName.trim().toLowerCase();
+        return item.UserId && techName === targetName && item.Status === "Pending";
+      });
 
       console.log(userId);
       setTechBadge(filteredList.length);
@@ -314,7 +311,7 @@ const Notification = ({ toggleTechnicianModal }) => {
 
   const handlesend = (data) => {
     setToAdmin(data);
-    const message = `Hello Admin, the assigned request has been completed.\nDetails:\nRequest Reference: ${data.Ref}\nSend By: Technician`;
+    const message = `Hello Admin, the assigned request has been completed.\nDetails:\nRequest Reference: ${data?.Ref}\nSend By: Technician`;
     triggerSendEmail(message);
   };
 
@@ -364,7 +361,7 @@ const Notification = ({ toggleTechnicianModal }) => {
         onClick={() => setIsNotificationOpen(!isNotificationOpen)}
       />
 
-      {(role === "Admin" && AdminMsg) ||
+      {(role === "Admin" && CountBadge) ||
       ToAdminCount.length > 0 ||
       (role === "Technician" && TechBadge > 0) ||
       (role === "User" && msgcount > 0) ? (

@@ -65,7 +65,7 @@ const AssignLab = () => {
   if (error) return <p>Error: {error}</p>;
 
   return (
-    <div className="container mx-auto px-4">
+    <div className="container mx-auto xs:px-0 sm:px-8 lg:px-8">
       {/* Search Bar */}
       <div className="mb-4">
         <input
@@ -78,7 +78,7 @@ const AssignLab = () => {
       </div>
 
       {/* Display filtered laboratories */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xs:gap-2 sm:gap-4 lg:gap-4">
         {currentLabs.length > 0 ? (
           currentLabs.map((lab) => (
             <div

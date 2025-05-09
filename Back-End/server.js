@@ -70,184 +70,114 @@ io.on("connection", (socket) => {
   });
 
 
- socket.on("RequestMaintenance", async (data) => {
-  try {
-    const requestId = data._id;
-
-    // Get the original request document
-    const originalRequest = await requestmaintenance.findById(requestId).lean();
-
-    if (!originalRequest) {
-      console.error("Maintenance request not found.");
-      return;
-    }
-
-    // Aggregate related info (equipment, category, department, lab, etc.)
-    const [extraInfo] = await requestmaintenance.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(requestId) } },
-
-          {
-            $lookup: {
-              from: "users",
-              localField: "Technician",
-              foreignField: "_id",
-              as: "TechnicianDetails"
-            }
-          },
-          { $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "equipment",
-          localField: "Equipments",
-          foreignField: "_id",
-          as: "EquipmentsInfo"
-        }
-      },
-      { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "categories",
-          localField: "EquipmentsInfo.Category",
-          foreignField: "_id",
-          as: "CategoryInfo"
-        }
-      },
-      { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "departments",
-          localField: "Department",
-          foreignField: "_id",
-          as: "DepartmentInfo"
-        }
-      },
-      { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "laboratories",
-          localField: "Laboratory",
-          foreignField: "_id",
-          as: "LaboratoryInfo"
-        }
-      },
-      { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          Technician: {
-            $concat: [
-              "$TechnicianDetails.FirstName",
-              " ",
-              { $ifNull: ["$TechnicianDetails.Middle", ""] },
-              " ",
-              "$TechnicianDetails.LastName"
-            ]
-          },
-          EquipmentName: { $ifNull: ["$EquipmentsInfo.Brand", "N/A"] },
-          CategoryName: { $ifNull: ["$CategoryInfo.CategoryName", "N/A"] },
-          Department: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
-          laboratoryName: { $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"] }
-        }
+  socket.on("RequestMaintenance", async (data) => {
+    try {
+      const requestId = data._id;
+  
+      // Get the original request document
+      const originalRequest = await requestmaintenance.findById(requestId).lean();
+  
+      if (!originalRequest) {
+        console.error("Maintenance request not found.");
+        return;
       }
-    ]);
-
-    // Merge the extra info into the original object
-    const finalRequest = {
-      ...originalRequest,
-      Technician:extraInfo?.Technician || "N/A",
-      EquipmentName: extraInfo?.EquipmentName || "N/A",
-      CategoryName: extraInfo?.CategoryName || "N/A",
-      Department: extraInfo?.Department || "N/A",
-      laboratoryName: extraInfo?.laboratoryName || "N/A"
-    };
-
-    // Emit the maintenance update to all connected clients
-    io.emit("Maintenance", finalRequest);
-    io.emit("UpdateMaintenance", finalRequest);
-    console.log("Emitted Maintenance:", finalRequest);
-  } catch (error) {
-    console.error("Error in RequestMaintenance:", error);
-  }
-});
-
- socket.on("RequestMaintenance", async (data) => {
-  try {
-    const requestId = data._id;
-    // Get the original request document
-    const originalRequest = await requestmaintenance.findById(requestId).lean();
-
-    if (!originalRequest) {
-      console.error("Maintenance request not found.");
-      return;
+  
+      const [extraInfo] = await requestmaintenance.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(requestId) } },
+        {
+          $lookup: {
+            from: "users",
+            localField: "Technician",
+            foreignField: "_id",
+            as: "TechnicianDetails"
+          }
+        },
+        { $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "departments",
+            localField: "Department",
+            foreignField: "_id",
+            as: "DepartmentInfo"
+          }
+        },
+        { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "laboratories",
+            localField: "Laboratory",
+            foreignField: "_id",
+            as: "LaboratoryInfo"
+          }
+        },
+        { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "equipment",
+            localField: "Equipments",
+            foreignField: "_id",
+            as: "EquipmentsInfo"
+          }
+        },
+        { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "EquipmentsInfo.Category",
+            foreignField: "_id",
+            as: "CategoryInfo"
+          }
+        },
+        { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            id: 1,
+            DateTime: 1,
+            Ref: 1,
+            read: 1,
+            Status: 1,
+            feedback: 1,
+            feedbackread: 1,
+            Description: 1,
+            EquipmentId: { $ifNull: ["$EquipmentsInfo._id", "N/A"] },
+            EquipmentName: { $ifNull: ["$EquipmentsInfo.Brand", "N/A"] },
+            CategoryName: { $ifNull: ["$CategoryInfo.CategoryName", "N/A"] },
+            DepartmentId: "$DepartmentInfo._id",
+            _id: 1,
+            Remarks: 1,
+            Department: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
+            remarksread: 1,
+            laboratoryName: { $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"] },
+            UserId: "$TechnicianDetails._id",
+            Technician: {
+              $concat: [
+                "$TechnicianDetails.FirstName",
+                " ",
+                { $ifNull: ["$TechnicianDetails.Middle", ""] },
+                " ",
+                "$TechnicianDetails.LastName"
+              ]
+            },
+            DateTimeAccomplish: 1
+          }
+        }
+      ]);
+  
+      const finalRequest = {
+        ...originalRequest,
+        ...extraInfo // Includes all projected fields
+      };
+  
+      // Emit to all connected clients
+      io.emit("Maintenance", finalRequest);
+      io.emit("UpdateMaintenance", finalRequest);
+  
+      console.log("Emitted Maintenance:", finalRequest);
+    } catch (error) {
+      console.error("Error in RequestMaintenance:", error);
     }
-
-    // Aggregate related info (equipment, category, department, lab, etc.)
-    const [extraInfo] = await requestmaintenance.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(requestId) } },
-      {
-        $lookup: {
-          from: "equipment",
-          localField: "Equipments",
-          foreignField: "_id",
-          as: "EquipmentsInfo"
-        }
-      },
-      { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "categories",
-          localField: "EquipmentsInfo.Category",
-          foreignField: "_id",
-          as: "CategoryInfo"
-        }
-      },
-      { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "departments",
-          localField: "Department",
-          foreignField: "_id",
-          as: "DepartmentInfo"
-        }
-      },
-      { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "laboratories",
-          localField: "Laboratory",
-          foreignField: "_id",
-          as: "LaboratoryInfo"
-        }
-      },
-      { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          EquipmentName: { $ifNull: ["$EquipmentsInfo.Brand", "N/A"] },
-          CategoryName: { $ifNull: ["$CategoryInfo.CategoryName", "N/A"] },
-          Department: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
-          laboratoryName: { $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"] }
-        }
-      }
-    ]);
-
-    // Merge the extra info into the original object
-    const finalRequest = {
-      ...originalRequest,
-      EquipmentName: extraInfo?.EquipmentName || "N/A",
-      CategoryName: extraInfo?.CategoryName || "N/A",
-      Department: extraInfo?.Department || "N/A",
-      laboratoryName: extraInfo?.laboratoryName || "N/A"
-    };
-
-    // Emit the maintenance update to all connected clients
-    io.emit("Maintenance", finalRequest);
-    io.emit("UpdateMaintenance", finalRequest);
-   
-    console.log("Emitted Maintenance:", finalRequest);
-  } catch (error) {
-    console.error("Error in RequestMaintenance:", error);
-  }
-});
-
+  });
+  
 
 socket.on("RefreshData",()=>{
   console.log("RunRefresh")
