@@ -13,11 +13,7 @@ const LaboratorySchema = new mongoose.Schema({
       },
       Encharge: {
         type: mongoose.Schema.Types.ObjectId,
-<<<<<<< HEAD
         ref: 'User', 
-=======
-        ref: 'User',  // Reference to the 
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       
         unique:true
       }, 

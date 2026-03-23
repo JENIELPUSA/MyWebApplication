@@ -18,13 +18,8 @@ const messageSchema = new mongoose.Schema({
       required: true,
     },
   ],
-<<<<<<< HEAD
   To: {
     type: String,
-=======
-  To:{
-    type:String
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   },
   RequestID: {
     type: mongoose.Schema.Types.ObjectId,
@@ -34,7 +29,6 @@ const messageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User", // Reference to the
   },
-<<<<<<< HEAD
   role: {
     type: String,
     enum: ["Admin", "User", "Technician"],
@@ -59,16 +53,6 @@ const messageSchema = new mongoose.Schema({
   },
   read: { type: Boolean, default: false },
   readonUser: { type: Boolean, default: false },
-=======
-  role: { 
-    type: String, 
-    enum: ["Admin", "User", "Technician"], 
-    default: "User",
-    required: true 
-  }, 
-  read: { type: Boolean, default: false },
-  readonUser:{ type: Boolean, default: false },
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 });
 
 const Messages = mongoose.model("Message", messageSchema);
