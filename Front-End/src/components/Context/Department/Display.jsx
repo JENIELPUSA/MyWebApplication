@@ -1,4 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
+<<<<<<< HEAD
+=======
+import axios from "axios";
+import { toast } from "react-toastify";
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 import { AuthContext } from "../AuthContext";
 export const DepartmentDisplayContext = createContext();
@@ -141,6 +146,12 @@ const { authToken } = useContext(AuthContext);
       }
     } catch (error) {
       console.error("Error deleting Equipment:", error);
+<<<<<<< HEAD
+=======
+      toast.error(
+        error.response?.data?.message || "Failed to delete Equipment."
+      );
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     }
   };
 

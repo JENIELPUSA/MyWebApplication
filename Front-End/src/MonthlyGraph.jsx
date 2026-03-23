@@ -2,7 +2,10 @@ import React, { useEffect, useRef, useState, useContext } from "react";
 import Chart from "chart.js/auto";
 import axios from "axios";
 import { AuthContext } from "./components/Context/AuthContext";
+<<<<<<< HEAD
 import { FaChartLine, FaMicrochip, FaDatabase } from "react-icons/fa";
+=======
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
 function MonthlyTableGraph() {
   const chartRef = useRef(null);
@@ -10,20 +13,66 @@ function MonthlyTableGraph() {
   const { authToken } = useContext(AuthContext);
   const [monthlyData, setMonthlyData] = useState([]);
   const [monthLabels, setMonthLabels] = useState([]);
+<<<<<<< HEAD
   const [loading, setLoading] = useState(true);
+=======
+
+  console.log("Data",monthlyData)
+  console.log("labels",monthLabels)
+
+  useEffect(() => {
+    const savedRequests = localStorage.getItem("maintenanceData");
+    const savedLabels = localStorage.getItem("maintenanceLabels");
+
+    if (savedRequests) {
+      setMonthlyData(JSON.parse(savedRequests));
+    }
+
+    if (savedLabels) {
+      setMonthLabels(JSON.parse(savedLabels));
+    }
+  }, []);
+
+
+   useEffect(() => {
+      if (monthlyData && Array.isArray(monthlyData)) {
+        //mahalaga na ma clear ito after e logout
+        localStorage.setItem("maintenanceData", JSON.stringify(monthlyData));
+      }
+    }, [monthlyData]);
+
+
+     useEffect(() => {
+        if (monthLabels && Array.isArray(monthLabels)) {
+          localStorage.setItem("maintenanceLabels", JSON.stringify(monthLabels));
+        }
+      }, [monthLabels]);
+
+
+
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
   useEffect(() => {
     const fetchData = async () => {
       if (!authToken) return;
+<<<<<<< HEAD
       setLoading(true);
       try {
         const res = await axios.get(
           `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/monthly-requests`,
+=======
+      try {
+        const res = await axios.get(
+          `${
+            import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+          }/api/v1/MaintenanceRequest/monthly-requests`,
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
           {
             withCredentials: true,
             headers: { Authorization: `Bearer ${authToken}` },
           }
         );
+<<<<<<< HEAD
         const sorted = res.data.sort((a, b) => new Date(a._id) - new Date(b._id));
         const totals = sorted.map((item) => item.total);
         const labels = sorted.map((item) => {
@@ -57,6 +106,35 @@ function MonthlyTableGraph() {
     const gradient = ctx.createLinearGradient(0, 0, 0, 300);
     gradient.addColorStop(0, "rgba(30, 58, 138, 0.2)"); // Navy blue transparent
     gradient.addColorStop(1, "rgba(250, 204, 21, 0)"); // Fade to yellow (transparent)
+=======
+        const sorted = res.data.sort(
+          (a, b) => new Date(a._id) - new Date(b._id)
+        );
+        setMonthlyData(sorted.map((item) => item.total));
+        setMonthLabels(
+          sorted.map((item) => {
+            const date = new Date(item._id + "-01");
+            return date.toLocaleString("default", { month: "short" });
+          })
+        );
+      } catch (err) {
+        console.error("Error fetching monthly data:", err);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (!chartRef.current || monthlyData.length === 0) return;
+    const ctx = chartRef.current.getContext("2d");
+
+    if (chartInstance.current) chartInstance.current.destroy();
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 250);
+    gradient.addColorStop(0, "rgba(59, 130, 246, 0.4)");
+    gradient.addColorStop(1, "rgba(59, 130, 246, 0)");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
     chartInstance.current = new Chart(ctx, {
       type: "line",
@@ -64,6 +142,7 @@ function MonthlyTableGraph() {
         labels: monthLabels,
         datasets: [
           {
+<<<<<<< HEAD
             label: "SYSTEM REQUESTS",
             data: monthlyData,
             borderColor: "#1e3a8a", // Navy Blue
@@ -76,11 +155,22 @@ function MonthlyTableGraph() {
             pointHoverRadius: 7,
             tension: 0.4,
             fill: true,
+=======
+            label: "Requests",
+            data: monthlyData,
+            borderColor: "#3B82F6",
+            backgroundColor: gradient,
+            fill: true,
+            borderWidth: 2,
+            pointRadius: 3,
+            tension: 0.4,
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
           },
         ],
       },
       options: {
         responsive: true,
+<<<<<<< HEAD
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
@@ -94,11 +184,21 @@ function MonthlyTableGraph() {
             callbacks: {
               label: (context) => ` UNITS: ${context.parsed.y}`
             }
+=======
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: "#1E3A8A",
+            titleColor: "#fff",
+            bodyColor: "#fff",
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
           },
         },
         scales: {
           y: {
             beginAtZero: true,
+<<<<<<< HEAD
             grid: { color: "rgba(226, 232, 240, 0.8)", drawBorder: false },
             ticks: {
               color: "#94a3b8",
@@ -111,10 +211,19 @@ function MonthlyTableGraph() {
               color: "#64748b",
               font: { size: 10, weight: '800' },
             },
+=======
+            ticks: { stepSize: 5, color: "#6B7280" },
+            grid: { color: "#E5E7EB" },
+          },
+          x: {
+            ticks: { color: "#6B7280" },
+            grid: { display: false },
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
           },
         },
       },
     });
+<<<<<<< HEAD
 
     return () => { if (chartInstance.current) chartInstance.current.destroy(); };
   }, [monthlyData, monthLabels]);
@@ -184,9 +293,24 @@ function MonthlyTableGraph() {
             Report Cycle: 12 Months
           </p>
         </div>
+=======
+  }, [monthlyData, monthLabels]);
+
+  return (
+    <div className="flex flex-col items-center bg-white dark:bg-neutral-700 rounded-lg shadow-md p-3 hover:scale-105 hover:shadow-xl hover:shadow-blue-500/50">
+      <h2 className="text-lg font-semibold text-center mb-4 dark:text-gray-800">
+        Monthly Request Overview
+      </h2>
+      <div className="w-full h-44 flex justify-center items-center">
+        <canvas ref={chartRef} className="w-4/5 h-full" />
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       </div>
     </div>
   );
 }
 
+<<<<<<< HEAD
 export default MonthlyTableGraph;
+=======
+export default MonthlyTableGraph;
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae

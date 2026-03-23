@@ -1,6 +1,11 @@
 import React, { useState,useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+<<<<<<< HEAD
+=======
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import { motion } from 'framer-motion';
 import {AuthContext} from '../Context/AuthContext';
 function ResetPassword(onClose) {
@@ -14,6 +19,10 @@ function ResetPassword(onClose) {
         e.preventDefault();
 
         if (password !== confirmPassword) {
+<<<<<<< HEAD
+=======
+            toast.error("Passwords do not match!");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
             return;
         }
 
@@ -27,13 +36,26 @@ function ResetPassword(onClose) {
             console.log("Server Response:", res.data);
 
             if (res.data.status === "Success") {
+<<<<<<< HEAD
+=======
+                toast.success("SuccessFully Updated!");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
                 setTimeout(() => {
                   navigate("/");
                   }, 2000);       
                 
+<<<<<<< HEAD
             } 
         } catch (error) {
             console.error('Error response:', error.response?.data || error.message);
+=======
+            } else {
+                toast.error('Failed to reset password. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error response:', error.response?.data || error.message);
+            toast.error('There was an error resetting the password. Please try again.');
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         }
     };
 
@@ -115,6 +137,10 @@ function ResetPassword(onClose) {
                 Create New Password
               </button>
             </form>
+<<<<<<< HEAD
+=======
+            <ToastContainer />
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
           </motion.div>
         </motion.div>
     );

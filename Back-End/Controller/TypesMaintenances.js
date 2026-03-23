@@ -1,6 +1,7 @@
 const AsyncErrorHandler = require("../Utils/AsyncErrorHandler");
 const TypesofMaintenances = require("../Models/TypesOfMaintenace");
 const Apifeatures = require("../Utils/ApiFeatures");
+<<<<<<< HEAD
 const MaintenanceActivity = require("../Models/MaintenanceActivity");
 const MaintenanceLogs = require("../Models/MaintenanceLogs");
 const AssignEquipment = require("../Models/AssigningEquipment");
@@ -102,6 +103,11 @@ exports.TypesRequest = AsyncErrorHandler(async (req, res) => {
   };
 
   const typesofMaintenances = await TypesofMaintenances.create(dataToSave);
+=======
+
+exports.TypesRequest = AsyncErrorHandler(async (req, res) => {
+  const typesofMaintenances = await TypesofMaintenances.create(req.body);
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
   res.status(200).json({
     status: "success",
@@ -109,6 +115,10 @@ exports.TypesRequest = AsyncErrorHandler(async (req, res) => {
   });
 });
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 exports.DisplaySched = AsyncErrorHandler(async (req, res) => {
   const features = new Apifeatures(TypesofMaintenances.find(), req.query)
     .filter()
@@ -124,6 +134,7 @@ exports.DisplaySched = AsyncErrorHandler(async (req, res) => {
   });
 });
 
+<<<<<<< HEAD
 exports.UpdateSched = AsyncErrorHandler(async (req, res, next) => {
   const updateSchedule = await TypesofMaintenances.findByIdAndUpdate(
     req.params.id,
@@ -144,3 +155,25 @@ exports.deleteSched = AsyncErrorHandler(async (req, res, next) => {
     data: null,
   });
 });
+=======
+
+exports.UpdateSched =AsyncErrorHandler(async (req,res,next) =>{
+    const updateSchedule=await TypesofMaintenances.findByIdAndUpdate(req.params.id,req.body,{new: true});
+     res.status(200).json({
+        status:'success',
+        data:
+        updateSchedule
+        
+     }); 
+  })
+
+    exports.deleteSched = AsyncErrorHandler(async(req,res,next)=>{
+      await TypesofMaintenances.findByIdAndDelete(req.params.id)
+  
+      res.status(200).json({
+          status:'success',
+          data:null
+       });
+    })
+
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae

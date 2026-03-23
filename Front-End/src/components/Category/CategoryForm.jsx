@@ -1,4 +1,10 @@
 import React, { useState, useEffect, useContext } from "react";
+<<<<<<< HEAD
+=======
+import axios from "axios";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import { FaPlus } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { CategoryDisplayContext } from "../Context/Category/Display";
@@ -49,6 +55,10 @@ function CategoryForm({ isOpen, onClose, category, onAddCategory, onUpdate }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+<<<<<<< HEAD
+=======
+    toast.dismiss();
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     setIsLoading(true);
     try {
       if (category) {
@@ -60,6 +70,12 @@ function CategoryForm({ isOpen, onClose, category, onAddCategory, onUpdate }) {
       }
     } catch (error) {
       console.error("There was an error:", error);
+<<<<<<< HEAD
+=======
+      toast.error(
+        error.response?.data?.message || "Operation failed. Please try again."
+      );
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     } finally {
       setIsLoading(false);
     }
@@ -138,6 +154,11 @@ function CategoryForm({ isOpen, onClose, category, onAddCategory, onUpdate }) {
           >
             {category ? "Edit Category" : "Add Category"}
           </button>
+<<<<<<< HEAD
+=======
+
+          <ToastContainer />
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         </form>
       </motion.div>
     </motion.div>

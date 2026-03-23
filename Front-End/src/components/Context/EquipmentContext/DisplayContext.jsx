@@ -1,4 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
+<<<<<<< HEAD
+=======
+import axios from "axios";
+import { toast } from "react-toastify";
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 //gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
@@ -60,6 +65,10 @@ const [customError, setCustomError]=useState("")
       setEquipment(equipmentData);
     } catch (error) {
       console.error("Error fetching data:", error);
+<<<<<<< HEAD
+=======
+      toast.error("Failed to fetch data. Please try again later.");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       setError("Failed to fetch data");
     } finally {
       setLoading(false); // Set loading to false after data fetching is complete

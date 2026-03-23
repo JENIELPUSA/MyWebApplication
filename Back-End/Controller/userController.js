@@ -4,10 +4,14 @@ const user = require("../Models/usermodel");
 const Apifeatures = require("./../Utils/ApiFeatures");
 
 exports.createUser = AsyncErrorHandler(async (req, res) => {
+<<<<<<< HEAD
 
   console.log("req.body",req.body)
     const { FirstName,LastName, email, password} = req.body;
 
+=======
+    const { FirstName,LastName, email, password} = req.body;
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   
     // Check for required fields (except Middle if optional)
     if (!FirstName || !LastName || !email || !password ) {

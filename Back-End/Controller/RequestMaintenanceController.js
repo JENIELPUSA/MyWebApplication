@@ -1,6 +1,7 @@
 const AsyncErrorHandler = require("../Utils/AsyncErrorHandler");
 const requestmaintenance = require("./../Models/RequestMaintenance");
 const Apifeatures = require("./../Utils/ApiFeatures");
+<<<<<<< HEAD
 const PDFDocument = require("pdfkit");
 const user = require("./../Models/usermodel");
 
@@ -107,11 +108,34 @@ exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
   const existing = await requestmaintenance.findOne({
     Equipments: equipmentId,
     createdAt: { $gte: twentyFourHoursAgo },
+=======
+const PDFDocument = require('pdfkit');
+const path=require('path');
+const fs = require('fs');
+const CustomError=require('../Utils/CustomError')
+require('pdfkit-table');
+
+const mongoose = require('mongoose');
+
+exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
+  const { Equipments } = req.body;
+
+  // Convert Equipments to ObjectId if it's in string form
+  const equipmentId =new mongoose.Types.ObjectId(Equipments); // Assuming only 1 equipment is passed
+
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  // Check if a request for the same equipment exists within the last 24 hours
+  const existing = await requestmaintenance.findOne({
+    Equipments: equipmentId,
+    createdAt: { $gte: twentyFourHoursAgo }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   });
 
   if (existing) {
     return res.status(400).json({
       status: "fail",
+<<<<<<< HEAD
       message:
         "Duplicate request: This equipment already has a maintenance request in the last 24 hours.",
     });
@@ -150,6 +174,30 @@ exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
   });
 });
 
+=======
+      message: "Duplicate request: This equipment already has a maintenance request in the last 24 hours."
+    });
+  }
+
+  if(!Equipments){
+    return res.status(400).json({
+      status: "fail",
+      message: "Description: Please Input Description!"
+    });
+  }
+
+  // Proceed to create new maintenance request
+  const maintenance = await requestmaintenance.create(req.body);
+
+  res.status(201).json({
+    status: "success",
+    data: maintenance
+  });
+});
+
+
+
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
   const features = new Apifeatures(requestmaintenance.find(), req.query)
     .filter()
@@ -166,19 +214,31 @@ exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
         from: "users",
         localField: "Technician",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "TechnicianDetails",
       },
     },
     {
       $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true },
     },
+=======
+        as: "TechnicianDetails"
+      }
+    },
+    { $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true } },
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     {
       $lookup: {
         from: "departments",
         localField: "Department",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "DepartmentInfo",
       },
+=======
+        as: "DepartmentInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -186,8 +246,13 @@ exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
         from: "laboratories",
         localField: "Laboratory",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "LaboratoryInfo",
       },
+=======
+        as: "LaboratoryInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -195,8 +260,13 @@ exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
         from: "equipment",
         localField: "Equipments",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "EquipmentsInfo",
       },
+=======
+        as: "EquipmentsInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -204,8 +274,13 @@ exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
         from: "categories",
         localField: "EquipmentsInfo.Category",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "CategoryInfo",
       },
+=======
+        as: "CategoryInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -228,6 +303,7 @@ exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
         remarksread: 1,
         laboratoryName: { $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"] },
         UserId: "$TechnicianDetails._id",
+<<<<<<< HEAD
         Technician: {
           $concat: [
             "$TechnicianDetails.FirstName",
@@ -242,6 +318,24 @@ exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
     },
   ]);
 
+=======
+          Technician: {
+            $concat: [
+              "$TechnicianDetails.FirstName",
+              " ",
+              { $ifNull: ["$TechnicianDetails.Middle", ""] },
+              " ",
+              "$TechnicianDetails.LastName"
+            ]
+          }
+        ,
+        DateTimeAccomplish: 1
+      }
+    }
+  ]);
+
+
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   res.status(200).json({
     status: "success",
     totalDepartment: request.length, // Fixed typo here
@@ -252,7 +346,11 @@ exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
 exports.DisplayNotifictaionRequest = AsyncErrorHandler(async (req, res) => {
   const features = new Apifeatures(
     requestmaintenance.find({ read: false }), // Only get unread requests
+<<<<<<< HEAD
     req.query,
+=======
+    req.query
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   )
 
     .filter()
@@ -334,7 +432,11 @@ exports.DisplayNotifictaionRequest = AsyncErrorHandler(async (req, res) => {
             "$TechnicianDetails.LastName",
           ],
         },
+<<<<<<< HEAD
         DateTimeAccomplish: 1,
+=======
+        DateTimeAccomplish:1
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       },
     },
   ]);
@@ -355,6 +457,22 @@ exports.DeleteRequest = AsyncErrorHandler(async (req, res) => {
   });
 });
 
+<<<<<<< HEAD
+=======
+exports.UpdateSenData = AsyncErrorHandler(async (req, res, next) => {
+  const updatedata = await requestmaintenance.findByIdAndUpdate(
+    req.params.id,
+    { ...req.body, read: true },
+    { new: true }
+  );
+
+  res.status(200).json({
+    status: "success",
+    data: updatedata,
+  });
+});
+
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 exports.getRequest = AsyncErrorHandler(async (req, res, next) => {
   const filteredrequest = await requestmaintenance.findById(req.params.id);
 
@@ -370,19 +488,31 @@ exports.getRequest = AsyncErrorHandler(async (req, res, next) => {
         from: "users",
         localField: "Technician",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "TechnicianDetails",
       },
     },
     {
       $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true },
     },
+=======
+        as: "TechnicianDetails"
+      }
+    },
+    { $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true } },
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     {
       $lookup: {
         from: "departments",
         localField: "Department",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "DepartmentInfo",
       },
+=======
+        as: "DepartmentInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -390,8 +520,13 @@ exports.getRequest = AsyncErrorHandler(async (req, res, next) => {
         from: "laboratories",
         localField: "Laboratory",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "LaboratoryInfo",
       },
+=======
+        as: "LaboratoryInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -399,8 +534,13 @@ exports.getRequest = AsyncErrorHandler(async (req, res, next) => {
         from: "equipment",
         localField: "Equipments",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "EquipmentsInfo",
       },
+=======
+        as: "EquipmentsInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -408,8 +548,13 @@ exports.getRequest = AsyncErrorHandler(async (req, res, next) => {
         from: "categories",
         localField: "EquipmentsInfo.Category",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "CategoryInfo",
       },
+=======
+        as: "CategoryInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -438,12 +583,21 @@ exports.getRequest = AsyncErrorHandler(async (req, res, next) => {
             " ",
             { $ifNull: ["$TechnicianDetails.Middle", ""] },
             " ",
+<<<<<<< HEAD
             "$TechnicianDetails.LastName",
           ],
         },
         DateTimeAccomplish: 1,
       },
     },
+=======
+            "$TechnicianDetails.LastName"
+          ]
+        },
+        DateTimeAccomplish: 1
+      }
+    }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   ]);
 
   res.status(200).json({
@@ -452,6 +606,10 @@ exports.getRequest = AsyncErrorHandler(async (req, res, next) => {
   });
 });
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
   const departmentID = req.query.Department;
   const fromDate = req.query.from;
@@ -464,7 +622,11 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
   let endDate = new Date(toDate);
 
   if (isNaN(startDate) || isNaN(endDate)) {
+<<<<<<< HEAD
     return next(new CustomError("Invalid date format", 400));
+=======
+    return next(new CustomError('Invalid date format', 400));
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   }
 
   startDate.setHours(0, 0, 0, 0);
@@ -473,8 +635,13 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
   const query = {
     DateTime: {
       $gte: startDate,
+<<<<<<< HEAD
       $lte: endDate,
     },
+=======
+      $lte: endDate
+    }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   };
 
   if (departmentID && mongoose.Types.ObjectId.isValid(departmentID)) {
@@ -487,15 +654,23 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
 
   const totalCount = await requestmaintenance.countDocuments(query); // Get total count for pagination
 
+<<<<<<< HEAD
   const labs = await requestmaintenance
     .find(query)
+=======
+  const labs = await requestmaintenance.find(query)
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     .skip((pageNumber - 1) * pageSize) // Skip records based on page number
     .limit(pageSize); // Limit the records per page
 
   if (!labs || labs.length === 0) {
+<<<<<<< HEAD
     return next(
       new CustomError("No maintenance found for the given filters", 404),
     );
+=======
+    return next(new CustomError('No maintenance found for the given filters', 404));
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   }
 
   const request = await requestmaintenance.aggregate([
@@ -505,19 +680,31 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
         from: "users",
         localField: "Technician",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "TechnicianDetails",
       },
     },
     {
       $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true },
     },
+=======
+        as: "TechnicianDetails"
+      }
+    },
+    { $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true } },
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     {
       $lookup: {
         from: "departments",
         localField: "Department",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "DepartmentInfo",
       },
+=======
+        as: "DepartmentInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -525,8 +712,13 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
         from: "laboratories",
         localField: "Laboratory",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "LaboratoryInfo",
       },
+=======
+        as: "LaboratoryInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -534,8 +726,13 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
         from: "equipment",
         localField: "Equipments",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "EquipmentsInfo",
       },
+=======
+        as: "EquipmentsInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -543,8 +740,13 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
         from: "categories",
         localField: "EquipmentsInfo.Category",
         foreignField: "_id",
+<<<<<<< HEAD
         as: "CategoryInfo",
       },
+=======
+        as: "CategoryInfo"
+      }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     },
     { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
     {
@@ -573,6 +775,7 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
             " ",
             { $ifNull: ["$TechnicianDetails.Middle", ""] },
             " ",
+<<<<<<< HEAD
             "$TechnicianDetails.LastName",
           ],
         },
@@ -590,6 +793,22 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
   doc.pipe(res);
 
   const logoPath = path.join(__dirname, "../public/image/logo.jpg");
+=======
+            "$TechnicianDetails.LastName"
+          ]
+        },
+        DateTimeAccomplish: 1
+      }
+    }
+  ]);
+
+  const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 30 });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'attachment; filename=Maintenance_History' + Date.now() + '.pdf');
+  doc.pipe(res);
+
+  const logoPath = path.join(__dirname, '../public/image/logo.jpg');
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   if (fs.existsSync(logoPath)) {
     const logoWidth = 60;
     const centerX = (doc.page.width - logoWidth) / 2;
@@ -599,6 +818,7 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
   doc.moveDown(6);
 
   doc
+<<<<<<< HEAD
     .font("Helvetica-Bold")
     .fontSize(10)
     .text("Republic of the Philippines", { align: "center" })
@@ -619,12 +839,32 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
     .font("Helvetica-Bold")
     .fontSize(12)
     .text("Maintenance History Report", { align: "center" });
+=======
+    .font('Helvetica-Bold')
+    .fontSize(10)
+    .text('Republic of the Philippines', { align: 'center' })
+    .moveDown(0.2)
+    .text('BILIRAN PROVINCE STATE UNIVERSITY', { align: 'center' })
+    .moveDown(0.2)
+    .text('6560 Naval, Biliran Province', { align: 'center' })
+    .moveDown(1);
+
+  const startX = doc.page.margins.left;
+  const generatedDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: '2-digit',
+  });
+
+  doc.font('Helvetica-Bold').fontSize(12).text('Maintenance History Report', { align: 'center' });
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   doc.moveDown();
   doc.text(`Total Laboratories: ${request.length}`);
   doc.text(`Date: ${generatedDate}`);
   doc.text(`Page: ${pageNumber} of ${Math.ceil(totalCount / pageSize)}`); // Display page number
   doc.moveDown(2);
 
+<<<<<<< HEAD
   const tableHeaders = [
     "Date",
     "Equipment",
@@ -668,6 +908,30 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
   currentY += 5;
 
   doc.font("Helvetica").fontSize(10);
+=======
+  const tableHeaders = ['Date', 'Equipment', 'Description','Remarks', 'Status', 'Technician', 'Laboratory', 'Department', 'Feedback', 'Date Accomplish'];
+  const columnWidths = [80, 80,80,80, 60, 80, 80, 80, 80, 80];
+  const tableWidth = columnWidths.reduce((a, b) => a + b, 0);
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const startXTable = doc.page.margins.left + (pageWidth - tableWidth) / 2;
+  const rowHeight = 30;
+  let currentY = doc.y;
+  const pageHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
+
+  doc.font('Helvetica-Bold').fontSize(10);
+  tableHeaders.forEach((header, index) => {
+    doc.text(header, startXTable + columnWidths.slice(0, index).reduce((a, b) => a + b, 0), currentY, {
+      width: columnWidths[index],
+      align: 'left',
+    });
+  });
+
+  currentY += rowHeight;
+  doc.moveTo(startXTable, currentY).lineTo(startXTable + tableWidth, currentY).stroke();
+  currentY += 5;
+
+  doc.font('Helvetica').fontSize(10);
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
   // Function to check and add a new page
   const checkAndAddPage = () => {
@@ -676,6 +940,7 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
       currentY = doc.y;
 
       // Redraw headers on new page
+<<<<<<< HEAD
       doc.font("Helvetica-Bold").fontSize(10);
       tableHeaders.forEach((header, index) => {
         doc.text(
@@ -694,6 +959,18 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
         .moveTo(startXTable, currentY)
         .lineTo(startXTable + tableWidth, currentY)
         .stroke();
+=======
+      doc.font('Helvetica-Bold').fontSize(10);
+      tableHeaders.forEach((header, index) => {
+        doc.text(header, startXTable + columnWidths.slice(0, index).reduce((a, b) => a + b, 0), currentY, {
+          width: columnWidths[index],
+          align: 'left',
+        });
+      });
+
+      currentY += rowHeight;
+      doc.moveTo(startXTable, currentY).lineTo(startXTable + tableWidth, currentY).stroke();
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       currentY += 5;
     }
   };
@@ -702,6 +979,7 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
     checkAndAddPage();
 
     const formattedDate = lab.DateTime
+<<<<<<< HEAD
       ? new Date(lab.DateTime).toLocaleDateString("en-US", {
           year: "numeric",
           month: "long",
@@ -740,11 +1018,47 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
           align: "left",
         },
       );
+=======
+      ? new Date(lab.DateTime).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : 'N/A';
+
+    const Accomplish = lab.DateTimeAccomplish
+      ? new Date(lab.DateTimeAccomplish).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : 'N/A';
+
+    const rowData = [
+      formattedDate,
+      `${lab.EquipmentName || 'N/A'} / ${lab.CategoryName || 'N/A'}`,
+      lab.Description || 'N/A',
+      lab.Remarks || 'N/A',
+      lab.Status || 'N/A',
+      lab.Technician || 'N/A',
+      lab.laboratoryName || 'N/A',
+      lab.Department || 'N/A',
+      lab.feedback || 'N/A',
+      Accomplish
+    ];
+
+    rowData.forEach((text, index) => {
+      doc.text(text, startXTable + columnWidths.slice(0, index).reduce((a, b) => a + b, 0), currentY, {
+        width: columnWidths[index],
+        align: 'left',
+      });
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     });
 
     currentY += rowHeight;
   });
 
+<<<<<<< HEAD
   doc
     .moveTo(startXTable, currentY)
     .lineTo(startXTable + tableWidth, currentY)
@@ -756,10 +1070,21 @@ exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
   const footerX = doc.page.margins.left;
 
   doc.fontSize(10).text(footerText, footerX, currentY + 10, { align: "left" });
+=======
+  doc.moveTo(startXTable, currentY).lineTo(startXTable + tableWidth, currentY).stroke();
+
+  // Footer
+  doc.moveDown(1);
+  const footerText = 'Generated by EPDO';
+  const footerX = doc.page.margins.left;
+
+  doc.fontSize(10).text(footerText, footerX, currentY + 10, { align: 'left' });
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
   doc.end();
 });
 
+<<<<<<< HEAD
 exports.getMonthlyMaintenanceGraph = AsyncErrorHandler(
   async (req, res, next) => {
     try {
@@ -2043,3 +2368,32 @@ exports.DisplayUnscheduledRepair = AsyncErrorHandler(async (req, res, next) => {
 
   doc.end();
 });
+=======
+
+exports.getMonthlyMaintenanceGraph=AsyncErrorHandler(async(req,res,next)=>{
+  try {
+    const data = await requestmaintenance.aggregate([
+      {
+        $project: {
+          month: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+        },
+      },
+      {
+        $group: {
+          _id: "$month",
+          total: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+})
+
+
+
+
+
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae

@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import DepartmentForm from './components/Department/DepartmentForm';
+<<<<<<< HEAD
 import Navbar from './components/Navbar';
 import DepartmentTable from './components/Department/DepartmentTable';
 import axios from 'axios';
 
+=======
+import Sidebar from './components/Sidebar';
+import Navbar from './components/Navbar';
+import DepartmentTable from './components/Department/DepartmentTable';
+import axios from 'axios';
+import {toast} from 'react-toastify';
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
 
 
@@ -87,10 +95,18 @@ function DepartmentContent() {
             })
 
             setDepartment((prevDepartment) => prevDepartment.filter((depart) => depart._id !== departmentId));
+<<<<<<< HEAD
+=======
+            toast.success('Department deleted successfully!');
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
                 
 
         }catch(error){
             console.error('Error deleting Equipment:', error);
+<<<<<<< HEAD
+=======
+            toast.error(error.response?.data?.message || 'Failed to delete Equipment.');
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         }
     }
     const filteredDepartment = Object.values(department).filter((depart) => 

@@ -38,6 +38,11 @@ import SocketListener from "./components/SocketListener.jsx";
 import socket from "./socket.js";
 import { IncomingDisplayProvider } from "./components/Context/ProcessIncomingRequest/IncomingRequestContext.jsx";
 import AxiosInterceptor from "./components/AxiosInterceptor.jsx";
+<<<<<<< HEAD
+=======
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 function App() {
 
 
@@ -59,6 +64,10 @@ function App() {
   
   return (
     <AuthProvider> 
+<<<<<<< HEAD
+=======
+       <ToastContainer />
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         <SchedDisplayProvider>
           <ModalProvider>
             <AddTypeMaintenanceProvider>

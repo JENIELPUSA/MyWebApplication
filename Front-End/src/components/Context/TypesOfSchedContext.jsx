@@ -1,4 +1,9 @@
 import React, { createContext, useState, useEffect,useContext } from "react";
+<<<<<<< HEAD
+=======
+import axios from "axios";
+import { toast } from "react-toastify";
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import { AuthContext } from "./AuthContext";
 //gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
 //mo siya sa reausable axiosInstances.jsx

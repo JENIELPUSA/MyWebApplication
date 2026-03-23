@@ -485,6 +485,7 @@ exports.getSpecificDepartment = AsyncErrorHandler(async (req, res, next) => {
   doc.end();
 });
 
+<<<<<<< HEAD
 exports.GetLaboratoriesByDepartment = AsyncErrorHandler(async (req, res, next) => {
     // 1. Kunin ang ID mula sa query (Confirmed working based sa test mo)
     const { departmentId } = req.query;
@@ -566,4 +567,6 @@ exports.GetLaboratoriesByDepartment = AsyncErrorHandler(async (req, res, next) =
         data: laboratories
     });
 });
+=======
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 

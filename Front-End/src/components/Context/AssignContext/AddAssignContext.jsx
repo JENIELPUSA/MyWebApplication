@@ -1,10 +1,21 @@
 import React, { createContext, useState, useContext } from "react";
 import axios from "axios";
+<<<<<<< HEAD
 import { AssignContext } from "../DisplayAssignContext.jsx";
+=======
+import { toast } from "react-toastify";
+import { AssignContext } from "../DisplayAssignContext.jsx";
+import "react-toastify/dist/ReactToastify.css";
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import { EquipmentDisplayContext } from "../EquipmentContext/DisplayContext.jsx";
 import { RequestDisplayContext } from "../MaintenanceRequest/DisplayRequest.jsx";
 import { SchedDisplayContext } from "../TypesOfSchedContext.jsx";
 import { AddTypeMaintenance } from "../TypesofMainten/addmaintenance.jsx";
+<<<<<<< HEAD
+=======
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import axiosInstance from "../../ReusableComponent/axiosInstance.jsx";
 export const AddAssignContext = createContext();
 
@@ -21,6 +32,10 @@ export const AddAssignProvider = ({ children }) => {
 
   const addAssignEquipment = async (values) => {
     if (!token) {
+<<<<<<< HEAD
+=======
+      toast.error("Authentication required.");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       return;
     }
 
@@ -33,7 +48,11 @@ export const AddAssignProvider = ({ children }) => {
           Equipments: values.id, // Selected equipment
           Laboratory: values.Laboratory, // Laboratory to assign to
         },
+<<<<<<< HEAD
         { headers: { Authorization: `Bearer ${token}` } },
+=======
+        { headers: { Authorization: `Bearer ${token}` } }
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       );
 
       if (response.data.status === "success") {
@@ -41,21 +60,35 @@ export const AddAssignProvider = ({ children }) => {
         const response = await axios.patch(
           `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${values.id}`,
           {
+<<<<<<< HEAD
             status: "Not Available",
           },
           { headers: { Authorization: `Bearer ${token}` } },
         );
+=======
+            status:"Not Available"
+         
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log(response)
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         fetchAssignData();
         fetchEquipmentData();
         setConfirm(true); // Optionally update confirm state to trigger UI changes
       }
     } catch (error) {
       console.error("Error assigning equipment:", error);
+<<<<<<< HEAD
+=======
+      toast.error("Error submitting form");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     } finally {
       setLoading(false); // Set loading to false when request is finished
     }
   };
 
+<<<<<<< HEAD
   const downloadPMSEquipmentHistory = async (laboratoryId) => {
     if (!laboratoryId) return console.error("Laboratory ID is required");
 
@@ -99,6 +132,12 @@ export const AddAssignProvider = ({ children }) => {
   if (updateSched && view && TypesofMaintenance) {
     const specificMessages = view?.filter(
       (msg) => msg._id.toLowerCase() === updateSched?.toLowerCase(),
+=======
+  //para sa pag add ng scheduleMaintenance
+  if (updateSched && view && TypesofMaintenance) {
+    const specificMessages = view?.filter(
+      (msg) => msg._id.toLowerCase() === updateSched?.toLowerCase()
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     );
     const equipmentId =
       specificMessages?.length > 0 ? specificMessages[0]?.EquipmentId : null;
@@ -107,7 +146,11 @@ export const AddAssignProvider = ({ children }) => {
         ? specificMessages[0]?.DateTimeAccomplish
         : null;
     const specificType = TypesofMaintenance?.filter(
+<<<<<<< HEAD
       (msg) => msg.equipmentType.toLowerCase() === equipmentId?.toLowerCase(),
+=======
+      (msg) => msg.equipmentType.toLowerCase() === equipmentId?.toLowerCase()
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     );
     if (specificType && Accomplishtime) {
       UpdateType(specificType, Accomplishtime);
@@ -119,7 +162,11 @@ export const AddAssignProvider = ({ children }) => {
         setupdateSched,
         addAssignEquipment,
         loading,
+<<<<<<< HEAD
         confirm,downloadPMSEquipmentHistory
+=======
+        confirm,
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       }}
     >
       {children}

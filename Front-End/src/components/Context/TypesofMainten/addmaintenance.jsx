@@ -1,4 +1,10 @@
 import React, { createContext, useState, useEffect, useCallback,useContext } from "react";
+<<<<<<< HEAD
+=======
+import axios from "axios";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 //gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
@@ -18,7 +24,11 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
   const fetchDisplayTypes = useCallback(async () => {
     if (!authToken) return;
     try {
+<<<<<<< HEAD
       const res = await axiosInstance.get(
+=======
+      const res = await axios.get(
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`,
         { withCredentials: true,
           headers: { Authorization: `Bearer ${authToken}` } }
@@ -29,6 +39,10 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
       }
     } catch (error) {
       console.error("Error fetching display types:", error);
+<<<<<<< HEAD
+=======
+      toast.error("Failed to load maintenance types.");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     }
   }, [authToken]);
 
@@ -40,7 +54,11 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
   // ADD new type maintenance
   const Types = async (equipment, type, Laboratory,department) => {
     try {
+<<<<<<< HEAD
       const res = await axiosInstance.post(
+=======
+      const res = await axios.post(
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest`,
         {
           equipmentType: equipment._id,
@@ -72,6 +90,10 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
 
     let nextDate = new Date(Time);
     if (isNaN(nextDate)) {
+<<<<<<< HEAD
+=======
+      toast.error("Invalid date format.");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       return;
     }
 
@@ -101,13 +123,21 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
 
     try {
       if(!id)return
+<<<<<<< HEAD
       await axiosInstance.patch(
+=======
+      await axios.patch(
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${id}`,
         payload,
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
     } catch (error) {
       console.error("Error updating schedule:", error);
+<<<<<<< HEAD
+=======
+      toast.error(error.response?.data?.message || "Update failed.");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     }
   };
 
@@ -117,11 +147,19 @@ const [modalStatus, setModalStatus] = useState("success"); // or "fail"
     const schedule = displayData.find((item) => item.equipmentType === equipmentId);
 
     if (!schedule) {
+<<<<<<< HEAD
+=======
+      toast.error("No matching schedule found.");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       return;
     }
 
     try {
+<<<<<<< HEAD
       const response = await axiosInstance.delete(
+=======
+      const response = await axios.delete(
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/TypesMaintenanceRequest/${schedule._id}`,
         { 
           withCredentials: true,

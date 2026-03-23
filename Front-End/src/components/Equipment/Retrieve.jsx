@@ -1,4 +1,8 @@
 import React, { useState, useContext, useEffect } from "react";
+<<<<<<< HEAD
+=======
+import { toast } from "react-toastify";
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import axios from "axios";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { AssignContext } from "../Context/DisplayAssignContext.jsx";
@@ -83,6 +87,10 @@ const handleRetriveSync = async(equipment)=>{
    
     } catch (error) {
       console.error("Error retrieving equipment:", error);
+<<<<<<< HEAD
+=======
+      toast.error("Failed to retrieve the equipment. Please try again.");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     } finally {
       setIsLoading(false); // Stop loading
     }

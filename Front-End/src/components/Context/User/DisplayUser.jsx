@@ -1,8 +1,17 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
+<<<<<<< HEAD
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 export const UserDisplayContext = createContext();
+=======
+import { toast } from "react-toastify";
+import { AuthContext } from "../AuthContext";
+import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
+export const UserDisplayContext = createContext();
+//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
+//mo siya sa reausable axiosInstances.jsx
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 export const UserDisplayProvider = ({ children }) => {
@@ -39,6 +48,10 @@ export const UserDisplayProvider = ({ children }) => {
       setUsers(userData);
     } catch (error) {
       console.error("Error fetching data:", error);
+<<<<<<< HEAD
+=======
+      toast.error("Failed to fetch data. Please try again later.");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       setError("Failed to fetch data");
     } finally {
       setLoading(false); // Set loading to false after data fetching is complete
@@ -48,7 +61,11 @@ export const UserDisplayProvider = ({ children }) => {
   const AddUser = async (values) => {
     try {
       const res = await axiosInstance.post(
+<<<<<<< HEAD
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/authentication/signup`,
+=======
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users`,
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         {
           FirstName: values.FirstName,
           Middle: values.Middle,
@@ -61,8 +78,12 @@ export const UserDisplayProvider = ({ children }) => {
           headers: { Authorization: `Bearer ${authToken}` },
         }
       );
+<<<<<<< HEAD
 
       if (res.data.status === "Success") {
+=======
+      if (res.data.status === "success") {
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         setModalStatus("success");
         setShowModal(true);
         return { success: true, data: res.data.data };
@@ -151,6 +172,10 @@ export const UserDisplayProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("Error deleting user:", error);
+<<<<<<< HEAD
+=======
+      toast.error(error.response?.data?.message || "Failed to delete user.");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     }
 
   }

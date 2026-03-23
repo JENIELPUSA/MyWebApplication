@@ -1,5 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
+<<<<<<< HEAD
+=======
+import { toast } from "react-toastify";
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 //gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
@@ -50,7 +54,11 @@ export const CategoryDisplayProvider = ({ children }) => {
       setCategory(categoryData);
     } catch (error) {
       console.error("Error fetching data:", error);
+<<<<<<< HEAD
 s
+=======
+      toast.error("Failed to fetch data. Please try again later.");
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       setError("Failed to fetch data");
     } finally {
       setLoading(false); // Set loading to false after data fetching is complete
@@ -157,6 +165,12 @@ s
       }
     } catch (error) {
       console.error("Error deleting Equipment:", error);
+<<<<<<< HEAD
+=======
+      toast.error(
+        error.response?.data?.message || "Failed to delete Equipment."
+      );
+>>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     }
   };
 
