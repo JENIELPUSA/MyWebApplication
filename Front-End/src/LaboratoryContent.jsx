@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-<<<<<<< HEAD
 import LaboratoryForm from './components/Laboratories/LaboratoryForm';
-=======
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import LaboratoryForm from './components/Laboratories/LaboratoryForm';
-import Sidebar from './components/Sidebar';
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import Navbar from './components/Navbar';
 import LaboratoryTable from './components/Laboratories/LaboratoryTable';
 
@@ -20,13 +13,7 @@ function LaboratoryContent() {
   const [currentPage, setCurrentPage] = useState(1); // Current page for pagination
   const [laboratoryPerPage, setLaboratoryPerPage] = useState(6);
   const [totalLaboratories, setTotalLaboratories] = useState(0);
-<<<<<<< HEAD
   const [selectedLab, setSelectedLab] = useState(null); // Initialize as null, not an array
-=======
-  const [users, setUsers] = useState([]);
-  const [selectedLab, setSelectedLab] = useState(null); // Initialize as null, not an array
-  const [department ,setDepartment] = useState([])
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
   // Fetch data from API
   const fetchData = async (url, setState) => {
@@ -62,10 +49,6 @@ function LaboratoryContent() {
 
   const handleDeleteLab = async (laboratoryId) => {
     if (!laboratoryId) {
-<<<<<<< HEAD
-=======
-      toast.error('Laboratory ID is required to delete.');
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       return;
     }
 
@@ -76,19 +59,10 @@ function LaboratoryContent() {
       setLaboratories((prevLabs) =>
         prevLabs.filter((laboratory) => laboratory._id !== laboratoryId)
       );
-<<<<<<< HEAD
     } catch (error) {
       console.error('Error deleting laboratory:', error);
       const errorMessage = error.response?.data?.message || 'Failed to delete laboratory.';
 
-=======
-
-      toast.success('Laboratory deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting laboratory:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to delete laboratory.';
-      toast.error(errorMessage);
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     }
   };
 

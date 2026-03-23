@@ -1,9 +1,4 @@
 import React, { useState, useEffect, useContext } from "react";
-<<<<<<< HEAD
-=======
-import axios from "axios";
-import { toast, ToastContainer } from "react-toastify";
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import LoadingTableSpinner from "../ReusableComponent/loadingTableSpiner";
 import { FaPlus } from "react-icons/fa";
 import CategoryAddForm from "./CategoryForm";
@@ -250,10 +245,6 @@ const CategoryTable = ({ isOpen, onClose }) => {
             onClose={handleCloseModal}
           />
         )}
-<<<<<<< HEAD
-=======
-        <ToastContainer />
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       </motion.div>
     </motion.div>
   );

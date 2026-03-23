@@ -1,14 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from "react";
-<<<<<<< HEAD
 import { UserDisplayContext } from "../User/DisplayUser";
-=======
-import axios from "axios";
-import { toast } from "react-toastify";
-import { UserDisplayContext } from "../User/DisplayUser";
-import "react-toastify/dist/ReactToastify.css";
-//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
-//mo siya sa reausable axiosInstances.jsx
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import axiosInstance from "../../ReusableComponent/axiosInstance";
 
 export const PostEmailContext = createContext();
@@ -67,10 +58,6 @@ export const AddEmailProvider = ({ children }) => {
       setIsEmail([]); // Reset emails list after sending
     } catch (error) {
       console.error("Error sending emails:", error.response || error);
-<<<<<<< HEAD
-=======
-      toast.error(`Error sending emails: ${error.message || error}`);
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     } finally {
       setIsSending(false); // Mark as not sending again
     }

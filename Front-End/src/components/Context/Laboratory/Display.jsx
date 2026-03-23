@@ -1,9 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
-<<<<<<< HEAD
-=======
-import { toast } from "react-toastify";
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import { AuthContext } from "../AuthContext"; // Import AuthContext
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 
@@ -22,12 +18,8 @@ export const LaboratoryDisplayProvider = ({ children }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
-<<<<<<< HEAD
   const [isLabDropdown, setLabDropdown] = useState("");
 
-=======
-  
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   useEffect(() => {
     if (!authToken) {
       setLaboratories([]);
@@ -52,7 +44,6 @@ export const LaboratoryDisplayProvider = ({ children }) => {
     if (!authToken) return;
     setLoading(true);
     try {
-<<<<<<< HEAD
       const res = await axiosInstance.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`,
         {
@@ -62,13 +53,6 @@ export const LaboratoryDisplayProvider = ({ children }) => {
           },
         },
       );
-=======
-      const res = await axiosInstance.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory`, {
-        headers: {
-          withCredentials: true ,Authorization: `Bearer ${authToken}`, // Include the token in headers
-        },
-      });
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
       const laboratoryData = res?.data.data;
       setLaboratories(laboratoryData);
@@ -87,7 +71,6 @@ export const LaboratoryDisplayProvider = ({ children }) => {
     }
   };
 
-<<<<<<< HEAD
   const fetchLaboratoryDropdown = async (deptId) => {
     setLabDropdown([]);
 
@@ -118,8 +101,6 @@ export const LaboratoryDisplayProvider = ({ children }) => {
     }
   };
 
-=======
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   const AddedLaboratory = async (values) => {
     try {
       const response = await axiosInstance.post(
@@ -129,14 +110,10 @@ export const LaboratoryDisplayProvider = ({ children }) => {
           Encharge: values.Encharge,
           LaboratoryName: values.LaboratoryName,
         },
-<<<<<<< HEAD
         {
           withCredentials: true,
           headers: { Authorization: `Bearer ${authToken}` },
         },
-=======
-        {withCredentials: true , headers: { Authorization: `Bearer ${authToken}` } }
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       );
 
       if (response.data.status === "success") {
@@ -174,14 +151,10 @@ export const LaboratoryDisplayProvider = ({ children }) => {
           Encharge: values.Encharge,
           LaboratoryName: values.LaboratoryName,
         },
-<<<<<<< HEAD
         {
           withCredentials: true,
           headers: { Authorization: `Bearer ${authToken}` },
         },
-=======
-        { withCredentials: true ,headers: { Authorization: `Bearer ${authToken}` } }
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       );
 
       if (response.data && response.data.status === "success") {
@@ -197,11 +170,7 @@ export const LaboratoryDisplayProvider = ({ children }) => {
     } catch (error) {
       setCustomError("There was an error:", error);
       setCustomError(
-<<<<<<< HEAD
         error.response?.data?.message || "Operation failed. Please try again.",
-=======
-        error.response?.data?.message || "Operation failed. Please try again."
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       );
     }
   };
@@ -213,15 +182,9 @@ export const LaboratoryDisplayProvider = ({ children }) => {
         {
           withCredentials: true,
           headers: { Authorization: `Bearer ${authToken}` },
-<<<<<<< HEAD
         },
       );
 
-=======
-        }
-      );
-  
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       if (response.data && response.data.status === "success") {
         setModalStatus("success");
         setShowModal(true);
@@ -234,18 +197,10 @@ export const LaboratoryDisplayProvider = ({ children }) => {
     } catch (error) {
       const errorMessage =
         error.response?.data?.message || "Failed to delete Laboratory.";
-<<<<<<< HEAD
-=======
-      toast.error(errorMessage);
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       return { success: false, error: errorMessage };
     }
   };
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   return (
     <LaboratoryDisplayContext.Provider
       value={{
@@ -262,11 +217,8 @@ export const LaboratoryDisplayProvider = ({ children }) => {
         currentPage,
         setCurrentPage,
         fetchLaboratoryData,
-<<<<<<< HEAD
         fetchLaboratoryDropdown,
         isLabDropdown,
-=======
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       }}
     >
       {children}
@@ -279,8 +231,4 @@ export const LaboratoryDisplayProvider = ({ children }) => {
       />
     </LaboratoryDisplayContext.Provider>
   );
-<<<<<<< HEAD
-=======
-  
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 };

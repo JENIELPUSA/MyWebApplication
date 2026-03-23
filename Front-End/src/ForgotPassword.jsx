@@ -2,11 +2,6 @@ import React from 'react'
 import { useState } from 'react'
 import { Link ,useNavigate} from 'react-router-dom';
 import axios from 'axios'
-<<<<<<< HEAD
-=======
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
 function ForgotPassword() {
     const [email,setEmail]=useState()
@@ -19,11 +14,7 @@ function ForgotPassword() {
             email
           });
           if(res.data.status === "Success"){
-<<<<<<< HEAD
             console.log("Success")
-=======
-            toast.success(res.data.message);
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
           }
           // Maaaring mag-redirect o magpakita ng success message dito
         } catch (error) {
@@ -58,21 +49,6 @@ function ForgotPassword() {
                 </button>
 
             </form>
-<<<<<<< HEAD
-=======
-            <ToastContainer
-                    position="top-right"
-                    autoClose={3000}
-                    hideProgressBar={false}
-                    newestOnTop={true}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="colored"
-                />
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
         </div>
 

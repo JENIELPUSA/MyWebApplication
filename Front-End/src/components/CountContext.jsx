@@ -1,11 +1,5 @@
 import React, { createContext, useState ,useEffect,useContext} from "react";
 import axios from 'axios';
-<<<<<<< HEAD
-
-=======
-import { toast } from "react-toastify";
-// pagawa ng context
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 export const EquipmentContext = createContext();
 
 export const UserContext = createContext();
@@ -51,11 +45,6 @@ export const UserProvider = ({ children }) => {
       {children}
     </UserContext.Provider>
   );
-<<<<<<< HEAD
-=======
-  //NOTE: ANG PURPOSE NITO AY PARA EVERYTIME MAY MA ADD NA BAGO SA dATA AY AUTOMATIC
-  //MAG AAD DIN SIYA SA CARD PANEL PARA SA EQUIPMENT, USER AND LABORATORY.
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 };
 
 
@@ -73,13 +62,6 @@ export const DeleteAssignProvider = ({ children }) => {
         `http://127.0.0.1:3000/api/v1/AssignEquipment/${assignId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-<<<<<<< HEAD
-=======
-
-      // Log the successful deletion
-      console.log(`Assignment with ID ${assignId} deleted successfully.`);
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       setLoading(true); // Set loading to false
     } catch (err) {
       console.error("Error deleting assignment:", err);
@@ -111,12 +93,6 @@ export const AddAssignProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const token = localStorage.getItem('token');
   const [confirm, setConfirm] = useState();
-<<<<<<< HEAD
-=======
- 
-
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   const addAssignEquipment = async (values, onConfirm, onClose) => {
     try {
       const response = await axios.post(
@@ -128,19 +104,11 @@ export const AddAssignProvider = ({ children }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if(response.data.status==="success"){
-<<<<<<< HEAD
          console.log("Department added successfully");
-=======
-         toast.success("Department added successfully");
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
       }
     } catch (error) {
       console.error('Error assigning equipment:', error);
-<<<<<<< HEAD
-=======
-      toast.error('Error submitting form');
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     } finally {
       setLoading(false);
     }

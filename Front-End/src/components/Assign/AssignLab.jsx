@@ -1,7 +1,6 @@
 import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AssignContext } from "../Context/DisplayAssignContext.jsx";
-<<<<<<< HEAD
 import { FaSearch, FaChevronLeft, FaChevronRight, FaBuilding, FaFlask } from "react-icons/fa";
 import { motion } from "framer-motion";
 
@@ -21,53 +20,19 @@ const AssignLab = () => {
           existing.count += 1;
         } else {
           acc.push({ ...lab, count: 1 });
-=======
-import LoadingTableSpinner from "../ReusableComponent/loadingTableSpiner.jsx";
-const AssignLab = () => {
-  const { Assignlaboratories, loading, error } = useContext(AssignContext); // Access data from context
-  const [uniqueLaboratories, setUniqueLaboratories] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6; // Items per page for pagination
-  const navigate = useNavigate();
-
-  // useEffect to process unique laboratories
-  useEffect(() => {
-    if (Assignlaboratories && Assignlaboratories.length > 0) {
-      const processedLabs = Assignlaboratories.reduce((acc, lab) => {
-        const existing = acc.find(
-          (item) => item.departmentName === lab.departmentName
-        );
-        if (existing) {
-          existing.count += 1; // Increment the count for duplicates
-        } else {
-          acc.push({
-            ...lab, // Include all fields from the lab
-            count: 1, // Initialize count
-          });
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         }
         return acc;
       }, []);
       setUniqueLaboratories(processedLabs);
     } else {
-<<<<<<< HEAD
       setUniqueLaboratories([]);
     }
   }, [Assignlaboratories]);
 
-=======
-      setUniqueLaboratories([]); // Reset state if no labs
-    }
-  }, [Assignlaboratories]);
-
-  // Filter data based on search query
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   const filteredLaboratories = uniqueLaboratories?.filter((lab) =>
     lab.departmentName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-<<<<<<< HEAD
   const totalPages = Math.ceil(filteredLaboratories.length / itemsPerPage);
   const currentLabs = filteredLaboratories.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -150,86 +115,10 @@ const AssignLab = () => {
           <div className="col-span-full py-20 text-center border-4 border-dashed border-slate-100 rounded-[3rem]">
             <FaFlask className="mx-auto text-slate-200 mb-4" size={40} />
             <p className="text-slate-400 font-black uppercase text-xs tracking-widest">No matching laboratory records found</p>
-=======
-  // Pagination logic
-  const indexOfLastLab = currentPage * itemsPerPage;
-  const indexOfFirstLab = indexOfLastLab - itemsPerPage;
-  const currentLabs = filteredLaboratories.slice(
-    indexOfFirstLab,
-    indexOfLastLab
-  );
-  const totalPages = Math.ceil(filteredLaboratories.length / itemsPerPage);
-
-  // Pagination handlers
-  const nextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  };
-
-  const prevPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
-  };
-
-  // Handle selection of a lab and navigate with data
-  const handleSelectDisplay = (selectedLab,lab) => {
-    console.log("Selected Lab:", selectedLab);
-    navigate("/LaboratoryAssign", { state: { selectedLab } }); // Send data to another route
-  };
-
-  if (error) return <p>Error: {error}</p>;
-
-  return (
-    <div className="container mx-auto xs:px-0 sm:px-8 lg:px-8">
-      {/* Search Bar */}
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Search by Department..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
-        />
-      </div>
-
-      {/* Display filtered laboratories */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xs:gap-2 sm:gap-4 lg:gap-4">
-        {currentLabs.length > 0 ? (
-          currentLabs.map((lab) => (
-            <div
-              key={lab._id}
-              className="max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow-md dark:bg-gray-800 dark:border-gray-700 flex flex-col justify-center items-center transition-all transform hover:scale-105 hover:shadow-xl hover:shadow-blue-500/50"
-            >
-              <div className="flex justify-center mb-2">
-                <img
-                  src="/Image/logo.jpg"
-                  alt="Lab Logo"
-                  className="w-20 h-20 rounded-full"
-                />
-              </div>
-              <h4 className="mb-2 text-center xs:text-sm sm:text-xl lg:text-xl font-bold text-gray-700 ">
-                {lab.departmentName || "N/A"}
-              </h4>
-              <p className="mb-3 text-center xs:text-xs lg:text-sm sm:text-sm text-gray-700 dark:text-gray-400">
-                Number of Laboratories: {lab.count}
-              </p>
-              <button
-                onClick={() => handleSelectDisplay(lab.departmentName,lab)} // Pass selected lab
-                className="px-4 xs:py-1 sm:py-2 lg:py-2 text-white bg-blue-700 rounded-lg hover:bg-blue-800"
-              >
-                View
-              </button>
-            </div>
-          ))
-        ) : (
-          <div className="col-span-3 text-center h-64 flex items-center justify-center">
-            <p className="text-gray-700 dark:text-gray-400">
-              No data available. Please add new laboratories.
-            </p>
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
           </div>
         )}
       </div>
 
-<<<<<<< HEAD
       {/* Industrial Pagination */}
       {filteredLaboratories.length > itemsPerPage && (
         <div className="flex justify-center items-center gap-4 pt-6">
@@ -253,27 +142,6 @@ const AssignLab = () => {
             className="p-4 bg-white border-2 border-slate-100 rounded-2xl text-[#1e3a8a] disabled:opacity-30 hover:border-yellow-400 transition-all shadow-sm"
           >
             <FaChevronRight />
-=======
-      {/* Pagination controls */}
-      {filteredLaboratories.length > 0 && (
-        <div className="flex justify-center mt-4">
-          <button
-            onClick={prevPage}
-            disabled={currentPage === 1}
-            className="px-4 py-2 text-sm text-white bg-blue-500 rounded-l-lg disabled:bg-gray-400"
-          >
-            Prev
-          </button>
-          <span className="px-4 py-2 text-sm text-gray-700">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={nextPage}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 text-sm text-white bg-blue-500 rounded-r-lg disabled:bg-gray-400"
-          >
-            Next
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
           </button>
         </div>
       )}
@@ -281,8 +149,4 @@ const AssignLab = () => {
   );
 };
 
-<<<<<<< HEAD
 export default AssignLab;
-=======
-export default AssignLab;
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae

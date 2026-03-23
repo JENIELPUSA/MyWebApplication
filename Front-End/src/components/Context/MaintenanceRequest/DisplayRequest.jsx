@@ -1,18 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
-<<<<<<< HEAD
 import { AuthContext } from "../AuthContext";
 import { io } from "socket.io-client";
 import { PostEmailContext } from "../EmailContext/SendNotificationContext";
 import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
 import axios from "axios"
-=======
-import axios from "axios";
-import { toast } from "react-toastify";
-import { AuthContext } from "../AuthContext";
-import {io} from 'socket.io-client'
-import { PostEmailContext } from "../EmailContext/SendNotificationContext";
-import StatusModal from "../../ReusableComponent/SuccessandFailedModal";
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 //gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
 //mo siya sa reausable axiosInstances.jsx
 import axiosInstance from "../../ReusableComponent/axiosInstance";
@@ -36,11 +27,6 @@ export const DisplayRequestProvider = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
   const [customError, setCustomError] = useState("");
-<<<<<<< HEAD
-
-=======
- 
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   useEffect(() => {
     if (!authToken) {
       setRequest([]);
@@ -49,7 +35,6 @@ export const DisplayRequestProvider = ({ children }) => {
     }
     fetchRequestData();
   }, [authToken]); // Dependencies to trigger effect when page or items per page change
-<<<<<<< HEAD
 
   useEffect(() => {
     if (customError) {
@@ -67,30 +52,6 @@ export const DisplayRequestProvider = ({ children }) => {
     );
   };
 
-=======
-  
-    useEffect(() => {
-      if (customError) {
-        const timer = setTimeout(() => {
-          setCustomError(null);
-        }, 5000); // auto-dismiss after 5s
-  
-        return () => clearTimeout(timer); // cleanup
-      }
-    }, [customError]);
-
-
-
-  
-  const handlesend = () => {
-    triggerSendEmail(
-      "Please check your dashboard. A new maintenance request has been submitted and requires your attention."
-    );
-  };
-
-
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   const fetchRequestData = async () => {
     if (!authToken) return;
     setLoading(true); // Set loading to true before fetching data
@@ -102,47 +63,27 @@ export const DisplayRequestProvider = ({ children }) => {
         {
           withCredentials: true,
           headers: { Authorization: `Bearer ${authToken}` },
-<<<<<<< HEAD
         },
-=======
-        }
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       );
 
       const requestData = res?.data.data || []; // Ensure it's always an array
       setView(requestData);
       if (role === "Admin") {
         const specificAdminMsg = requestData?.filter(
-<<<<<<< HEAD
           (msg) => msg?.read === false,
-=======
-          (msg) => msg?.read === false
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         );
         setRequest(requestData);
         setAdminMsg(specificAdminMsg?.length);
       } else if (role === "Technician" || role === "User") {
         const specificMessages = requestData?.filter(
-<<<<<<< HEAD
           (msg) => msg?.UserId === userId,
         );
         const CountSpecifiData = requestData?.filter(
           (msg) => msg.Status === "Pending" && msg.UserId === userId,
-=======
-          (msg) => msg?.UserId === userId
-        );
-        const CountSpecifiData = requestData?.filter(
-          (msg) => msg.Status === "Pending" && msg.UserId === userId
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         );
         setRequest(specificMessages); // Set the filtered data to state
       }
     } catch (error) {
-<<<<<<< HEAD
-=======
-      console.error("Error fetching data:", error);
-      toast.error("Failed to fetch data. Please try again later.");
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       setError("Failed to fetch data");
     } finally {
       setLoading(false); // Ensure loading is false after fetching
@@ -153,11 +94,7 @@ export const DisplayRequestProvider = ({ children }) => {
     Description,
     equipment,
     Laboratory,
-<<<<<<< HEAD
     department,
-=======
-    department
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   ) => {
     try {
       const response = await axiosInstance.post(
@@ -171,15 +108,10 @@ export const DisplayRequestProvider = ({ children }) => {
           Laboratory: Laboratory,
           Status: "Pending",
         },
-<<<<<<< HEAD
         {
           withCredentials: true,
           headers: { Authorization: `Bearer ${authToken}` },
         },
-=======
-        { withCredentials: true,
-          headers: { Authorization: `Bearer ${authToken}` } }
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       );
 
       if (response.data && response.data.status === "success") {
@@ -187,13 +119,8 @@ export const DisplayRequestProvider = ({ children }) => {
         setShowModal(true);
         setToAdmin(response.data);
         handlesend();
-<<<<<<< HEAD
         socket.emit("RequestMaintenance", response.data.data);
 
-=======
-         socket.emit("RequestMaintenance",response.data.data )  
-       
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         setNewData(response.data.data);
         return { success: true, data: response?.data.data };
       } else {
@@ -217,7 +144,6 @@ export const DisplayRequestProvider = ({ children }) => {
     }
   };
 
-<<<<<<< HEAD
 const downloadPMSreport = async (laboratoryId, title) => {
   if (!laboratoryId) return console.error("Laboratory ID is required");
 
@@ -267,8 +193,6 @@ const downloadPMSreport = async (laboratoryId, title) => {
     setLoading(false);
   }
 };
-=======
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   return (
     <RequestDisplayContext.Provider
       value={{
@@ -291,10 +215,7 @@ const downloadPMSreport = async (laboratoryId, title) => {
         fetchRequestData,
         unread,
         unreadcount,
-<<<<<<< HEAD
         downloadPMSreport,
-=======
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       }}
     >
       {children}
@@ -307,8 +228,4 @@ const downloadPMSreport = async (laboratoryId, title) => {
       />
     </RequestDisplayContext.Provider>
   );
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae

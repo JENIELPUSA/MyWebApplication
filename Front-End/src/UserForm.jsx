@@ -3,11 +3,6 @@ import Navbar from "./components/Navbar";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import UserTable from "./components/USER/UserTable";
-<<<<<<< HEAD
-=======
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import SignUpForm from "./components/USER/SignUpForm";
 function UserForm() {
   const [users, setUsers] = useState([]); // State to hold the user list
@@ -56,16 +51,9 @@ function UserForm() {
 
       // Remove the deleted user from the state
       setUsers((prevUsers) => prevUsers.filter((user) => user._id !== userId));
-<<<<<<< HEAD
     } catch (error) {
       console.error("Error deleting user:", error);
 
-=======
-      toast.success("User deleted successfully!");
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      toast.error(error.response?.data?.message || "Failed to delete user.");
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     }
   };
 

@@ -1,16 +1,7 @@
 import React, { createContext, useEffect, useContext } from "react";
-<<<<<<< HEAD
 import { AuthContext } from "../AuthContext";
 import { RequestDisplayContext } from "../MaintenanceRequest/DisplayRequest";
 
-=======
-import axios from "axios";
-import { toast } from "react-toastify";
-import { AuthContext } from "../AuthContext";
-import { RequestDisplayContext } from "../MaintenanceRequest/DisplayRequest";
-//gagamit tayo nito kung gusto mo ng auto log out agad instead na axios ilagay
-//mo siya sa reausable axiosInstances.jsx
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import axiosInstance from "../../ReusableComponent/axiosInstance";
 export const IncomingDisplayContext = createContext();
 
@@ -52,10 +43,6 @@ export const IncomingDisplayProvider = ({ children }) => {
 
     } catch (error) {
       console.error("Error fetching incoming requests:", error);
-<<<<<<< HEAD
-=======
-      toast.error("Failed to fetch data. Please try again later.");
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     }
   };
 

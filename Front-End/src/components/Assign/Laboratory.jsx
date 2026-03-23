@@ -18,10 +18,6 @@ const Laboratory = ({ onClose }) => {
   const navigate = useNavigate();
   const { laboratories, loading } = useContext(LaboratoryDisplayContext);
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 //para sa pagawa ng localStorage //yang selectedLab na yan yan ang susi para
 //magtrigger ang mga data kasi dyaan na nakabase ang  filter na data
 //para pag refresh hindi mag empty ang UI natin
@@ -44,11 +40,7 @@ useEffect(() => {
   }
 }, [selectedLabsFromState]);//ito ay dependencies kungmay nabago mag render yan siya
 
-<<<<<<< HEAD
 console.log("Assignlaboratories",Assignlaboratories)
-=======
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
   // Filter the laboratories based on selectedLab
   const results = Array.isArray(Assignlaboratories)

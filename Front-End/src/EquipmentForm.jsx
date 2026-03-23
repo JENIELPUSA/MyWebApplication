@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-<<<<<<< HEAD
-=======
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import Navbar from './components/Navbar';
 import Equipment from './components/Equipment/Equipment'; // Adjusted the path to ensure correct import
 
@@ -51,10 +46,6 @@ function EquipmentForm() {
 
   const handleDeleteEquipment = async (equipmentID) => {
     if (!equipmentID) {
-<<<<<<< HEAD
-=======
-      toast.error('Equipment ID is required to delete.');
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       return;
     }
 
@@ -66,18 +57,9 @@ function EquipmentForm() {
         prevEquipment.filter((equipment) => equipment._id !== equipmentID)
       );
 
-<<<<<<< HEAD
     } catch (error) {
       console.error('Error deleting equipment:', error);
       const errorMessage = error.response?.data?.message || 'Failed to delete equipment.';
-=======
-
-      toast.success('Equipment deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting equipment:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to delete equipment.';
-      toast.error(errorMessage);
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     }
   };
 
@@ -113,11 +95,6 @@ function EquipmentForm() {
         equipment._id === newEquipment._id ? updatedEquipment : equipment
       )
     );
-<<<<<<< HEAD
-=======
-  
-    console.log(updatedEquipment);
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   };
   
 

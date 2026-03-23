@@ -4,11 +4,6 @@ import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 import CategoryTable from './components/Category/CategoryTable';
 import axios from 'axios';
-<<<<<<< HEAD
-=======
-import {toast} from 'react-toastify';
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
 
 function CategoryContent() {
@@ -76,17 +71,9 @@ function CategoryContent() {
                 headers: {Authorization:`Bearer ${token}`},
             })
             setCategory((prevCategory) => prevCategory.filter((depart) => depart._id !== categoryId));
-<<<<<<< HEAD
 
         }catch(error){
             console.error('Error deleting Category:', error);
-=======
-            toast.success('Department deleted successfully!');
-
-        }catch(error){
-            console.error('Error deleting Category:', error);
-            toast.error(error.response?.data?.message || 'Failed to Delete Equipment!' )
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         }
 
 

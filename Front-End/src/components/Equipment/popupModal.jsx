@@ -8,10 +8,6 @@ import {
   Typography,
 } from "@mui/material";
 import axios from "axios";
-<<<<<<< HEAD
-=======
-import { toast } from "react-toastify";
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 import { useNavigate } from "react-router-dom";
 import { AddAssignContext } from "../Context/AssignContext/AddAssignContext";
 import { motion } from "framer-motion";
@@ -74,18 +70,9 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
 
         if (response.data?.status === "success") {
           setState(response.data.data);
-<<<<<<< HEAD
         }
       } catch (error) {
         console.error(`Error fetching data from ${url}:`, error);
-=======
-        } else {
-          toast.error(errorMessage || "Unexpected response format");
-        }
-      } catch (error) {
-        console.error(`Error fetching data from ${url}:`, error);
-        toast.error(errorMessage || "Error fetching data");
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       }
     };
 
@@ -150,12 +137,6 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
       }
     } catch (error) {
       console.error("Error during submission:", error);
-<<<<<<< HEAD
-=======
-      toast.error(
-        error.response?.data?.message || "Operation failed. Please try again."
-      );
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     } finally {
       setIsLoading(false);
     }
@@ -164,10 +145,6 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
   // Reassign equipment if it’s not available
   const ReassignEquipment = async () => {
     const AssigId = equipment._id; // Equipment ID to reassign
-<<<<<<< HEAD
-=======
-    console.log("Equipment ID:", AssigId);
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
     try {
       const response = await axios.get(
@@ -179,11 +156,6 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment }) => {
       );
 
       const fetchedData = response?.data.data;
-<<<<<<< HEAD
-=======
-      console.log("Fetched Data:", fetchedData);
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       const searchedData = fetchedData?.filter(
         (item) => item.EquipmentID === AssigId
       );
