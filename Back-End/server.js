@@ -1,23 +1,7 @@
 const dotenv = require("dotenv");
-<<<<<<< HEAD
 // 1. Load config muna bago ang lahat
 dotenv.config({ path: "./config.env" });
 
-const mongoose = require("mongoose");
-const http = require("http");
-const socketIo = require("socket.io");
-const IncomingNotification = require("./Models/UnreadIncomingMaintenance");
-const requestmaintenance = require("./Models/RequestMaintenance");
-
-// 2. I-require ang app (Dapat bago ang app.set)
-const app = require("./app");
-
-const initDefaultUser = require("./Controller/initDefaultUser");
-
-// Ngayon, gagana na ang app.set dahil defined na ang 'app'
-app.set("trust proxy", true);
-=======
-dotenv.config({ path: "./config.env" });
 const mongoose = require("mongoose");
 const http = require("http");
 const socketIo = require("socket.io");
@@ -25,32 +9,15 @@ const app = require("./app");
 const user = require("./Models/usermodel");
 const sendEmail = require("../Back-End/Utils/email");
 const IncomingNotification = require("./Models/UnreadIncomingMaintenance");
-const requestmaintenance = require("./Models/RequestMaintenance")
-dotenv.config({ path: "./config.env" });
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
+const requestmaintenance = require("./Models/RequestMaintenance");
+const initDefaultUser = require("./Controller/initDefaultUser");
+
+// I-set ang trust proxy para sa Express
+app.set("trust proxy", true);
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception! Shutting down...");
-<<<<<<< HEAD
-  console.error(err);
-  process.exit(1);
-});
-
-// Create HTTP server gamit ang Express app
-const server = http.createServer(app);
-
-// Initialize Socket.io
-const io = socketIo(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL,
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-  transports: ["websocket"],
-  pingInterval: 25000,
-  pingTimeout: 60000,
-=======
   console.error(err.name, err.message, err.stack);
   process.exit(1);
 });
@@ -60,29 +27,27 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL, // Use the environment variable for frontend URL
+    origin: process.env.FRONTEND_URL,
     methods: ["GET", "POST"],
-    credentials: true, // Allow cookies and auth headers
+    credentials: true,
   },
-  transports: ["websocket"], // Force websocket transport for better performance
-  pingInterval: 25000, // Interval to ping clients
-  pingTimeout: 60000, // Timeout for ping response
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
+  transports: ["websocket"],
+  pingInterval: 25000,
+  pingTimeout: 60000,
 });
 
 // Store io instance for global event handling
 app.set("io", io);
 
-let adminSocketId = null; // To store the admin's socket ID
-let messageCount = 0; // Track new notifications count
+let adminSocketId = null; 
+let messageCount = 0; 
 
 // Socket.io event handling
 io.on("connection", (socket) => {
   // Register user and admin socket ID
   socket.on("register-user", (userId, role) => {
-    console.log(role);
     if (role === "admin") {
-      adminSocketId = socket.id; // Save the admin's socket ID
+      adminSocketId = socket.id;
       console.log(`Admin registered with socket ID ${socket.id}`);
     }
     console.log(`User ${userId} registered with socket ID ${socket.id}`);
@@ -90,55 +55,33 @@ io.on("connection", (socket) => {
 
   // Handling new request
   socket.on("newRequest", (data) => {
-    messageCount++; // Increment the count
+    messageCount++;
     console.log("New request received:", data);
 
-    // Send notification to all connected clients
     io.emit("adminNotification", {
       message: "A new request has been added!",
       data: data,
-      count: messageCount, // Send count along with notification
+      count: messageCount,
     });
 
     io.emit("SMSNotification", {
       message: "A new request has been added!",
       data,
-      count: messageCount, // Send count along with notification
+      count: messageCount,
     });
-<<<<<<< HEAD
   });
 
   socket.on("RequestMaintenance", async (data) => {
     try {
       const requestId = data._id;
 
-      // Get the original request document
-      const originalRequest = await requestmaintenance
-        .findById(requestId)
-        .lean();
-
-=======
-
-  });
-
-
-  socket.on("RequestMaintenance", async (data) => {
-    try {
-      const requestId = data._id;
-  
-      // Get the original request document
       const originalRequest = await requestmaintenance.findById(requestId).lean();
-  
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
+
       if (!originalRequest) {
         console.error("Maintenance request not found.");
         return;
       }
-<<<<<<< HEAD
 
-=======
-  
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       const [extraInfo] = await requestmaintenance.aggregate([
         { $match: { _id: new mongoose.Types.ObjectId(requestId) } },
         {
@@ -146,103 +89,46 @@ io.on("connection", (socket) => {
             from: "users",
             localField: "Technician",
             foreignField: "_id",
-<<<<<<< HEAD
             as: "TechnicianDetails",
           },
         },
-        {
-          $unwind: {
-            path: "$TechnicianDetails",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-=======
-            as: "TechnicianDetails"
-          }
-        },
         { $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true } },
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         {
           $lookup: {
             from: "departments",
             localField: "Department",
             foreignField: "_id",
-<<<<<<< HEAD
             as: "DepartmentInfo",
           },
         },
-        {
-          $unwind: {
-            path: "$DepartmentInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-=======
-            as: "DepartmentInfo"
-          }
-        },
         { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         {
           $lookup: {
             from: "laboratories",
             localField: "Laboratory",
             foreignField: "_id",
-<<<<<<< HEAD
             as: "LaboratoryInfo",
           },
         },
-        {
-          $unwind: {
-            path: "$LaboratoryInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-=======
-            as: "LaboratoryInfo"
-          }
-        },
         { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         {
           $lookup: {
             from: "equipment",
             localField: "Equipments",
             foreignField: "_id",
-<<<<<<< HEAD
             as: "EquipmentsInfo",
           },
         },
-        {
-          $unwind: {
-            path: "$EquipmentsInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-=======
-            as: "EquipmentsInfo"
-          }
-        },
         { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         {
           $lookup: {
             from: "categories",
             localField: "EquipmentsInfo.Category",
             foreignField: "_id",
-<<<<<<< HEAD
             as: "CategoryInfo",
           },
         },
-        {
-          $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true },
-        },
-=======
-            as: "CategoryInfo"
-          }
-        },
         { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         {
           $project: {
             id: 1,
@@ -261,13 +147,7 @@ io.on("connection", (socket) => {
             Remarks: 1,
             Department: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
             remarksread: 1,
-<<<<<<< HEAD
-            laboratoryName: {
-              $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"],
-            },
-=======
             laboratoryName: { $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"] },
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
             UserId: "$TechnicianDetails._id",
             Technician: {
               $concat: [
@@ -275,7 +155,6 @@ io.on("connection", (socket) => {
                 " ",
                 { $ifNull: ["$TechnicianDetails.Middle", ""] },
                 " ",
-<<<<<<< HEAD
                 "$TechnicianDetails.LastName",
               ],
             },
@@ -286,63 +165,28 @@ io.on("connection", (socket) => {
 
       const finalRequest = {
         ...originalRequest,
-        ...extraInfo, // Includes all projected fields
+        ...extraInfo,
       };
 
-      // Emit to all connected clients
       io.emit("Maintenance", finalRequest);
       io.emit("UpdateMaintenance", finalRequest);
 
-     // console.log("Emitted Maintenance:", finalRequest);
-=======
-                "$TechnicianDetails.LastName"
-              ]
-            },
-            DateTimeAccomplish: 1
-          }
-        }
-      ]);
-  
-      const finalRequest = {
-        ...originalRequest,
-        ...extraInfo // Includes all projected fields
-      };
-  
-      // Emit to all connected clients
-      io.emit("Maintenance", finalRequest);
-      io.emit("UpdateMaintenance", finalRequest);
-  
       console.log("Emitted Maintenance:", finalRequest);
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     } catch (error) {
       console.error("Error in RequestMaintenance:", error);
     }
   });
-<<<<<<< HEAD
 
   socket.on("RefreshData", () => {
     console.log("RunRefresh");
     socket.emit("refreshRequests");
   });
-=======
-  
-
-socket.on("RefreshData",()=>{
-  console.log("RunRefresh")
-  socket.emit('refreshRequests');
-})
-
-  
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
   socket.on("send-notifications", async (data) => {
     if (adminSocketId) {
-      // Admin is online — send real-time notification
       io.to(adminSocketId).emit("maintenance-notifications", data);
     } else {
-      // Admin is offline — save to DB and send emails individually
       try {
-        // Save to database
         await IncomingNotification.create({
           Description: data.Description,
           Equipments: data.equipmentType,
@@ -351,15 +195,12 @@ socket.on("RefreshData",()=>{
         });
         console.log("Admin is offline. Notification saved to DB.");
 
-        // Get all admin users
         const admins = await user.find({ role: "admin" });
         const resetUrl = `https://myapp-xk0w.onrender.com`;
-        // Construct message
         const msg = `
           Please check your dashboard. A new maintenance request has been submitted and requires your attention.\nClick to login: ${resetUrl}
         `;
 
-        // Send individual email to each admin
         for (const admin of admins) {
           await sendEmail({
             email: admin.email,
@@ -368,29 +209,18 @@ socket.on("RefreshData",()=>{
           });
         }
       } catch (err) {
-<<<<<<< HEAD
-        console.error(
-          "Failed to handle offline admin notification:",
-          err.message,
-        );
-=======
         console.error("Failed to handle offline admin notification:", err.message);
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       }
     }
   });
 
-  // Reset notification count when cleared
   socket.on("clearNotifications", () => {
-    messageCount = 0; // Reset count
+    messageCount = 0;
     io.emit("notificationCountReset", { count: 0 });
   });
 
-  // Handling disconnect
   socket.on("disconnect", () => {
     console.log("A user disconnected: ", socket.id);
-
-    // If the admin disconnects, clear the adminSocketId
     if (socket.id === adminSocketId) {
       adminSocketId = null;
       console.log("Admin disconnected, adminSocketId cleared");
@@ -398,15 +228,11 @@ socket.on("RefreshData",()=>{
   });
 });
 
-<<<<<<< HEAD
 // --- DATABASE CONNECTION ---
-
 mongoose
   .connect(process.env.CONN_STR)
   .then(async () => {
     console.log("✅ Database connected successfully");
-
-    // Siguraduhing ang initDefaultUser ay gumagamit ng AES-256 encryption logic
     await initDefaultUser();
   })
   .catch((err) => {
@@ -415,17 +241,6 @@ mongoose
   });
 
 // --- START SERVER ---
-=======
-// Connect to MongoDB
-mongoose
-  .connect(process.env.CONN_STR)
-  .then(() => console.log("DB connected successfully"))
-  .catch((err) => {
-    console.error("Database connection error:", err.message);
-    process.exit(1);
-  });
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
   console.log(`Server running on port ${port}`);
@@ -434,17 +249,10 @@ server.listen(port, () => {
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Rejection! Shutting down...");
-<<<<<<< HEAD
-  console.error(err);
-  server.close(() => process.exit(1));
-=======
   console.error(err.name, err.message, err.stack);
-
   server.close(() => {
     process.exit(1);
   });
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 });
 
-// Include your cron job if applicable
 require("./Utils/CronJob");
