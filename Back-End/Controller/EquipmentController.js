@@ -6,15 +6,8 @@ const PDFDocument = require("pdfkit");
 const path = require("path");
 const fs = require("fs");
 const CustomError = require("../Utils/CustomError");
-<<<<<<< HEAD
 const Equipment = require("../Models/Equipment");
 const AssignEquipment = require("../Models/AssigningEquipment");
-=======
-const Equipment = require("../Models/Equipment"); // Equipment model
-const RequestMaintenance = require("../Models/RequestMaintenance"); // MaintenanceRequest model
-const Assign = require("../Models/AssigningEquipment");
-const IncomingMaintenance = require("../Models/UnreadIncomingMaintenance");
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 
 // Mapping of collections and their corresponding field names
 const collectionFieldMapping = {
@@ -22,7 +15,6 @@ const collectionFieldMapping = {
   Assign: "Equipments",
   IncomingMaintenance: "Equipments",
 };
-<<<<<<< HEAD
 const TypesMaintenances= require("../Models/TypesOfMaintenace");
 
 exports.Displaytool = AsyncErrorHandler(async (req, res) => {
@@ -173,9 +165,6 @@ exports.Displaytool = AsyncErrorHandler(async (req, res) => {
     data: Equipment,
   });
 });
-=======
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 // Purpose ang code na ito ay para once may ma remove na Equipment ay lahat na releted ay ma remove
 //pero naka base siya collectionMapping
 exports.deleteEquipmentAndRelated = async (req, res, next) => {
@@ -184,11 +173,7 @@ exports.deleteEquipmentAndRelated = async (req, res, next) => {
   try {
     // Mag-loop sa collectionFieldMapping at tanggalin ang mga dokumento mula sa bawat koleksyon
     for (const [collectionName, fieldName] of Object.entries(
-<<<<<<< HEAD
       collectionFieldMapping,
-=======
-      collectionFieldMapping
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     )) {
       const collection = mongoose.model(collectionName); //kinukuha yung model sa collection
 
@@ -200,11 +185,7 @@ exports.deleteEquipmentAndRelated = async (req, res, next) => {
 
         await collection.deleteMany({ [fieldName]: equipmentID });
         console.log(
-<<<<<<< HEAD
           `Deleted ${relatedDocs.length} documents from ${collectionName}`,
-=======
-          `Deleted ${relatedDocs.length} documents from ${collectionName}`
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         );
       }
     }
@@ -234,11 +215,7 @@ exports.RemoverelatedData = async (req, res, next) => {
   try {
     // Mag-loop sa collectionFieldMapping at tanggalin ang mga dokumento mula sa bawat koleksyon
     for (const [collectionName, fieldName] of Object.entries(
-<<<<<<< HEAD
       collectionFieldMapping,
-=======
-      collectionFieldMapping
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     )) {
       const collection = mongoose.model(collectionName); // Kunin ang modelo para sa koleksyon
 
@@ -250,11 +227,7 @@ exports.RemoverelatedData = async (req, res, next) => {
 
         await collection.deleteMany({ [fieldName]: equipmentID });
         console.log(
-<<<<<<< HEAD
           `Deleted ${relatedDocs.length} documents from ${collectionName}`,
-=======
-          `Deleted ${relatedDocs.length} documents from ${collectionName}`
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         );
       }
     }
@@ -344,63 +317,6 @@ exports.createtool = AsyncErrorHandler(async (req, res) => {
   });
 });
 
-<<<<<<< HEAD
-=======
-exports.Displaytool = AsyncErrorHandler(async (req, res) => {
-  // Apply Apifeatures methods on the query
-  const features = new Apifeatures(tools.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields()
-    .paginate();
-
-  // Fetch filtered and paginated data first
-  const filteredTools = await features.query;
-
-  // Apply aggregation only on the filteredTools
-  const Equipment = await tools.aggregate([
-    {
-      $match: {
-        _id: { $in: filteredTools.map((tool) => tool._id) }, // Match only the filtered tools
-      },
-    },
-    {
-      $lookup: {
-        from: "categories", // The name of the collection to join
-        localField: "Category", // Field in the Equipment collection
-        foreignField: "_id", // Field in the Category collection
-        as: "CategoryData", // The field where joined data will be added
-      },
-    },
-    {
-      $unwind: {
-        path: "$CategoryData",
-        preserveNullAndEmptyArrays: true, // Handle items without associated categories
-      },
-    },
-    {
-      $project: {
-        Brand: 1,
-        SerialNumber: 1,
-        Specification: 1,
-        status: 1,
-        CategoryName: {
-          $ifNull: ["$CategoryData.CategoryName", "N/A"], // Fallback to 'N/A' if CategoryName is missing
-        },
-        CategoryId: "$CategoryData._id", // Include the category's ID
-        _id: 1,
-      },
-    },
-  ]);
-
-  res.status(200).json({
-    status: "success",
-    totalEquipment: Equipment.length,
-    data: Equipment,
-  });
-});
-
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
 exports.Updatetool = AsyncErrorHandler(async (req, res, next) => {
   // Check if ID is valid
   if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -578,11 +494,7 @@ exports.getSpecificEquipment = AsyncErrorHandler(async (req, res, next) => {
 
   if (!Equipment || Equipment.length === 0) {
     return next(
-<<<<<<< HEAD
       new CustomError("No equipment found for the given filters", 404),
-=======
-      new CustomError("No equipment found for the given filters", 404)
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     );
   }
 
@@ -592,11 +504,7 @@ exports.getSpecificEquipment = AsyncErrorHandler(async (req, res, next) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
     "Content-Disposition",
-<<<<<<< HEAD
     `attachment; filename=Equipment_Report_${Date.now()}.pdf`,
-=======
-    `attachment; filename=Equipment_Report_${Date.now()}.pdf`
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
   );
   doc.pipe(res);
 
@@ -658,11 +566,7 @@ exports.getSpecificEquipment = AsyncErrorHandler(async (req, res, next) => {
       header,
       startXTable + columnWidths.slice(0, i).reduce((a, b) => a + b, 0),
       currentY,
-<<<<<<< HEAD
       { width: columnWidths[i], align: "left" },
-=======
-      { width: columnWidths[i], align: "left" }
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
     );
   });
 
@@ -685,11 +589,7 @@ exports.getSpecificEquipment = AsyncErrorHandler(async (req, res, next) => {
           header,
           startXTable + columnWidths.slice(0, i).reduce((a, b) => a + b, 0),
           currentY,
-<<<<<<< HEAD
           { width: columnWidths[i], align: "left" },
-=======
-          { width: columnWidths[i], align: "left" }
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
         );
       });
       currentY += rowHeight;
@@ -723,11 +623,7 @@ exports.getSpecificEquipment = AsyncErrorHandler(async (req, res, next) => {
         text,
         startXTable + columnWidths.slice(0, i).reduce((a, b) => a + b, 0),
         currentY,
-<<<<<<< HEAD
         { width: columnWidths[i], align: "left" },
-=======
-        { width: columnWidths[i], align: "left" }
->>>>>>> 90a7cad9f5fbbd108c3189d961894e853d157fae
       );
     });
 

@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+
 const morgan = require("morgan");
 const path = require("path");
 
@@ -28,11 +29,9 @@ const logger = function (req, res, next) {
   next();
 };
 
-// Middleware configs
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.set("trust proxy", true);
-
 app.use(
   session({
     secret: process.env.SECRET_STR,
@@ -49,15 +48,14 @@ app.use(
       maxAge: 12 * 60 * 60 * 1000,
     },
     rolling: true,
-  })
+  }),
 );
-
 app.use(
   cors({
     origin: process.env.FRONTEND_URL,
     methods: ["GET", "POST", "PATCH", "DELETE"],
     credentials: true,
-  })
+  }),
 );
 
 app.use(logger);
@@ -66,10 +64,9 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// Static folder para sa uploads
+//importante ito para pag view ng picture sa table .etcc..
 const uploadsDir = path.join(__dirname, "..", "uploads");
 
-// API Endpoints
 app.use("/api/v1/users", usersroutes);
 app.use("/api/v1/departments", departmentroutes);
 app.use("/api/v1/authentication", authentic);
@@ -83,7 +80,6 @@ app.use("/api/v1/MessageRequest", MessageRequestRoutes);
 app.use("/api/v1/IncomingRequests", IncomingRequest);
 app.use("/api/v1/GeneratePDF", PDFRoutes);
 
-// Global Error Handler
 app.use(ErrorController);
 
 module.exports = app;
