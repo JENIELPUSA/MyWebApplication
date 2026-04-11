@@ -74,7 +74,6 @@ function EquipmentForm() {
     };
     
     setEquipment((prevEquipment) => [...prevEquipment, updatedEquipment]);
-    console.log(updatedEquipment)
   };
 
   const handleEditEquipment = (newEquipment) => {

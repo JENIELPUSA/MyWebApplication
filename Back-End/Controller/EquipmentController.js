@@ -157,8 +157,6 @@ exports.Displaytool = AsyncErrorHandler(async (req, res) => {
     },
   ]);
 
-  console.log("Equipment", Equipment);
-
   res.status(200).json({
     status: "success",
     totalEquipment: Equipment.length,

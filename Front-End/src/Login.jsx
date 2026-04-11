@@ -102,12 +102,9 @@ export default function AuthForm() {
               <div className="flex items-center gap-2">
                 <ShieldCheck className="text-[#1e3a8a]" size={14} />
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em]">
-                  System Security v4.0
+                  System Security
                 </span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tighter">
-                Personnel <span className="text-[#1e3a8a]">Auth</span>
-              </h2>
             </div>
           </div>
 

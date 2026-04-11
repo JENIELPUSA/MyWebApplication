@@ -31,8 +31,7 @@ const EquipmentSchema = new mongoose.Schema(
       default: "Active",
     },
     remarks: {
-     type: String,
-      required: true,
+     type: String
     },
   },
   { timestamps: true },

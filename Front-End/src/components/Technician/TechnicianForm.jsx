@@ -56,12 +56,10 @@ function TechnicianForm({ isOpen, data, remarkdata, onClose, acceptNewDtaa }) {
       const ID = remarkdata?._id || data?._id;
       const isRemarkMode = !!remarkdata;
 
-      console.log("isRemarkMode", isRemarkMode);
-
       try {
         const payload = isRemarkMode
           ? {
-              technicianId: data.Technician?._id ,
+              technicianId: data?.Technician?._id ,
               Remarks: values.Remarks,
               RoutineInspectionCleaning: values.RoutineInspectionCleaning,
               Lubrication: values.Lubrication,

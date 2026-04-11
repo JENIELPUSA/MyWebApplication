@@ -10,7 +10,7 @@ import {
   Database,
   FileText,
   KeyRound,
-  FileDown, // Dagdag na icon para sa PMS
+  FileDown,
 } from "lucide-react";
 import { useAuth } from "../Context/AuthContext";
 
@@ -28,7 +28,6 @@ const Sidebar = () => {
   const { logout, role } = useAuth();
   const [activeTab, setActiveTab] = useState("Dashboard");
 
-  // 1. Idinagdag ang 'pms: false' dito
   const [modals, setModals] = useState({
     equipment: false,
     department: false,
@@ -60,15 +59,30 @@ const Sidebar = () => {
   ];
 
   const filteredMenuItems = menuItems.filter((item) => {
+    // Filter para sa Technician
     if (role === "Technician") {
-      // I-hide ang PMS Export sa Technician kung kinakailangan
-      return !["User List", "Departments", "System Reports"].includes(
-        item.label,
-      );
+      const hiddenForTech = ["User List", "Departments", "System Reports", "Equipment", "Laboratories"];
+      return !hiddenForTech.includes(item.label);
     }
+
+    // Filter para sa User
+    if (role === "User") {
+      const hiddenForUser = [
+        "User List", 
+        "Departments", 
+        "Laboratories", 
+        "PMS Export", 
+        "System Reports",
+        "Equipment"
+      ];
+      return !hiddenForUser.includes(item.label);
+    }
+
+    // Filter para sa Admin
     if (role === "Admin" && item.label === "PMS Export") {
       return false;
     }
+
     return true;
   });
 
@@ -194,8 +208,6 @@ const ModalsProvider = ({ modals, toggleModal }) => {
           onClose={() => toggleModal("forgot")}
         />
       )}
-
-      {/* 3. Dito i-render ang PmsDisplay bilang Modal */}
       {modals.pms && (
         <PmsDisplay isOpen={modals.pms} onClose={() => toggleModal("pms")} />
       )}
