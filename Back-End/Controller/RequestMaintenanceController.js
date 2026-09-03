@@ -1,0 +1,3835 @@
+const AsyncErrorHandler = require("../Utils/AsyncErrorHandler");
+const mongoose = require("mongoose");
+const requestmaintenance = require("./../Models/RequestMaintenance");
+const Apifeatures = require("./../Utils/ApiFeatures");
+const PDFDocument = require("pdfkit");
+const user = require("./../Models/usermodel");
+
+const Message = require("./../Models/Message");
+
+const Laboratory = require('./../Models/Laboratory')
+
+const path = require("path");
+const fs = require("fs");
+const CustomError = require("../Utils/CustomError");
+require("pdfkit-table");
+
+const MaintenanceActivity = require("../Models/MaintenanceActivity");
+const MaintenanceLogs = require("../Models/MaintenanceLogs");
+
+exports.UpdateSenData = AsyncErrorHandler(async (req, res, next) => {
+  const requestId = req.params.id;
+  const data = req.body;
+  const updatedRequest = await requestmaintenance.findByIdAndUpdate(
+    requestId,
+    { ...data, read: true },
+    { new: true },
+  );
+
+  // 2. CHECK PARA SA MAINTENANCE LOGS
+  // Kung may laman ang alinman sa mga log fields na ito, mag-create/update sa MaintenanceLogs
+  if (
+    data.Remarks ||
+    data.AdjustmentSetting ||
+    data.ManHoursUsed ||
+    data.CounterMeasures
+  ) {
+    await MaintenanceLogs.findOneAndUpdate(
+      { Request: requestId }, // Filter: hanapin kung may existing log na para sa request na ito
+      {
+        Request: requestId,
+        AnalysisOfTrouble: data.Remarks, // Gaya ng usapan, Remarks ang source nito
+        AdjustmentSetting: data.AdjustmentSetting,
+        ManHoursUsed: data.ManHoursUsed,
+        CounterMeasures: data.CounterMeasures,
+        ImprovementInRepairProcedure: data.ImprovementInRepairProcedure,
+        SparePartsMaterialsUsed: data.SparePartsMaterialsUsed,
+        TechnicalLaboratoryInCharge: req.user._id, // Kunin ang ID ng kasalukuyang user
+        RepairDate: data.RepairDate || Date.now(),
+      },
+      { upsert: true, new: true }, // upsert: true ay gagawa ng bago kung wala pang record
+    );
+  }
+
+  // 3. CHECK PARA SA MAINTENANCE ACTIVITY
+  // Kung may check sa mga activities, i-save sa MaintenanceActivity
+  const hasActivityData = [
+    "RoutineInspectionCleaning",
+    "Lubrication",
+    "Overhauling",
+    "MinorAdjustment",
+    "ReplaceWornOutParts",
+    "Repair",
+    "GeneralRecondition",
+  ].some((field) => data[field] === true);
+
+  if (hasActivityData || data.FrequencyCode) {
+    await MaintenanceActivity.findOneAndUpdate(
+      { Request: requestId },
+      {
+        Request: requestId,
+        RoutineInspectionCleaning: data.RoutineInspectionCleaning,
+        Lubrication: data.Lubrication,
+        Overhauling: data.Overhauling,
+        MinorAdjustment: data.MinorAdjustment,
+        ReplaceWornOutParts: data.ReplaceWornOutParts,
+        Repair: data.Repair,
+        GeneralRecondition: data.GeneralRecondition,
+        RepairPart: data.RepairPart,
+        FrequencyCode: data.FrequencyCode,
+        PerformedBy: req.user._id,
+      },
+      { upsert: true, new: true },
+    );
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: updatedRequest,
+  });
+});
+
+exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
+  console.log("Trigger!!!");
+  const { Equipments } = req.body;
+
+  if (!Equipments) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Description: Please Input Description!",
+    });
+  }
+
+  const equipmentId = new mongoose.Types.ObjectId(Equipments);
+
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  // Check duplicate
+  const existing = await requestmaintenance.findOne({
+    Equipments: equipmentId,
+    createdAt: { $gte: twentyFourHoursAgo },
+  });
+
+  if (existing) {
+    return res.status(400).json({
+      status: "fail",
+      message:
+        "Duplicate request: This equipment already has a maintenance request in the last 24 hours.",
+    });
+  }
+
+  // Create maintenance request
+  const maintenance = await requestmaintenance.create(req.body);
+
+  // -------------------- CREATE MESSAGE --------------------
+  // Find all Admin users
+  const admins = await user.find({ role: "Admin" }, "_id");
+  const technicians = await user.find({ role: "Technician" }, "_id");
+
+  // Build viewers array (Admins and Technicians)
+  const viewers = [
+    ...admins.map((admin) => ({
+      user: admin._id,
+      isRead: false,
+    })),
+    ...technicians.map((tech) => ({
+      user: tech._id,
+      isRead: false,
+    })),
+  ];
+
+  const messageData = {
+    message: `New maintenance request created for Equipment ID: ${Equipments}.`,
+    equipmentId: Equipments,
+    typesNotification: "MaintenanceRequest",
+    Status: "Pending",
+    Laboratory: maintenance.Laboratory ? [maintenance.Laboratory] : [],
+    To: "Admin",
+    Encharge: null,
+    role: "Admin",
+    RequestID: maintenance._id,
+    viewers,
+  };
+
+  await Message.create(messageData);
+  console.log(`✅ Message saved for maintenance request ${maintenance._id}`);
+
+  const io = req.app.get("io");
+
+  io.emit("AyudaCreate", messageData);
+  res.status(201).json({
+    status: "success",
+    data: maintenance,
+  });
+});
+
+
+exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
+  const role = req.user.role;
+  const userId = req.user._id;
+
+  // ==========================================
+  // BUILD BASE QUERY
+  // ==========================================
+  let query = {};
+
+  if (role === "Admin") {
+    // Admin = display ALL requests
+    query = {};
+  } else if (role === "User") {
+    // User = find Laboratory where user is Encharge, then filter requests
+    try {
+      // Find the laboratory where this user is the Encharge
+      const laboratory = await Laboratory.findOne({ Encharge: userId });
+      
+      if (laboratory && laboratory._id) {
+        // Use the Laboratory ID to filter maintenance requests
+        query.Laboratory = laboratory._id;
+        
+        // Optional: Add logging for debugging
+        console.log(`User ${userId} is Encharge of Laboratory: ${laboratory.LaboratoryName} (${laboratory._id})`);
+      } else {
+        // If no laboratory found where user is Encharge, return empty result
+        return res.status(200).json({
+          status: "success",
+          totalDepartment: 0,
+          data: [],
+          message: "No laboratory assigned to this user as Encharge",
+        });
+      }
+    } catch (error) {
+      return res.status(500).json({
+        status: "error",
+        message: "Error fetching user's laboratory assignment",
+        error: error.message,
+      });
+    }
+  } else {
+    // Non-Admin, Non-User = display only requests where userId is in Technician array
+    query.Technician = userId;
+  }
+
+  // ==========================================
+  // API FEATURES
+  // ==========================================
+  const features = new Apifeatures(
+    requestmaintenance.find(query),
+    req.query
+  )
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate();
+
+  // Execute filtered query
+  const filteredrequest = await features.query;
+
+  // If no requests found, return early
+  if (filteredrequest.length === 0) {
+    return res.status(200).json({
+      status: "success",
+      totalDepartment: 0,
+      data: [],
+    });
+  }
+
+  // ==========================================
+  // AGGREGATION
+  // ==========================================
+  const request = await requestmaintenance.aggregate([
+    {
+      $match: {
+        _id: {
+          $in: filteredrequest.map((lb) => lb._id),
+        },
+      },
+    },
+
+    // ==========================================
+    // TECHNICIAN
+    // ==========================================
+    {
+      $lookup: {
+        from: "users",
+        localField: "Technician",
+        foreignField: "_id",
+        as: "TechnicianDetails",
+      },
+    },
+
+    {
+      $unwind: {
+        path: "$TechnicianDetails",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    // ==========================================
+    // DEPARTMENT
+    // ==========================================
+    {
+      $lookup: {
+        from: "departments",
+        localField: "Department",
+        foreignField: "_id",
+        as: "DepartmentInfo",
+      },
+    },
+
+    {
+      $unwind: {
+        path: "$DepartmentInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    // ==========================================
+    // LABORATORY
+    // ==========================================
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "Laboratory",
+        foreignField: "_id",
+        as: "LaboratoryInfo",
+      },
+    },
+
+    {
+      $unwind: {
+        path: "$LaboratoryInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    // ==========================================
+    // EQUIPMENT
+    // ==========================================
+    {
+      $lookup: {
+        from: "equipment",
+        localField: "Equipments",
+        foreignField: "_id",
+        as: "EquipmentsInfo",
+      },
+    },
+
+    {
+      $unwind: {
+        path: "$EquipmentsInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    // ==========================================
+    // CATEGORY
+    // ==========================================
+    {
+      $lookup: {
+        from: "categories",
+        localField: "EquipmentsInfo.Category",
+        foreignField: "_id",
+        as: "CategoryInfo",
+      },
+    },
+
+    {
+      $unwind: {
+        path: "$CategoryInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    // ==========================================
+    // PROJECT
+    // ==========================================
+    {
+      $project: {
+        id: 1,
+        _id: 1,
+
+        DateTime: 1,
+        Ref: 1,
+        read: 1,
+        Status: 1,
+
+        feedback: 1,
+        feedbackread: 1,
+
+        Description: 1,
+        Remarks: 1,
+        remarksread: 1,
+
+        // Equipment
+        EquipmentId: {
+          $ifNull: ["$EquipmentsInfo._id", "N/A"],
+        },
+
+        EquipmentName: {
+          $ifNull: ["$EquipmentsInfo.Brand", "N/A"],
+        },
+
+        // Category
+        CategoryName: {
+          $ifNull: ["$CategoryInfo.CategoryName", "N/A"],
+        },
+
+        // Department
+        DepartmentId: "$DepartmentInfo._id",
+
+        Department: {
+          $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"],
+        },
+
+        // Laboratory
+        LaboratoryId: "$LaboratoryInfo._id",
+        
+        laboratoryName: {
+          $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"],
+        },
+        
+        // Encharge information from Laboratory
+        EnchargeId: "$LaboratoryInfo.Encharge",
+        
+        // Get Encharge user details (optional additional lookup)
+        // You can add another lookup here if you want Encharge details
+
+        // Technician
+        UserId: "$TechnicianDetails._id",
+
+        Technician: {
+          $concat: [
+            "$TechnicianDetails.FirstName",
+            " ",
+            {
+              $ifNull: ["$TechnicianDetails.Middle", ""],
+            },
+            " ",
+            "$TechnicianDetails.LastName",
+          ],
+        },
+
+        DateTimeAccomplish: 1,
+      },
+    },
+  ]);
+
+  // ==========================================
+  // RESPONSE
+  // ==========================================
+  res.status(200).json({
+    status: "success",
+    totalDepartment: request.length,
+    data: request,
+  });
+});
+
+exports.DisplayNotifictaionRequest = AsyncErrorHandler(async (req, res) => {
+  const features = new Apifeatures(
+    requestmaintenance.find({ read: false }), // Only get unread requests
+    req.query,
+  )
+
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate();
+
+  // Declare and await the query result
+  const filteredrequest = await features.query;
+
+  const request = await requestmaintenance.aggregate([
+    {
+      $match: {
+        _id: { $in: filteredrequest.map((Req) => Req._id) }, // Match only filtered requests
+        read: false, // Only include unread requests
+      },
+    },
+    // Lookup User (Foreign Key)
+    {
+      $lookup: {
+        from: "users", // Collection name of the User model
+        localField: "Technician",
+        foreignField: "_id",
+        as: "TechnicianDetails",
+      },
+    },
+    {
+      $unwind: {
+        path: "$TechnicianDetails",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "Department",
+        foreignField: "_id",
+        as: "DepartmentInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$DepartmentInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "Laboratory",
+        foreignField: "_id",
+        as: "LaboratoryInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$LaboratoryInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        id: 1,
+        DateTime: 1,
+        Status: 1,
+        Ref: 1,
+        Department: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
+        DepartmentId: "$DepartmentInfo._id",
+        _id: 1,
+        laboratoryName: { $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"] },
+        // Include User Details
+        UserId: "$TechnicianDetails._id",
+        Technician: {
+          $concat: [
+            "$TechnicianDetails.FirstName",
+            " ", // Space between names
+            { $ifNull: ["$TechnicianDetails.Middle", ""] },
+            " ", // Space before Last Name
+            "$TechnicianDetails.LastName",
+          ],
+        },
+        DateTimeAccomplish: 1,
+      },
+    },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    totalUnreadRequests: request.length, // Count only unread requests
+    data: request,
+  });
+});
+
+exports.DeleteRequest = AsyncErrorHandler(async (req, res) => {
+  await requestmaintenance.findByIdAndDelete(req.params.id);
+
+  res.status(200).json({
+    status: "success",
+    data: null,
+  });
+});
+
+exports.getRequest = AsyncErrorHandler(async (req, res, next) => {
+  const filteredrequest = await requestmaintenance.findById(req.params.id);
+
+  if (!filteredrequest) {
+    const error = new CustomError("Request with the ID is not found", 404);
+    return next(error);
+  }
+
+  const detailedRequest = await requestmaintenance.aggregate([
+    { $match: { _id: filteredrequest._id } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "Technician",
+        foreignField: "_id",
+        as: "TechnicianDetails",
+      },
+    },
+    {
+      $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "Department",
+        foreignField: "_id",
+        as: "DepartmentInfo",
+      },
+    },
+    { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "Laboratory",
+        foreignField: "_id",
+        as: "LaboratoryInfo",
+      },
+    },
+    { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "equipment",
+        localField: "Equipments",
+        foreignField: "_id",
+        as: "EquipmentsInfo",
+      },
+    },
+    { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "categories",
+        localField: "EquipmentsInfo.Category",
+        foreignField: "_id",
+        as: "CategoryInfo",
+      },
+    },
+    { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        id: 1,
+        DateTime: 1,
+        Ref: 1,
+        read: 1,
+        Status: 1,
+        feedback: 1,
+        feedbackread: 1,
+        Description: 1,
+        EquipmentId: { $ifNull: ["$EquipmentsInfo._id", "N/A"] },
+        EquipmentName: { $ifNull: ["$EquipmentsInfo.Brand", "N/A"] },
+        CategoryName: { $ifNull: ["$CategoryInfo.CategoryName", "N/A"] },
+        DepartmentId: "$DepartmentInfo._id",
+        _id: 1,
+        Remarks: 1,
+        Department: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
+        remarksread: 1,
+        laboratoryName: { $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"] },
+        UserId: "$TechnicianDetails._id",
+        Technician: {
+          $concat: [
+            "$TechnicianDetails.FirstName",
+            " ",
+            { $ifNull: ["$TechnicianDetails.Middle", ""] },
+            " ",
+            "$TechnicianDetails.LastName",
+          ],
+        },
+        DateTimeAccomplish: 1,
+      },
+    },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    data: detailedRequest,
+  });
+});
+
+exports.getSpecificMaintenance = AsyncErrorHandler(async (req, res, next) => {
+  const departmentID = req.query.Department;
+  const fromDate = req.query.from;
+  const toDate = req.query.to;
+  const status = req.query.Status;
+  const pageNumber = parseInt(req.query.pageNumber) || 1; // Default to page 1
+  const pageSize = parseInt(req.query.pageSize) || 10; // Default to 10 items per page
+
+  let startDate = new Date(fromDate);
+  let endDate = new Date(toDate);
+
+  if (isNaN(startDate) || isNaN(endDate)) {
+    return next(new CustomError("Invalid date format", 400));
+  }
+
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+
+  const query = {
+    DateTime: {
+      $gte: startDate,
+      $lte: endDate,
+    },
+  };
+
+  if (departmentID && mongoose.Types.ObjectId.isValid(departmentID)) {
+    query.Department = departmentID;
+  }
+
+  if (status && status !== "All") {
+    query.Status = status;
+  }
+
+  const totalCount = await requestmaintenance.countDocuments(query); // Get total count for pagination
+
+  const labs = await requestmaintenance
+    .find(query)
+    .skip((pageNumber - 1) * pageSize) // Skip records based on page number
+    .limit(pageSize); // Limit the records per page
+
+  if (!labs || labs.length === 0) {
+    return next(
+      new CustomError("No maintenance found for the given filters", 404),
+    );
+  }
+
+  const request = await requestmaintenance.aggregate([
+    { $match: { _id: { $in: labs.map((lb) => lb._id) } } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "Technician",
+        foreignField: "_id",
+        as: "TechnicianDetails",
+      },
+    },
+    {
+      $unwind: { path: "$TechnicianDetails", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "Department",
+        foreignField: "_id",
+        as: "DepartmentInfo",
+      },
+    },
+    { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "Laboratory",
+        foreignField: "_id",
+        as: "LaboratoryInfo",
+      },
+    },
+    { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "equipment",
+        localField: "Equipments",
+        foreignField: "_id",
+        as: "EquipmentsInfo",
+      },
+    },
+    { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "categories",
+        localField: "EquipmentsInfo.Category",
+        foreignField: "_id",
+        as: "CategoryInfo",
+      },
+    },
+    { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        id: 1,
+        DateTime: 1,
+        Ref: 1,
+        read: 1,
+        Status: 1,
+        feedback: 1,
+        feedbackread: 1,
+        Description: 1,
+        EquipmentId: { $ifNull: ["$EquipmentsInfo._id", "N/A"] },
+        EquipmentName: { $ifNull: ["$EquipmentsInfo.Brand", "N/A"] },
+        CategoryName: { $ifNull: ["$CategoryInfo.CategoryName", "N/A"] },
+        DepartmentId: "$DepartmentInfo._id",
+        _id: 1,
+        Remarks: 1,
+        Department: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
+        remarksread: 1,
+        laboratoryName: { $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"] },
+        UserId: "$TechnicianDetails._id",
+        Technician: {
+          $concat: [
+            "$TechnicianDetails.FirstName",
+            " ",
+            { $ifNull: ["$TechnicianDetails.Middle", ""] },
+            " ",
+            "$TechnicianDetails.LastName",
+          ],
+        },
+        DateTimeAccomplish: 1,
+      },
+    },
+  ]);
+
+  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 30 });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=Maintenance_History" + Date.now() + ".pdf",
+  );
+  doc.pipe(res);
+
+  const logoPath = path.join(__dirname, "../public/image/logo.jpg");
+  if (fs.existsSync(logoPath)) {
+    const logoWidth = 60;
+    const centerX = (doc.page.width - logoWidth) / 2;
+    doc.image(logoPath, centerX, 30, { width: logoWidth });
+  }
+
+  doc.moveDown(6);
+
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .text("Republic of the Philippines", { align: "center" })
+    .moveDown(0.2)
+    .text("BILIRAN PROVINCE STATE UNIVERSITY", { align: "center" })
+    .moveDown(0.2)
+    .text("6560 Naval, Biliran Province", { align: "center" })
+    .moveDown(1);
+
+  const startX = doc.page.margins.left;
+  const generatedDate = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "2-digit",
+  });
+
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .text("Maintenance History Report", { align: "center" });
+  doc.moveDown();
+  doc.text(`Total Laboratories: ${request.length}`);
+  doc.text(`Date: ${generatedDate}`);
+  doc.text(`Page: ${pageNumber} of ${Math.ceil(totalCount / pageSize)}`); // Display page number
+  doc.moveDown(2);
+
+  const tableHeaders = [
+    "Date",
+    "Equipment",
+    "Description",
+    "Remarks",
+    "Status",
+    "Technician",
+    "Laboratory",
+    "Department",
+    "Feedback",
+    "Date Accomplish",
+  ];
+  const columnWidths = [80, 80, 80, 80, 60, 80, 80, 80, 80, 80];
+  const tableWidth = columnWidths.reduce((a, b) => a + b, 0);
+  const pageWidth =
+    doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const startXTable = doc.page.margins.left + (pageWidth - tableWidth) / 2;
+  const rowHeight = 30;
+  let currentY = doc.y;
+  const pageHeight =
+    doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
+
+  doc.font("Helvetica-Bold").fontSize(10);
+  tableHeaders.forEach((header, index) => {
+    doc.text(
+      header,
+      startXTable + columnWidths.slice(0, index).reduce((a, b) => a + b, 0),
+      currentY,
+      {
+        width: columnWidths[index],
+        align: "left",
+      },
+    );
+  });
+
+  currentY += rowHeight;
+  doc
+    .moveTo(startXTable, currentY)
+    .lineTo(startXTable + tableWidth, currentY)
+    .stroke();
+  currentY += 5;
+
+  doc.font("Helvetica").fontSize(10);
+
+  // Function to check and add a new page
+  const checkAndAddPage = () => {
+    if (currentY + rowHeight > pageHeight) {
+      doc.addPage();
+      currentY = doc.y;
+
+      // Redraw headers on new page
+      doc.font("Helvetica-Bold").fontSize(10);
+      tableHeaders.forEach((header, index) => {
+        doc.text(
+          header,
+          startXTable + columnWidths.slice(0, index).reduce((a, b) => a + b, 0),
+          currentY,
+          {
+            width: columnWidths[index],
+            align: "left",
+          },
+        );
+      });
+
+      currentY += rowHeight;
+      doc
+        .moveTo(startXTable, currentY)
+        .lineTo(startXTable + tableWidth, currentY)
+        .stroke();
+      currentY += 5;
+    }
+  };
+
+  request.forEach((lab) => {
+    checkAndAddPage();
+
+    const formattedDate = lab.DateTime
+      ? new Date(lab.DateTime).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+      : "N/A";
+
+    const Accomplish = lab.DateTimeAccomplish
+      ? new Date(lab.DateTimeAccomplish).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+      : "N/A";
+
+    const rowData = [
+      formattedDate,
+      `${lab.EquipmentName || "N/A"} / ${lab.CategoryName || "N/A"}`,
+      lab.Description || "N/A",
+      lab.Remarks || "N/A",
+      lab.Status || "N/A",
+      lab.Technician || "N/A",
+      lab.laboratoryName || "N/A",
+      lab.Department || "N/A",
+      lab.feedback || "N/A",
+      Accomplish,
+    ];
+
+    rowData.forEach((text, index) => {
+      doc.text(
+        text,
+        startXTable + columnWidths.slice(0, index).reduce((a, b) => a + b, 0),
+        currentY,
+        {
+          width: columnWidths[index],
+          align: "left",
+        },
+      );
+    });
+
+    currentY += rowHeight;
+  });
+
+  doc
+    .moveTo(startXTable, currentY)
+    .lineTo(startXTable + tableWidth, currentY)
+    .stroke();
+
+  // Footer
+  doc.moveDown(1);
+  const footerText = "Generated by EPDO";
+  const footerX = doc.page.margins.left;
+
+  doc.fontSize(10).text(footerText, footerX, currentY + 10, { align: "left" });
+
+  doc.end();
+});
+
+exports.getMonthlyMaintenanceGraph = AsyncErrorHandler(
+  async (req, res, next) => {
+    try {
+      const data = await requestmaintenance.aggregate([
+        {
+          $project: {
+            month: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+          },
+        },
+        {
+          $group: {
+            _id: "$month",
+            total: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]);
+      res.json(data);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+exports.DisplayRequestMaintenanceActvity = AsyncErrorHandler(async (req, res, next) => {
+  // 1. DATA FETCHING - Based on MaintenanceActivity linked to Laboratory via Assign
+  if (!req.query.laboratory) {
+    return next(new CustomError("Please provide a Laboratory ID.", 400));
+  }
+
+  const reports = await MaintenanceActivity.aggregate([
+    {
+      // I-lookup ang Assign record para makuha ang link sa Laboratory
+      $lookup: {
+        from: "assigns",
+        localField: "Request",
+        foreignField: "_id",
+        as: "AssignInfo",
+      },
+    },
+    { $unwind: "$AssignInfo" },
+    {
+      // I-filter ang records base sa Laboratory ID na match sa Assign schema
+      $match: {
+        "AssignInfo.Laboratory": new mongoose.Types.ObjectId(req.query.laboratory)
+      }
+    },
+    {
+      // Kunin ang tamang Equipment ID (handle Equipment or Equipments field)
+      $addFields: {
+        targetEquipmentId: { $ifNull: ["$AssignInfo.Equipment", "$AssignInfo.Equipments"] },
+      },
+    },
+    {
+      // Kunin ang Equipment details
+      $lookup: {
+        from: "equipment",
+        localField: "targetEquipmentId",
+        foreignField: "_id",
+        as: "EquipmentInfo",
+      },
+    },
+    { $unwind: { path: "$EquipmentInfo", preserveNullAndEmptyArrays: true } },
+    {
+      // Kunin ang Laboratory info para sa header ng report
+      $lookup: {
+        from: "laboratories",
+        localField: "AssignInfo.Laboratory",
+        foreignField: "_id",
+        as: "LabInfo",
+      },
+    },
+    { $unwind: { path: "$LabInfo", preserveNullAndEmptyArrays: true } },
+    {
+      // Kunin ang Department info
+      $lookup: {
+        from: "departments",
+        localField: "LabInfo.department",
+        foreignField: "_id",
+        as: "DeptInfo",
+      },
+    },
+    { $unwind: { path: "$DeptInfo", preserveNullAndEmptyArrays: true } },
+    { $sort: { createdAt: 1 } },
+  ]);
+
+  if (!reports || reports.length === 0) {
+    return next(new CustomError("No maintenance activities found for this laboratory.", 404));
+  }
+
+  // 2. PDF CONFIGURATION
+  const doc = new PDFDocument({ size: "A4", margin: 20 });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", "attachment; filename=General_Maintenance_Report.pdf");
+  doc.pipe(res);
+
+  const margin = 20;
+  const tableWidth = doc.page.width - margin * 2;
+  let currentY = margin;
+
+  // Column widths base sa PMS-002 format
+  const col = { code: 40, name: 105, act: 38, part: 50, remarks: 65 };
+
+  // --- FUNCTION: DRAW MAIN HEADER ---
+  const drawMainHeader = () => {
+    const headerH = 85;
+    doc.lineWidth(1).rect(margin, currentY, tableWidth, headerH).stroke();
+
+    // Logo
+    const logoPath = path.join(__dirname, "../public/image/logo.jpg");
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, margin + 10, currentY + 12, { width: 60 });
+    }
+    doc.moveTo(margin + 80, currentY).lineTo(margin + 80, currentY + headerH).stroke();
+
+    // Title Section
+    const infoWidth = 150;
+    const centerW = tableWidth - 80 - infoWidth;
+    doc.font("Helvetica-Bold").fontSize(8)
+      .text("QUALITY MANAGEMENT SYSTEM", margin + 80, currentY + 12, { align: "center", width: centerW })
+      .text("PERIODIC MAINTENANCE SYSTEM - FORM", margin + 80, currentY + 22, { align: "center", width: centerW });
+
+    doc.moveTo(margin + 80, currentY + 40).lineTo(margin + 80 + centerW, currentY + 40).stroke();
+    doc.fontSize(10).text("GENERAL MAINTENANCE SCHEDULE", margin + 80, currentY + 55, { align: "center", width: centerW });
+
+    // Doc Info (Right)
+    const infoX = margin + tableWidth - infoWidth;
+    doc.moveTo(infoX, currentY).lineTo(infoX, currentY + headerH).stroke();
+    const dInfo = [
+      { l: "Document No:", v: "BiPSU-QAA-PMS-002" },
+      { l: "Page:", v: "1 of 1" },
+      { l: "Effective Date:", v: "Oct 09, 2020" },
+      { l: "Issuance/Rev:", v: "02/01" }
+    ];
+    dInfo.forEach((d, i) => {
+      doc.font("Helvetica").fontSize(7).text(d.l, infoX + 5, currentY + 8 + i * 18);
+      doc.font("Helvetica-Bold").text(d.v, infoX + 70, currentY + 8 + i * 18);
+      if (i < 3) doc.moveTo(infoX, currentY + 22 + i * 18).lineTo(margin + tableWidth, currentY + 22 + i * 18).stroke();
+    });
+
+    currentY += headerH + 15;
+    const dept = reports[0].DeptInfo?.DepartmentName || "N/A";
+    const lab = reports[0].LabInfo?.LaboratoryName || "N/A";
+    doc.font("Helvetica-Bold").fontSize(9).text(`SCHOOL/OFFICE OF: ${dept} / ${lab}`.toUpperCase(), margin, currentY, { align: "center", width: tableWidth });
+    currentY += 20;
+  };
+
+  // --- FUNCTION: DRAW TABLE LABELS ---
+  const drawTableLabels = () => {
+    const thHeight = 50;
+    doc.lineWidth(1).rect(margin, currentY, tableWidth, thHeight).stroke();
+    let x = margin;
+    doc.fontSize(6).font("Helvetica-Bold");
+
+    doc.text("Code No.", x, currentY + 18, { width: col.code, align: "center" });
+    x += col.code;
+    doc.moveTo(x, currentY).lineTo(x, currentY + thHeight).stroke();
+
+    doc.text("Name of Equipment/Tools", x + 2, currentY + 15, { width: col.name - 4, align: "center" });
+    x += col.name;
+    doc.moveTo(x, currentY).lineTo(x, currentY + thHeight).stroke();
+
+    const actTotalW = col.act * 7;
+    doc.text("MAINTENANCE ACTIVITY", x, currentY + 5, { width: actTotalW, align: "center" });
+    doc.moveTo(x, currentY + 15).lineTo(x + actTotalW, currentY + 15).stroke();
+
+    const subs = ["Routine\nInsp.", "Lubri-\ncation", "Over-\nhauling", "Minor\nAdjust.", "Replace\nParts", "Repair", "Gen.\nRecon."];
+    subs.forEach((s) => {
+      doc.fontSize(5.5).text(s, x, currentY + 18, { width: col.act, align: "center" });
+      x += col.act;
+      doc.moveTo(x, currentY + 15).lineTo(x, currentY + thHeight).stroke();
+    });
+
+    doc.fontSize(6).text("Repair Part", x, currentY + 18, { width: col.part, align: "center" });
+    x += col.part;
+    doc.moveTo(x, currentY).lineTo(x, currentY + thHeight).stroke();
+    doc.text("Remarks", x, currentY + 18, { width: col.remarks, align: "center" });
+
+    currentY += thHeight;
+  };
+
+  // Initial Draw
+  drawMainHeader();
+  drawTableLabels();
+
+  // 3. RENDER DATA ROWS
+  reports.forEach((item) => {
+    const itemName = `${item.EquipmentInfo?.Brand || ""} ${item.EquipmentInfo?.Model || ""}`.trim() || "N/A";
+    const serial = item.EquipmentInfo?.SerialNumber || "-";
+    const rowH = Math.max(doc.heightOfString(itemName, { width: col.name - 5 }) + 15, 30);
+
+    // Page Break Check
+    if (currentY + rowH > 720) {
+      doc.addPage();
+      currentY = margin;
+      drawTableLabels();
+    }
+
+    doc.lineWidth(1).rect(margin, currentY, tableWidth, rowH).stroke();
+    let x = margin;
+    doc.font("Helvetica").fontSize(6.5);
+
+    // Code/Serial
+    doc.text(serial, x, currentY + 10, { width: col.code, align: "center" });
+    x += col.code;
+    doc.moveTo(x, currentY).lineTo(x, currentY + rowH).stroke();
+
+    // Brand/Model
+    doc.text(itemName, x + 3, currentY + 10, { width: col.name - 6 });
+    x += col.name;
+    doc.moveTo(x, currentY).lineTo(x, currentY + rowH).stroke();
+
+    // Activities (Checkmarks)
+    const activities = [
+      item.RoutineInspectionCleaning, item.Lubrication, item.Overhauling,
+      item.MinorAdjustment, item.ReplaceWornOutParts, item.Repair, item.GeneralRecondition
+    ];
+
+    activities.forEach((val) => {
+      if (val === true || String(val) === "true") {
+        doc.font("ZapfDingbats").fontSize(8).text("4", x, currentY + 10, { width: col.act, align: "center" });
+      }
+      x += col.act;
+      doc.font("Helvetica").moveTo(x, currentY).lineTo(x, currentY + rowH).stroke();
+    });
+
+    // Repair Part
+    doc.text(item.RepairPart || "-", x + 2, currentY + 10, { width: col.part - 4 });
+    x += col.part;
+    doc.moveTo(x, currentY).lineTo(x, currentY + rowH).stroke();
+
+    // Remarks
+    doc.text(item.remarks || "-", x + 2, currentY + 10, { width: col.remarks - 4 });
+
+    currentY += rowH;
+  });
+
+  // 4. LEGEND SECTION
+  const legendH = 65;
+  if (currentY + legendH > 780) {
+    doc.addPage();
+    currentY = margin;
+  }
+  doc.rect(margin, currentY, tableWidth, legendH).stroke();
+  doc.font("Helvetica-Bold").fontSize(7).text("FREQUENCY CODE", margin + 5, currentY + 5);
+  const legend = ["D - Daily", "M - Monthly", "W - Weekly", "SM - Semi-Monthly", "SA - Semi Annually", "Q - Quarterly", "A - Annually"];
+  doc.font("Helvetica").fontSize(6);
+  legend.forEach((txt, i) => {
+    const lx = i < 4 ? margin + 5 : margin + 120;
+    const ly = currentY + 15 + (i % 4) * 10;
+    doc.text(txt, lx, ly);
+  });
+
+  currentY += legendH + 40;
+
+  // 5. SIGNATORIES
+  const sigW = tableWidth / 3;
+  const sigs = ["Prepared:", "Attested:", "Approved:"];
+  sigs.forEach((lbl, i) => {
+    const sx = margin + i * sigW;
+    doc.font("Helvetica-Bold").fontSize(8).text(lbl, sx, currentY);
+    doc.font("Helvetica").text("____________________", sx, currentY + 25);
+  });
+
+  doc.end();
+});
+
+exports.DisplayMaintenanceLogs = AsyncErrorHandler(async (req, res, next) => {
+  // 1. DATA FETCHING (Flattened - Inalis ang $group)
+  let matchStage = {};
+  if (req.query.laboratory) {
+    matchStage["AssignInfo.Laboratory"] = new mongoose.Types.ObjectId(
+      req.query.laboratory,
+    );
+  }
+
+  const reports = await MaintenanceLogs.aggregate([
+    {
+      $lookup: {
+        from: "assigns",
+        localField: "Request",
+        foreignField: "_id",
+        as: "AssignInfo",
+      },
+    },
+    { $unwind: { path: "$AssignInfo", preserveNullAndEmptyArrays: false } },
+    { $match: matchStage },
+    {
+      $addFields: {
+        targetEquipmentId: {
+          $ifNull: ["$AssignInfo.Equipment", "$AssignInfo.Equipments"],
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "equipment",
+        localField: "targetEquipmentId",
+        foreignField: "_id",
+        as: "EquipmentInfo",
+      },
+    },
+    { $unwind: { path: "$EquipmentInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "AssignInfo.Laboratory",
+        foreignField: "_id",
+        as: "LabInfo",
+      },
+    },
+    { $unwind: { path: "$LabInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "LabInfo.department",
+        foreignField: "_id",
+        as: "DeptInfo",
+      },
+    },
+    { $unwind: { path: "$DeptInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "TechnicalLaboratoryInCharge",
+        foreignField: "_id",
+        as: "TechInfo",
+      },
+    },
+    { $unwind: { path: "$TechInfo", preserveNullAndEmptyArrays: true } },
+    { $sort: { RepairDate: 1 } },
+  ]);
+
+  if (!reports.length) return next(new CustomError("No records found.", 404));
+
+  // 2. PDF CONFIG
+  const doc = new PDFDocument({ size: "A4", margin: 20 });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=Maintenance_Log_Report.pdf",
+  );
+  doc.pipe(res);
+
+  const margin = 20;
+  const tableWidth = doc.page.width - margin * 2;
+  let currentY = margin;
+
+  const col = {
+    code: 50,
+    name: 100,
+    period: 55,
+    parts: 85,
+    mh: 35,
+    prob: 95,
+    tech: 85,
+    date: 50,
+  };
+
+  // --- FUNCTION: MAIN HEADER (Logo, Plan Info) ---
+  const drawMainHeader = () => {
+    const headerHeight = 100;
+    doc.lineWidth(1).rect(margin, currentY, tableWidth, headerHeight).stroke();
+    const leftWidth = 110;
+    const rightWidth = 135;
+    const centerWidth = tableWidth - leftWidth - rightWidth;
+
+    doc
+      .moveTo(margin + leftWidth, currentY)
+      .lineTo(margin + leftWidth, currentY + headerHeight)
+      .stroke();
+    doc
+      .moveTo(margin + tableWidth - rightWidth, currentY)
+      .lineTo(margin + tableWidth - rightWidth, currentY + headerHeight)
+      .stroke();
+
+    const logoPath = path.join(__dirname, "../public/image/logo.jpg");
+    if (fs.existsSync(logoPath))
+      doc.image(logoPath, margin + 15, currentY + 10, { width: 80 });
+
+    doc
+      .font("Helvetica")
+      .fontSize(7)
+      .text("Type:", margin + leftWidth + 5, currentY + 10);
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(8)
+      .text(
+        "PERIODIC MAINTENANCE SYSTEM - FORM",
+        margin + leftWidth + 5,
+        currentY + 22,
+        { width: centerWidth - 10, align: "center" },
+      );
+    doc
+      .moveTo(margin + leftWidth, currentY + 45)
+      .lineTo(margin + leftWidth + centerWidth, currentY + 45)
+      .stroke();
+    doc
+      .font("Helvetica")
+      .fontSize(7)
+      .text("Title:", margin + leftWidth + 5, currentY + 52);
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .text("MAINTENANCE PLAN/SCHEDULE", margin + leftWidth, currentY + 65, {
+        align: "center",
+        width: centerWidth,
+      });
+    doc.text("(SCHEDULE REPAIR)", margin + leftWidth, currentY + 77, {
+      align: "center",
+      width: centerWidth,
+    });
+
+    const infoX = margin + tableWidth - rightWidth;
+    const docData = [
+      { l: "Document No.:", v: "BiPSU-QAA-PMS-005" },
+      { l: "Page:", v: "1 of 1" },
+      { l: "Effective Date:", v: "October 09, 2020" },
+      { l: "Issuance/Revision:", v: "02/01" },
+    ];
+
+    docData.forEach((item, i) => {
+      doc
+        .font("Helvetica")
+        .fontSize(6.5)
+        .text(item.l, infoX + 5, currentY + 5 + i * 25);
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(7)
+        .text(item.v, infoX + 5, currentY + 13 + i * 25, {
+          align: "center",
+          width: rightWidth - 10,
+        });
+      if (i < 3)
+        doc
+          .moveTo(infoX, currentY + 25 + i * 25)
+          .lineTo(margin + tableWidth, currentY + 25 + i * 25)
+          .stroke();
+    });
+
+    currentY += headerHeight + 10;
+    const dept = reports[0].DeptInfo?.DepartmentName || "N/A";
+    const lab = reports[0].LabInfo?.LaboratoryName || "N/A";
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text("SCHOOL/OFFICE OF", margin, currentY, {
+        align: "center",
+        width: tableWidth,
+      });
+    doc
+      .fontSize(9)
+      .text(`${dept} - ${lab}`.toUpperCase(), margin, currentY + 12, {
+        align: "center",
+        width: tableWidth,
+      });
+    currentY += 35;
+  };
+
+  // --- FUNCTION: TABLE LABELS ---
+  const drawTableLabels = () => {
+    const thHeight = 40;
+    doc.lineWidth(1).rect(margin, currentY, tableWidth, thHeight).stroke();
+    let x = margin;
+    const heads = [
+      "Code\nNo.",
+      "Name of\nEquip/Tools",
+      "Period",
+      "Spare Parts\nUsed",
+      "MH\nUsed",
+      "Problem\nEncountered",
+      "In-Charge",
+      "Date",
+    ];
+    const wids = Object.values(col);
+
+    doc.font("Helvetica-Bold").fontSize(6.5);
+    heads.forEach((h, i) => {
+      doc.text(h, x, currentY + 5, { width: wids[i], align: "center" });
+      x += wids[i];
+      if (i < heads.length - 1)
+        doc
+          .moveTo(x, currentY)
+          .lineTo(x, currentY + thHeight)
+          .stroke();
+    });
+    currentY += thHeight;
+  };
+
+  // --- START RENDERING ---
+  drawMainHeader();
+  drawTableLabels();
+
+  reports.forEach((item) => {
+    // Period calculation
+    let periodText = "-";
+    if (item.EquipmentInfo?.DateTime) {
+      const start = new Date(item.EquipmentInfo.DateTime);
+      const end = new Date();
+      let years = end.getFullYear() - start.getFullYear();
+      let months = end.getMonth() - start.getMonth();
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+      periodText = years > 0 ? `${years}y ${months}m` : `${months}m`;
+    }
+
+    const rowH = Math.max(
+      doc.heightOfString(item.AnalysisOfTrouble || "-", {
+        width: col.prob - 4,
+      }) + 15,
+      35,
+    );
+
+    if (currentY + rowH > 750) {
+      doc.addPage();
+      currentY = margin;
+      drawTableLabels();
+    }
+
+    doc.rect(margin, currentY, tableWidth, rowH).stroke();
+    let x = margin;
+    const vals = [
+      item.EquipmentInfo?.SerialNumber || "-",
+      item.EquipmentInfo?.Brand || "-",
+      periodText,
+      item.SparePartsMaterialsUsed?.join(", ") || "None",
+      item.ManHoursUsed || "0",
+      item.AnalysisOfTrouble || "-",
+      item.TechInfo
+        ? `${item.TechInfo.FirstName[0]}. ${item.TechInfo.LastName}`
+        : "N/A",
+      item.RepairDate ? new Date(item.RepairDate).toLocaleDateString() : "N/A",
+    ];
+
+    const wids = Object.values(col);
+    doc.font("Helvetica").fontSize(7);
+    vals.forEach((v, i) => {
+      doc.text(v?.toString() || "", x + 2, currentY + rowH / 2 - 4, {
+        width: wids[i] - 4,
+        align: "center",
+      });
+      x += wids[i];
+      if (i < vals.length - 1)
+        doc
+          .moveTo(x, currentY)
+          .lineTo(x, currentY + rowH)
+          .stroke();
+    });
+    currentY += rowH;
+  });
+
+  // --- SIGNATORIES (Sa huli) ---
+  currentY += 40;
+  if (currentY + 60 > 800) {
+    doc.addPage();
+    currentY = margin + 20;
+  }
+  const sigW = tableWidth / 3;
+  ["Prepared:", "Attested:", "Approved:"].forEach((l, i) => {
+    const sx = margin + i * sigW;
+    doc.font("Helvetica-Bold").fontSize(8).text(l, sx, currentY);
+    doc
+      .moveTo(sx, currentY + 30)
+      .lineTo(sx + sigW - 20, currentY + 30)
+      .stroke();
+  });
+
+  doc.end();
+});
+
+exports.DisplayMaintenanceHistory = AsyncErrorHandler(async (req, res, next) => {
+  // 1. DATA FETCHING - Laboratory Filtering via Assign Schema
+  if (!req.query.laboratory) {
+    return next(new CustomError("Please provide a Laboratory ID.", 400));
+  }
+
+  const reports = await MaintenanceActivity.aggregate([
+    {
+      $lookup: {
+        from: "assigns",
+        localField: "Request",
+        foreignField: "_id",
+        as: "AssignInfo",
+      },
+    },
+    { $unwind: "$AssignInfo" },
+    {
+      // Dito ang match para sa Laboratory ID base sa Assign schema
+      $match: {
+        "AssignInfo.Laboratory": new mongoose.Types.ObjectId(req.query.laboratory),
+      },
+    },
+    {
+      $addFields: {
+        targetEquipmentId: {
+          $ifNull: ["$AssignInfo.Equipment", "$AssignInfo.Equipments"],
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "equipment",
+        localField: "targetEquipmentId",
+        foreignField: "_id",
+        as: "EquipmentInfo",
+      },
+    },
+    { $unwind: { path: "$EquipmentInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "AssignInfo.Laboratory",
+        foreignField: "_id",
+        as: "LabInfo",
+      },
+    },
+    { $unwind: { path: "$LabInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "LabInfo.department",
+        foreignField: "_id",
+        as: "DeptInfo",
+      },
+    },
+    { $unwind: { path: "$DeptInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "PerformedBy",
+        foreignField: "_id",
+        as: "TechInfo",
+      },
+    },
+    { $unwind: { path: "$TechInfo", preserveNullAndEmptyArrays: true } },
+    { $sort: { createdAt: 1 } },
+  ]);
+
+  if (!reports.length) {
+    return next(new CustomError("No maintenance history found for this laboratory.", 404));
+  }
+
+  // 2. PDF CONFIG
+  const doc = new PDFDocument({ size: "A4", margin: 20 });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", "attachment; filename=Maintenance_History.pdf");
+  doc.pipe(res);
+
+  const margin = 20;
+  const tableWidth = doc.page.width - margin * 2;
+  let currentY = margin;
+
+  const col = {
+    date: 65,
+    code: 70,
+    name: 110,
+    act: 50,
+    repair: 50,
+    tech: 110,
+  };
+
+  // --- FUNCTION: MAIN HEADER ---
+  const drawMainHeader = () => {
+    const headerHeight = 80;
+    doc.lineWidth(1).rect(margin, currentY, tableWidth, headerHeight).stroke();
+
+    const logoPath = path.join(__dirname, "../public/image/logo.jpg");
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, margin + 5, currentY + 5, { width: 70 });
+    }
+
+    const infoWidth = 155;
+    const infoX = margin + tableWidth - infoWidth;
+    const centerX = margin + 80;
+    const centerWidth = tableWidth - 80 - infoWidth;
+
+    doc.moveTo(margin + 80, currentY).lineTo(margin + 80, currentY + headerHeight).stroke();
+    doc.moveTo(infoX, currentY).lineTo(infoX, currentY + headerHeight).stroke();
+
+    doc.font("Helvetica-Bold").fontSize(8.5)
+      .text("QUALITY MANAGEMENT SYSTEM", centerX, currentY + 12, { align: "center", width: centerWidth })
+      .text("PERIODIC MAINTENANCE SYSTEM - FORM", centerX, currentY + 24, { align: "center", width: centerWidth });
+
+    doc.moveTo(centerX, currentY + 40).lineTo(infoX, currentY + 40).stroke();
+    doc.fontSize(10).text("EQUIPMENT MAINTENANCE RECORD", centerX, currentY + 55, { align: "center", width: centerWidth });
+
+    const dInfo = [
+      { l: "Document No:", v: "BiPSU-QAA-PMS-004" },
+      { l: "Page:", v: "1 of 1" },
+      { l: "Effective Date:", v: "Oct 09, 2020" },
+      { l: "Issuance/Rev:", v: "03/02" },
+    ];
+
+    dInfo.forEach((d, i) => {
+      doc.font("Helvetica").fontSize(7).text(d.l, infoX + 5, currentY + 8 + i * 17);
+      doc.font("Helvetica-Bold").text(d.v, infoX + 65, currentY + 8 + i * 17);
+      if (i < 3) {
+        doc.moveTo(infoX, currentY + 22 + i * 17).lineTo(margin + tableWidth, currentY + 22 + i * 17).stroke();
+      }
+    });
+
+    currentY += 95;
+    const deptName = reports[0].DeptInfo?.DepartmentName || "N/A";
+    const labName = reports[0].LabInfo?.LaboratoryName || "N/A";
+    doc.font("Helvetica-Bold").fontSize(10).text(`SCHOOL/OFFICE OF: ${deptName} / ${labName}`.toUpperCase(), margin, currentY, { align: "center", width: tableWidth });
+    currentY += 25;
+  };
+
+  // --- FUNCTION: TABLE LABELS ---
+  const drawTableLabels = () => {
+    const tableHeaderH = 45;
+    doc.rect(margin, currentY, tableWidth, tableHeaderH).stroke();
+    let x = margin;
+
+    const headers = [
+      { l: "Date", w: col.date },
+      { l: "Serial No.", w: col.code },
+      { l: "Equipment", w: col.name },
+    ];
+
+    headers.forEach((h) => {
+      doc.fontSize(8.5).font("Helvetica-Bold").text(h.l, x, currentY + 18, { width: h.w, align: "center" });
+      x += h.w;
+      doc.moveTo(x, currentY).lineTo(x, currentY + tableHeaderH).stroke();
+    });
+
+    const workWidth = col.act * 3 + col.repair;
+    doc.text("WORK PERFORMED", x, currentY + 4, { width: workWidth, align: "center" });
+    doc.moveTo(x, currentY + 14).lineTo(x + workWidth, currentY + 14).stroke();
+
+    const subs = ["Insp/Clean", "Lubrication", "Adjustment", "Repair"];
+    subs.forEach((s, i) => {
+      const w = i === 3 ? col.repair : col.act;
+      doc.fontSize(7).text(s, x, currentY + 18, { width: w, align: "center" });
+      x += w;
+      if (i < 3) doc.moveTo(x, currentY + 14).lineTo(x, currentY + tableHeaderH).stroke();
+    });
+
+    doc.moveTo(x, currentY).lineTo(x, currentY + tableHeaderH).stroke();
+    doc.fontSize(8.5).text("Performed by", x, currentY + 18, { width: col.tech, align: "center" });
+    currentY += tableHeaderH;
+  };
+
+  // --- EXECUTION ---
+  drawMainHeader();
+  drawTableLabels();
+
+  reports.forEach((item) => {
+    const rowH = 30;
+    if (currentY + rowH > 750) {
+      doc.addPage();
+      currentY = margin;
+      drawTableLabels();
+    }
+
+    doc.rect(margin, currentY, tableWidth, rowH).stroke();
+    let x = margin;
+
+    const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "-";
+    const serial = item.EquipmentInfo?.SerialNumber || "-";
+    const eqName = `${item.EquipmentInfo?.Brand || ""} ${item.EquipmentInfo?.Model || ""}`.trim() || "-";
+
+    const data = [
+      { v: dateStr, w: col.date },
+      { v: serial, w: col.code },
+      { v: eqName, w: col.name },
+    ];
+
+    data.forEach((c) => {
+      doc.font("Helvetica").fontSize(8).text(c.v, x + 2, currentY + 10, { width: c.w - 4, align: "center" });
+      x += c.w;
+      doc.moveTo(x, currentY).lineTo(x, currentY + rowH).stroke();
+    });
+
+    const checks = [
+      item.RoutineInspectionCleaning,
+      item.Lubrication,
+      item.MinorAdjustment,
+      item.Repair,
+    ];
+
+    checks.forEach((c, i) => {
+      const w = i === 3 ? col.repair : col.act;
+      if (c === true || String(c) === "true") {
+        doc.font("ZapfDingbats").fontSize(10).text("4", x, currentY + 10, { width: w, align: "center" });
+      }
+      x += w;
+      doc.font("Helvetica").moveTo(x, currentY).lineTo(x, currentY + rowH).stroke();
+    });
+
+    const tech = item.TechInfo ? `${item.TechInfo.FirstName} ${item.TechInfo.LastName}` : "N/A";
+    doc.font("Helvetica").fontSize(7).text(tech, x + 2, currentY + 10, { width: col.tech - 4, align: "center" });
+
+    currentY += rowH;
+  });
+
+  // --- SIGNATORIES ---
+  currentY += 40;
+  if (currentY + 60 > 800) {
+    doc.addPage();
+    currentY = margin + 20;
+  }
+  const sigW = tableWidth / 3;
+  ["Prepared:", "Attested:", "Approved:"].forEach((l, i) => {
+    const sigX = margin + i * sigW;
+    doc.font("Helvetica-Bold").fontSize(9).text(l, sigX, currentY);
+    doc.font("Helvetica").text("____________________", sigX, currentY + 25);
+  });
+
+  doc.end();
+});
+exports.DisplayToolsandMaintenance = AsyncErrorHandler(async (req, res, next) => {
+  // 1. DATA FETCHING - Laboratory Filtering via Assign
+  if (!req.query.laboratory) {
+    return next(new CustomError("Please provide a Laboratory ID.", 400));
+  }
+
+  const reports = await MaintenanceActivity.aggregate([
+    {
+      $lookup: {
+        from: "assigns",
+        localField: "Request",
+        foreignField: "_id",
+        as: "AssignInfo",
+      },
+    },
+    { $unwind: "$AssignInfo" },
+    {
+      // Dito ang match para sa Laboratory ID base sa Assign schema
+      $match: {
+        "AssignInfo.Laboratory": new mongoose.Types.ObjectId(req.query.laboratory),
+      },
+    },
+    {
+      $addFields: {
+        targetEquipmentId: {
+          $ifNull: ["$AssignInfo.Equipment", "$AssignInfo.Equipments"],
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "equipment",
+        localField: "targetEquipmentId",
+        foreignField: "_id",
+        as: "EquipmentInfo",
+      },
+    },
+    { $unwind: { path: "$EquipmentInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "AssignInfo.Laboratory",
+        foreignField: "_id",
+        as: "LabInfo",
+      },
+    },
+    { $unwind: { path: "$LabInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "LabInfo.department",
+        foreignField: "_id",
+        as: "DeptInfo",
+      },
+    },
+    { $unwind: { path: "$DeptInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "PerformedBy",
+        foreignField: "_id",
+        as: "TechInfo",
+      },
+    },
+    { $unwind: { path: "$TechInfo", preserveNullAndEmptyArrays: true } },
+    { $sort: { createdAt: 1 } },
+  ]);
+
+  if (!reports.length) return next(new CustomError("No records found for this laboratory.", 404));
+
+  // 2. PDF CONFIG
+  const doc = new PDFDocument({ size: "A4", margin: 20 });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", "attachment; filename=Tools_Maintenance_Record.pdf");
+  doc.pipe(res);
+
+  const margin = 20;
+  const tableWidth = doc.page.width - margin * 2;
+  let currentY = margin;
+
+  const col = {
+    date: 60,
+    code: 65,
+    name: 100,
+    act: 55,
+    repair: 45,
+    tech: 115,
+  };
+
+  // --- FUNCTION: MAIN HEADER ---
+  const drawMainHeader = () => {
+    const headerHeight = 75;
+    doc.lineWidth(1).rect(margin, currentY, tableWidth, headerHeight).stroke();
+
+    const logoPath = path.join(__dirname, "../public/image/logo.jpg");
+    if (fs.existsSync(logoPath)) doc.image(logoPath, margin + 5, currentY + 5, { width: 65 });
+
+    const infoWidth = 140;
+    const infoX = margin + tableWidth - infoWidth;
+    const centerX = margin + 75;
+    const centerWidth = tableWidth - 75 - infoWidth;
+
+    doc.moveTo(margin + 75, currentY).lineTo(margin + 75, currentY + headerHeight).stroke();
+    doc.moveTo(infoX, currentY).lineTo(infoX, currentY + headerHeight).stroke();
+
+    doc.font("Helvetica-Bold").fontSize(8)
+      .text("QUALITY MANAGEMENT SYSTEM", centerX, currentY + 12, { align: "center", width: centerWidth })
+      .text("PERIODIC MAINTENANCE SYSTEM - FORM", centerX, currentY + 22, { align: "center", width: centerWidth });
+
+    doc.moveTo(centerX, currentY + 35).lineTo(infoX, currentY + 35).stroke();
+    doc.fontSize(9).text("TOOLS AND MAINTENANCE RECORD", centerX, currentY + 50, { align: "center", width: centerWidth });
+
+    const docDetails = [
+      { l: "Document No:", v: "BiPSU-QAA-PMS-004" },
+      { l: "Page:", v: "1 of 1" },
+      { l: "Effective Date:", v: "Oct 09, 2020" },
+      { l: "Issuance/Rev:", v: "03/02" },
+    ];
+
+    docDetails.forEach((d, i) => {
+      doc.font("Helvetica").fontSize(6).text(d.l, infoX + 5, currentY + 5 + i * 17);
+      doc.font("Helvetica-Bold").text(d.v, infoX + 60, currentY + 5 + i * 17);
+      if (i < 3) doc.moveTo(infoX, currentY + 20 + i * 17).lineTo(margin + tableWidth, currentY + 20 + i * 17).stroke();
+    });
+
+    currentY += 85;
+    const labName = reports[0].LabInfo?.LaboratoryName || "N/A";
+    const deptName = reports[0].DeptInfo?.DepartmentName || "N/A";
+    doc.font("Helvetica-Bold").fontSize(10).text("SCHOOL/OFFICE OF", margin, currentY, { align: "center", width: tableWidth });
+    doc.fontSize(9).text(`${deptName} / ${labName}`.toUpperCase(), margin, currentY + 12, { align: "center", width: tableWidth });
+    currentY += 35;
+  };
+
+  // --- FUNCTION: TABLE LABELS ---
+  const drawTableLabels = () => {
+    const tableHeaderH = 45;
+    doc.rect(margin, currentY, tableWidth, tableHeaderH).stroke();
+    let x = margin;
+
+    const mainHeaders = [
+      { l: "Date", w: col.date },
+      { l: "Serial No.", w: col.code },
+      { l: "Name of Tools", w: col.name },
+    ];
+
+    mainHeaders.forEach((h) => {
+      doc.fontSize(7).font("Helvetica-Bold").text(h.l, x, currentY + 18, { width: h.w, align: "center" });
+      x += h.w;
+      doc.moveTo(x, currentY).lineTo(x, currentY + tableHeaderH).stroke();
+    });
+
+    const workWidth = col.act * 3 + col.repair;
+    doc.text("MAINTENANCE ACTIVITY", x, currentY + 4, { width: workWidth, align: "center" });
+    doc.moveTo(x, currentY + 12).lineTo(x + workWidth, currentY + 12).stroke();
+
+    const subActs = [
+      { l: "Inspection & Cleaning", w: col.act },
+      { l: "Lubrication", w: col.act },
+      { l: "Adjustment Calibration", w: col.act },
+      { l: "Repair", w: col.repair },
+    ];
+
+    subActs.forEach((s, i) => {
+      doc.fontSize(6).text(s.l, x + 2, currentY + 15, { width: s.w - 4, align: "center" });
+      x += s.w;
+      if (i < 3) {
+        doc.moveTo(x, currentY + 12).lineTo(x, currentY + tableHeaderH).stroke();
+      }
+    });
+
+    doc.moveTo(x, currentY).lineTo(x, currentY + tableHeaderH).stroke();
+    doc.fontSize(7).text("Performed by", x, currentY + 18, { width: col.tech, align: "center" });
+    currentY += tableHeaderH;
+  };
+
+  drawMainHeader();
+  drawTableLabels();
+
+  // --- RENDER ROWS ---
+  reports.forEach((item) => {
+    const rowH = 30;
+    if (currentY + rowH > 750) {
+      doc.addPage();
+      currentY = margin;
+      drawTableLabels();
+    }
+
+    doc.rect(margin, currentY, tableWidth, rowH).stroke();
+    let x = margin;
+
+    const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "-";
+    const serial = item.EquipmentInfo?.SerialNumber || "-";
+    const eqName = `${item.EquipmentInfo?.Brand || ""} ${item.EquipmentInfo?.Model || ""}`.trim() || "-";
+
+    const data = [
+      { v: dateStr, w: col.date },
+      { v: serial, w: col.code },
+      { v: eqName, w: col.name },
+    ];
+
+    data.forEach((c) => {
+      doc.font("Helvetica").fontSize(7).text(c.v, x + 2, currentY + 10, { width: c.w - 4, align: "center" });
+      x += c.w;
+      doc.moveTo(x, currentY).lineTo(x, currentY + rowH).stroke();
+    });
+
+    const checks = [
+      item.RoutineInspectionCleaning,
+      item.Lubrication,
+      item.MinorAdjustment,
+      item.Repair,
+    ];
+
+    checks.forEach((c, i) => {
+      const w = i === 3 ? col.repair : col.act;
+      if (c === true || String(c) === "true") {
+        doc.font("ZapfDingbats").fontSize(10).text("4", x, currentY + 10, { width: w, align: "center" });
+      }
+      x += w;
+      doc.font("Helvetica").moveTo(x, currentY).lineTo(x, currentY + rowH).stroke();
+    });
+
+    const tech = item.TechInfo ? `${item.TechInfo.FirstName} ${item.TechInfo.LastName}` : "N/A";
+    doc.font("Helvetica").fontSize(7).text(tech, x + 2, currentY + 10, { width: col.tech - 4, align: "center" });
+
+    currentY += rowH;
+  });
+
+  // --- SIGNATORIES ---
+  currentY += 40;
+  if (currentY + 60 > 800) {
+    doc.addPage();
+    currentY = margin + 20;
+  }
+  const sigW = tableWidth / 3;
+  ["Prepared:", "Attested:", "Approved:"].forEach((l, i) => {
+    const sigX = margin + i * sigW;
+    doc.font("Helvetica-Bold").fontSize(9).text(l, sigX, currentY);
+    doc.font("Helvetica").text("____________________", sigX, currentY + 25);
+  });
+
+  doc.end();
+});
+
+exports.DisplayUnscheduledRepair = AsyncErrorHandler(async (req, res, next) => {
+  // 1. DATA FETCHING - Laboratory Filtering via Assign Schema
+  if (!req.query.laboratory) {
+    return next(new CustomError("Please provide a Laboratory ID.", 400));
+  }
+
+  const reports = await MaintenanceLogs.aggregate([
+    {
+      $lookup: {
+        from: "assigns",
+        localField: "Request",
+        foreignField: "_id",
+        as: "AssignInfo",
+      },
+    },
+    { $unwind: "$AssignInfo" },
+    {
+      $match: {
+        "AssignInfo.Laboratory": new mongoose.Types.ObjectId(req.query.laboratory),
+      },
+    },
+    {
+      $addFields: {
+        targetEquipmentId: {
+          $ifNull: ["$AssignInfo.Equipment", "$AssignInfo.Equipments"],
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "equipment",
+        localField: "targetEquipmentId",
+        foreignField: "_id",
+        as: "EquipmentInfo",
+      },
+    },
+    { $unwind: { path: "$EquipmentInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "AssignInfo.Laboratory",
+        foreignField: "_id",
+        as: "LabInfo",
+      },
+    },
+    { $unwind: { path: "$LabInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "LabInfo.department",
+        foreignField: "_id",
+        as: "DeptInfo",
+      },
+    },
+    { $unwind: { path: "$DeptInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "TechnicalLaboratoryInCharge",
+        foreignField: "_id",
+        as: "TechInfo",
+      },
+    },
+    { $unwind: { path: "$TechInfo", preserveNullAndEmptyArrays: true } },
+    { $sort: { RepairDate: 1 } },
+  ]);
+
+  if (!reports || reports.length === 0) {
+    return next(new CustomError("No records found for this laboratory.", 404));
+  }
+
+  // 2. PDF CONFIGURATION
+  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 20 });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", "attachment; filename=Unscheduled_Repair_Record.pdf");
+  doc.pipe(res);
+
+  const margin = 20;
+  const tableWidth = doc.page.width - margin * 2;
+  // Adjusted column widths for landscape (Total: 802 approx)
+  const colWidths = [60, 95, 100, 80, 40, 90, 90, 85, 105, 57];
+  let currentY = margin;
+
+  // --- FUNCTION: MAIN HEADER ---
+  const drawMainHeader = () => {
+    const headerH = 75;
+    doc.lineWidth(0.8).rect(margin, currentY, tableWidth, headerH).stroke();
+
+    const logoPath = path.join(__dirname, "../public/image/logo.jpg");
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, margin + 8, currentY + 5, { width: 60 });
+    }
+
+    const infoWidth = 160;
+    const infoX = margin + tableWidth - infoWidth;
+    const centerAreaX = margin + 75;
+    const centerAreaW = tableWidth - 75 - infoWidth;
+
+    doc.moveTo(centerAreaX, currentY).lineTo(centerAreaX, currentY + headerH).stroke();
+    doc.moveTo(infoX, currentY).lineTo(infoX, currentY + headerH).stroke();
+
+    doc.font("Helvetica-Bold").fontSize(8).text(
+      "QUALITY MANAGEMENT SYSTEM\nPERIODIC MAINTENANCE SYSTEM - FORM",
+      centerAreaX,
+      currentY + 15,
+      { align: "center", width: centerAreaW }
+    );
+
+    doc.moveTo(centerAreaX, currentY + 35).lineTo(infoX, currentY + 35).stroke();
+    doc.fontSize(10).text(
+      "MAINTENANCE PLAN/SCHEDULE\n(UNSCHEDULED REPAIR)",
+      centerAreaX,
+      currentY + 45,
+      { align: "center", width: centerAreaW }
+    );
+
+    const details = [
+      { l: "Document No:", v: "BiPSU-QAA-PMS-006" },
+      { l: "Page:", v: "1 of 1" },
+      { l: "Effective Date:", v: "Oct 09, 2020" },
+      { l: "Issuance/Rev:", v: "02/01" },
+    ];
+
+    details.forEach((d, i) => {
+      doc.font("Helvetica").fontSize(7).text(d.l, infoX + 5, currentY + i * 18 + 5);
+      doc.font("Helvetica-Bold").text(d.v, infoX + 70, currentY + i * 18 + 5);
+      if (i < 3) doc.moveTo(infoX, currentY + (i + 1) * 18).lineTo(margin + tableWidth, currentY + (i + 1) * 18).stroke();
+    });
+
+    currentY += 85;
+    const dept = reports[0].DeptInfo?.DepartmentName || "N/A";
+    const lab = reports[0].LabInfo?.LaboratoryName || "N/A";
+    doc.font("Helvetica-Bold").fontSize(11).text(
+      `SCHOOL/OFFICE OF: ${dept} / ${lab}`.toUpperCase(),
+      margin,
+      currentY,
+      { align: "center", width: tableWidth }
+    );
+    currentY += 25;
+  };
+
+  // --- FUNCTION: TABLE LABELS (Increased Font Size to 8) ---
+  const drawTableLabels = () => {
+    const tableHeaderH = 40;
+    doc.rect(margin, currentY, tableWidth, tableHeaderH).stroke();
+    const labels = [
+      "Code No.", "Description", "Analysis of Trouble", "Adjustment Setting",
+      "Man Hours", "Counter measures", "Improvement Procedure", "Spare parts Used",
+      "Technical In-Charge", "Date"
+    ];
+
+    let x = margin;
+    doc.font("Helvetica-Bold").fontSize(8); // Pinalaki mula 6
+    labels.forEach((l, i) => {
+      doc.text(l, x, currentY + 10, { width: colWidths[i], align: "center" });
+      x += colWidths[i];
+      if (i < colWidths.length - 1) doc.moveTo(x, currentY).lineTo(x, currentY + tableHeaderH).stroke();
+    });
+    currentY += tableHeaderH;
+  };
+
+  drawMainHeader();
+  drawTableLabels();
+
+  // --- RENDER ROWS (Increased Font Size to 7.5) ---
+  reports.forEach((item) => {
+    const eqDesc = `${item.EquipmentInfo?.Brand || ""} ${item.EquipmentInfo?.Model || ""}`.trim();
+    const analysis = item.AnalysisOfTrouble || "-";
+    const countermeasures = item.CounterMeasures || "-";
+
+    // Dynamic height calculation base sa bagong font size
+    doc.fontSize(7.5);
+    const rowHeight = Math.max(
+      doc.heightOfString(analysis, { width: colWidths[2] - 4 }),
+      doc.heightOfString(countermeasures, { width: colWidths[5] - 4 }),
+      doc.heightOfString(eqDesc, { width: colWidths[1] - 4 }),
+      35
+    );
+
+    if (currentY + rowHeight > doc.page.height - 80) {
+      doc.addPage();
+      currentY = margin;
+      drawTableLabels();
+    }
+
+    doc.lineWidth(0.5).rect(margin, currentY, tableWidth, rowHeight).stroke();
+
+    const rowData = [
+      item.EquipmentInfo?.SerialNumber || "-",
+      eqDesc || "-",
+      analysis,
+      item.AdjustmentSetting || "-",
+      item.ManHoursUsed?.toString() || "-",
+      countermeasures,
+      item.ImprovementInRepairProcedure || "-",
+      Array.isArray(item.SparePartsMaterialsUsed) ? item.SparePartsMaterialsUsed.join(", ") : (item.SparePartsMaterialsUsed || "-"),
+      item.TechInfo ? `${item.TechInfo.FirstName} ${item.TechInfo.LastName}` : "N/A",
+      item.RepairDate ? new Date(item.RepairDate).toLocaleDateString() : "-",
+    ];
+
+    let x = margin;
+    doc.font("Helvetica").fontSize(7.5); // Pinalaki mula 6
+    rowData.forEach((text, i) => {
+      doc.text(text, x + 2, currentY + 8, { width: colWidths[i] - 4, align: "center" });
+      x += colWidths[i];
+      if (i < colWidths.length - 1) doc.moveTo(x, currentY).lineTo(x, currentY + rowHeight).stroke();
+    });
+
+    currentY += rowHeight;
+  });
+
+  // --- SIGNATORIES ---
+  currentY += 40;
+  if (currentY + 60 > doc.page.height - 20) {
+    doc.addPage();
+    currentY = margin + 20;
+  }
+  const sigW = tableWidth / 3;
+  ["Prepared:", "Attested:", "Approved:"].forEach((s, i) => {
+    const sigX = margin + i * sigW;
+    doc.font("Helvetica-Bold").fontSize(9).text(s, sigX, currentY);
+    doc.font("Helvetica").text("________________________", sigX, currentY + 25);
+  });
+
+  doc.end();
+});
+
+
+exports.updateDataAssignTechnician = AsyncErrorHandler(
+  async (req, res, next) => {
+    try {
+      const { RequestId } = req.params;
+      const { technicianId, MessageId, status, remarks, LaboratoryEnchargeId, feedback } = req.body;
+
+      if (!RequestId) {
+        return next(
+          new CustomError(
+            "RequestId is required in URL",
+            400
+          )
+        );
+      }
+
+      // Get the request WITHOUT populating Encharge if it doesn't exist in schema
+      const request = await requestmaintenance.findById(RequestId)
+        .populate("Equipments")
+        .populate("Department")
+        .populate("Laboratory")
+        .populate("Technician");
+
+      if (!request) {
+        return next(
+          new CustomError(
+            "Maintenance request not found",
+            404
+          )
+        );
+      }
+
+      console.log("✅ Maintenance Request Found:", request._id);
+      console.log("📌 Current Request Status:", request.Status);
+      console.log("📝 Current Remarks:", request.Remarks);
+      console.log("👨‍🔧 Technicians:", request.Technician);
+
+      // ==========================================
+      // HELPER FUNCTION TO EXTRACT FEEDBACK TEXT
+      // ==========================================
+      const getFeedbackText = (feedbackData) => {
+        if (!feedbackData) return null;
+
+        if (typeof feedbackData === "string") {
+          return feedbackData.trim() || null;
+        }
+
+        if (typeof feedbackData === "object") {
+          if (feedbackData.message) {
+            return typeof feedbackData.message === "string"
+              ? feedbackData.message.trim()
+              : null;
+          }
+          if (feedbackData.remarks) {
+            return typeof feedbackData.remarks === "string"
+              ? feedbackData.remarks.trim()
+              : null;
+          }
+          return JSON.stringify(feedbackData);
+        }
+
+        return null;
+      };
+
+      const getFeedbackType = (feedbackData) => {
+        if (!feedbackData || typeof feedbackData !== "object") return null;
+        return feedbackData.type || null;
+      };
+
+      const getFeedbackSubmittedBy = (feedbackData) => {
+        if (!feedbackData || typeof feedbackData !== "object") return null;
+        return feedbackData.submittedBy || null;
+      };
+
+      // ==========================================
+      // GET EXISTING MESSAGE TO GET LABORATORY AND ENCHARGE
+      // ==========================================
+      let existingMessage = null;
+      let inchargeId = null;
+      let laboratoryData = [];
+
+      if (MessageId) {
+        existingMessage = await Message.findById(MessageId);
+        if (existingMessage) {
+          console.log("📩 Existing Message Found:", existingMessage._id);
+          console.log("📋 Existing Message Laboratory:", existingMessage.Laboratory);
+          console.log("👤 Existing Message Encharge:", existingMessage.Encharge);
+
+          if (existingMessage.Laboratory && existingMessage.Laboratory.length > 0) {
+            laboratoryData = existingMessage.Laboratory;
+          }
+
+          if (existingMessage.Encharge) {
+            inchargeId = existingMessage.Encharge;
+          }
+        }
+      }
+
+      if (laboratoryData.length === 0 && request.Laboratory) {
+        laboratoryData = [request.Laboratory._id || request.Laboratory];
+      }
+
+      if (!inchargeId && request.Encharge) {
+        inchargeId = request.Encharge;
+      }
+
+      console.log("📋 Final Laboratory Data:", laboratoryData);
+      console.log("👤 Final In-Charge ID:", inchargeId);
+
+      const feedbackText = getFeedbackText(feedback);
+      const feedbackType = getFeedbackType(feedback);
+      const feedbackSubmittedBy = getFeedbackSubmittedBy(feedback);
+
+      console.log("📝 Extracted Feedback Text:", feedbackText);
+      console.log("📝 Feedback Type:", feedbackType);
+      console.log("📝 Feedback Submitted By:", feedbackSubmittedBy);
+
+
+      // ==========================================
+      // CHECK IF THIS IS COMPLETED FLOW
+      // ==========================================
+      if (status === "Completed") {
+        console.log("✅ COMPLETED STATUS DETECTED");
+
+        // ==========================================
+        // UPDATE MAINTENANCE REQUEST
+        // ==========================================
+        const updateData = {
+          $set: {
+            Status: "Completed",
+            CompletedAt: new Date(),
+          },
+        };
+
+        if (
+          remarks &&
+          typeof remarks === "string" &&
+          remarks.trim() !== ""
+        ) {
+          updateData.$set.Remarks = remarks.trim();
+          updateData.$set.remarksread = false;
+
+          console.log(
+            "📝 Remarks updated to:",
+            remarks.trim()
+          );
+        }
+
+        if (feedbackText) {
+          if (
+            typeof feedback === "object" &&
+            feedback !== null
+          ) {
+            updateData.$set.feedback = feedback;
+          } else {
+            updateData.$set.feedback = feedbackText;
+          }
+
+          updateData.$set.feedbackread = false;
+
+          console.log(
+            "💬 Feedback updated to:",
+            updateData.$set.feedback
+          );
+        }
+
+        console.log(
+          "🔄 Update Data:",
+          JSON.stringify(updateData, null, 2)
+        );
+
+        const updatedRequest =
+          await requestmaintenance.findByIdAndUpdate(
+            RequestId,
+            updateData,
+            {
+              new: true,
+              runValidators: true,
+            }
+          )
+            .populate("Equipments")
+            .populate("Department")
+            .populate("Laboratory")
+            .populate("Technician");
+
+        console.log(
+          "✅ Maintenance request marked as Completed"
+        );
+
+        // ==========================================
+        // DO NOT UPDATE ORIGINAL MESSAGE
+        // Original message remains AssignedTechnician
+        // ==========================================
+        let updatedMessage = null;
+
+        // ==========================================
+        // CHECK IF COMPLETED NOTIFICATION ALREADY EXISTS
+        // ==========================================
+        const existingCompletedMessage =
+          await Message.findOne({
+            RequestID: request._id,
+            typesNotification: "TaskCompleted",
+          });
+
+        if (existingCompletedMessage) {
+          console.log(
+            "⚠️ TaskCompleted message already exists:",
+            existingCompletedMessage._id
+          );
+
+          return res.status(200).json({
+            success: true,
+            message:
+              "Task is already completed. Notification already exists.",
+
+            data: updatedRequest,
+
+            messageData: updatedMessage,
+
+            adminNotifications: [
+              existingCompletedMessage,
+            ],
+
+            adminNotified: true,
+
+            adminCount: 1,
+
+            duplicatePrevented: true,
+
+            feedbackUpdated: !!feedbackText,
+
+            feedbackData: feedback,
+          });
+        }
+
+        // ==========================================
+        // GET ALL ADMINS
+        // ==========================================
+        console.log(
+          "📨 Sending completion notification..."
+        );
+
+        const adminUsers = await user.find({
+          role: {
+            $in: ["Admin", "SuperAdmin"],
+          },
+        });
+
+        console.log(
+          `👥 Found ${adminUsers.length} admin users`
+        );
+
+        let adminNotification = null;
+
+        if (adminUsers.length > 0) {
+
+          // ==========================================
+          // TECHNICIAN NAME
+          // ==========================================
+          let technicianName =
+            "Unknown Technician";
+
+          if (
+            request.Technician &&
+            request.Technician.length > 0
+          ) {
+            const tech =
+              request.Technician[0];
+
+            technicianName =
+              tech.FirstName &&
+                tech.LastName
+                ? `${tech.FirstName} ${tech.LastName}`
+                : tech.username ||
+                tech.email ||
+                "Technician";
+          }
+
+          // ==========================================
+          // EQUIPMENT DETAILS
+          // ==========================================
+          let equipmentBrand = "N/A";
+          let equipmentSerial = "N/A";
+          let equipmentSpecs = "N/A";
+          let equipmentCategory = "N/A";
+
+          if (request.Equipments) {
+            equipmentBrand =
+              request.Equipments.EquipmentBrand ||
+              request.Equipments.name ||
+              "N/A";
+
+            equipmentSerial =
+              request.Equipments.EquipmentSerial ||
+              request.Equipments.serialNumber ||
+              "N/A";
+
+            equipmentSpecs =
+              request.Equipments.EquipmentSpecification ||
+              request.Equipments.specifications ||
+              "N/A";
+
+            equipmentCategory =
+              request.Equipments.CategoryName ||
+              request.Equipments.category ||
+              "N/A";
+          }
+
+          // ==========================================
+          // DEPARTMENT
+          // ==========================================
+          let departmentName = "N/A";
+          let departmentId = null;
+
+          if (request.Department) {
+            departmentName =
+              request.Department.name ||
+              request.Department.departmentName ||
+              "N/A";
+
+            departmentId =
+              request.Department._id ||
+              request.Department;
+          }
+
+          // ==========================================
+          // LABORATORY
+          // ==========================================
+          let laboratoryName = "N/A";
+          let laboratoryId = null;
+
+          if (request.Laboratory) {
+            laboratoryName =
+              request.Laboratory.name ||
+              request.Laboratory.laboratoryName ||
+              "N/A";
+
+            laboratoryId =
+              request.Laboratory._id ||
+              request.Laboratory;
+          }
+
+          // ==========================================
+          // COMPLETED DATE
+          // ==========================================
+          const completedDate =
+            new Date().toLocaleString(
+              "en-US",
+              {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              }
+            );
+
+          // ==========================================
+          // FEEDBACK DISPLAY
+          // ==========================================
+          let feedbackDisplay =
+            "No feedback provided.";
+
+          if (feedbackText) {
+            feedbackDisplay = feedbackText;
+
+            if (feedbackType) {
+              feedbackDisplay =
+                `Type: ${feedbackType}\n` +
+                `Message: ${feedbackText}`;
+            }
+
+            if (feedbackSubmittedBy) {
+              feedbackDisplay +=
+                `\nSubmitted By: ${feedbackSubmittedBy}`;
+            }
+          }
+
+          // ==========================================
+          // COMPLETION MESSAGE
+          // ==========================================
+          const completionMessage =
+            `✅ MAINTENANCE TASK COMPLETED
+
+The maintenance task has been successfully completed and marked as COMPLETED.
+
+🔧 EQUIPMENT DETAILS:
+• Equipment: ${equipmentBrand}
+• Serial Number: ${equipmentSerial}
+• Category: ${equipmentCategory}
+• Specifications: ${equipmentSpecs}
+
+📍 LOCATION:
+• Department: ${departmentName}
+• Laboratory: ${laboratoryName}
+
+👨‍🔧 TECHNICIAN:
+• Assigned Technician: ${technicianName}
+
+📝 COMPLETION REMARKS:
+${remarks &&
+              typeof remarks === "string"
+              ? remarks.trim()
+              : "No remarks provided."
+            }
+
+💬 FEEDBACK FROM IN-CHARGE:
+${feedbackDisplay}
+
+📌 Request Reference: ${request.Ref || request._id
+            }
+
+📅 Date Completed: ${completedDate}
+
+✅ This task has been fully completed and is now closed.`;
+
+          // ==========================================
+          // FEEDBACK TO STORE
+          // ==========================================
+          let feedbackToStore = null;
+
+          if (feedbackText) {
+            if (
+              typeof feedback === "object" &&
+              feedback !== null
+            ) {
+              feedbackToStore = feedback;
+            } else {
+              feedbackToStore = feedbackText;
+            }
+          }
+
+          // ==========================================
+          // CREATE VIEWERS FOR ALL ADMINS
+          // ==========================================
+          const viewers = adminUsers.map(
+            (adminUser) => ({
+              user: adminUser._id,
+              isRead: false,
+            })
+          );
+
+          console.log(
+            "👁️ Admin Viewers:",
+            viewers
+          );
+
+          // ==========================================
+          // CREATE ONLY ONE COMPLETED MESSAGE
+          // ==========================================
+          const messageData = {
+            message: completionMessage,
+
+            equipmentId:
+              request.Equipments?._id || null,
+
+            typesNotification:
+              "TaskCompleted",
+
+            Status: "Completed",
+
+            Laboratory: laboratoryId
+              ? [laboratoryId]
+              : laboratoryData,
+
+            Department:
+              departmentId || null,
+
+            To: "Admin",
+
+            // ONE MESSAGE ONLY
+            Encharge:
+              adminUsers[0]._id,
+
+            role:
+              adminUsers[0].role || "Admin",
+
+            RequestID:
+              request._id,
+
+            read: false,
+
+            viewers: viewers,
+
+            feedback:
+              feedbackToStore,
+
+            feedbackType:
+              feedbackType,
+
+            feedbackSubmittedBy:
+              feedbackSubmittedBy,
+
+            parentMessageId:
+              MessageId || null,
+          };
+
+          console.log(
+            "📨 Creating ONE TaskCompleted Message:"
+          );
+
+          console.log(
+            JSON.stringify(
+              messageData,
+              null,
+              2
+            )
+          );
+
+          adminNotification =
+            await Message.create(
+              messageData
+            );
+
+          console.log(
+            "✅ ONE completion notification created:",
+            adminNotification._id
+          );
+
+          console.log(
+            `👥 Message is visible to ${viewers.length} admin(s)`
+          );
+        } else {
+          console.log(
+            "⚠️ No Admin/SuperAdmin found."
+          );
+        }
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+        return res.status(200).json({
+          success: true,
+
+          message:
+            "Task marked as completed successfully. Admins have been notified.",
+
+          data:
+            updatedRequest,
+
+          messageData:
+            updatedMessage,
+
+          adminNotifications:
+            adminNotification
+              ? [adminNotification]
+              : [],
+
+          adminNotified:
+            !!adminNotification,
+
+          adminCount:
+            adminNotification
+              ? 1
+              : 0,
+
+          duplicatePrevented:
+            false,
+
+          feedbackUpdated:
+            !!feedbackText,
+
+          feedbackData:
+            feedback,
+        });
+      }
+      // ==========================================
+      // CHECK IF THIS IS APPROVED FLOW
+      // ==========================================
+      else if (status === "Approved") {
+        console.log("✅ APPROVED STATUS DETECTED");
+
+        // ==========================================
+        // UPDATE MAINTENANCE REQUEST
+        // ==========================================
+        const updateData = {
+          $set: {
+            Status: "Approved",
+          },
+        };
+
+        if (
+          remarks &&
+          typeof remarks === "string" &&
+          remarks.trim() !== ""
+        ) {
+          updateData.$set.Remarks = remarks.trim();
+          updateData.$set.remarksread = false;
+
+          console.log("📝 Remarks updated to:", remarks.trim());
+        }
+
+        if (feedbackText) {
+          if (
+            typeof feedback === "object" &&
+            feedback !== null
+          ) {
+            updateData.$set.feedback = feedback;
+          } else {
+            updateData.$set.feedback = feedbackText;
+          }
+
+          updateData.$set.feedbackread = false;
+
+          console.log(
+            "💬 Feedback updated to:",
+            updateData.$set.feedback
+          );
+        }
+
+        console.log(
+          "🔄 Update Data:",
+          JSON.stringify(updateData, null, 2)
+        );
+
+        const updatedRequest =
+          await requestmaintenance.findByIdAndUpdate(
+            RequestId,
+            updateData,
+            {
+              new: true,
+              runValidators: true,
+            }
+          )
+            .populate("Equipments")
+            .populate("Department")
+            .populate("Laboratory")
+            .populate("Technician");
+
+        console.log(
+          "✅ Maintenance request marked as Approved"
+        );
+
+        // ==========================================
+        // DO NOT UPDATE ORIGINAL MESSAGE
+        // Original message remains AssignedTechnician
+        // ==========================================
+        let updatedMessage = null;
+
+        // ==========================================
+        // CHECK IF TECHNICIAN CONFIRMED MESSAGE
+        // ALREADY EXISTS
+        // ==========================================
+        const existingApprovedMessage =
+          await Message.findOne({
+            RequestID: request._id,
+            typesNotification: "TechnicianConfirmed",
+          });
+
+        if (existingApprovedMessage) {
+          console.log(
+            "⚠️ TechnicianConfirmed message already exists:",
+            existingApprovedMessage._id
+          );
+
+          return res.status(200).json({
+            success: true,
+            message:
+              "Request is already approved. Notification already exists.",
+            data: updatedRequest,
+            messageData: updatedMessage,
+            adminNotifications: [existingApprovedMessage],
+            adminNotified: true,
+            adminCount: 1,
+            duplicatePrevented: true,
+            feedbackUpdated: !!feedbackText,
+            feedbackData: feedback,
+          });
+        }
+
+        // ==========================================
+        // GET ALL ADMINS
+        // ==========================================
+        console.log(
+          "📨 Checking admins for notification..."
+        );
+
+        const adminUsers = await user.find({
+          role: {
+            $in: ["Admin", "SuperAdmin"],
+          },
+        });
+
+        console.log(
+          `👥 Found ${adminUsers.length} admin users`
+        );
+
+        let adminNotification = null;
+
+        if (adminUsers.length > 0) {
+          // ==========================================
+          // TECHNICIAN NAME
+          // ==========================================
+          let technicianName = "Unknown Technician";
+
+          if (
+            request.Technician &&
+            request.Technician.length > 0
+          ) {
+            const tech = request.Technician[0];
+
+            technicianName =
+              tech.FirstName && tech.LastName
+                ? `${tech.FirstName} ${tech.LastName}`
+                : tech.username ||
+                tech.email ||
+                "Technician";
+          }
+
+          // ==========================================
+          // EQUIPMENT DETAILS
+          // ==========================================
+          let equipmentBrand = "N/A";
+          let equipmentSerial = "N/A";
+          let equipmentSpecs = "N/A";
+          let equipmentCategory = "N/A";
+
+          if (request.Equipments) {
+            equipmentBrand =
+              request.Equipments.EquipmentBrand ||
+              request.Equipments.name ||
+              "N/A";
+
+            equipmentSerial =
+              request.Equipments.EquipmentSerial ||
+              request.Equipments.serialNumber ||
+              "N/A";
+
+            equipmentSpecs =
+              request.Equipments.EquipmentSpecification ||
+              request.Equipments.specifications ||
+              "N/A";
+
+            equipmentCategory =
+              request.Equipments.CategoryName ||
+              request.Equipments.category ||
+              "N/A";
+          }
+
+          // ==========================================
+          // DEPARTMENT
+          // ==========================================
+          let departmentName = "N/A";
+          let departmentId = null;
+
+          if (request.Department) {
+            departmentName =
+              request.Department.name ||
+              request.Department.departmentName ||
+              "N/A";
+
+            departmentId =
+              request.Department._id ||
+              request.Department;
+          }
+
+          // ==========================================
+          // LABORATORY
+          // ==========================================
+          let laboratoryName = "N/A";
+          let laboratoryId = null;
+
+          if (request.Laboratory) {
+            laboratoryName =
+              request.Laboratory.name ||
+              request.Laboratory.laboratoryName ||
+              "N/A";
+
+            laboratoryId =
+              request.Laboratory._id ||
+              request.Laboratory;
+          }
+
+          // ==========================================
+          // APPROVED DATE
+          // ==========================================
+          const approvedDate =
+            new Date().toLocaleString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            });
+
+          // ==========================================
+          // FEEDBACK DISPLAY
+          // ==========================================
+          let feedbackDisplay =
+            "No feedback provided.";
+
+          if (feedbackText) {
+            feedbackDisplay = feedbackText;
+
+            if (feedbackType) {
+              feedbackDisplay =
+                `Type: ${feedbackType}\n` +
+                `Message: ${feedbackText}`;
+            }
+
+            if (feedbackSubmittedBy) {
+              feedbackDisplay +=
+                `\nSubmitted By: ${feedbackSubmittedBy}`;
+            }
+          }
+
+          // ==========================================
+          // MESSAGE CONTENT
+          // ==========================================
+          const professionalMessage =
+            `📋 MAINTENANCE TASK CONFIRMATION
+
+Technician ${technicianName} has successfully confirmed and completed the assigned maintenance task.
+
+🔧 EQUIPMENT DETAILS:
+• Equipment: ${equipmentBrand}
+• Serial Number: ${equipmentSerial}
+• Category: ${equipmentCategory}
+• Specifications: ${equipmentSpecs}
+
+📍 LOCATION:
+• Department: ${departmentName}
+• Laboratory: ${laboratoryName}
+
+📝 REMARKS:
+${remarks && typeof remarks === "string"
+              ? remarks.trim()
+              : "No remarks provided."
+            }
+
+💬 FEEDBACK:
+${feedbackDisplay}
+
+📌 Request Reference: ${request.Ref || request._id
+            }
+
+📅 Date Confirmed: ${approvedDate}
+
+This task has been marked as APPROVED and completed by the assigned technician.`;
+
+          // ==========================================
+          // FEEDBACK TO STORE
+          // ==========================================
+          let feedbackToStore = null;
+
+          if (feedbackText) {
+            if (
+              typeof feedback === "object" &&
+              feedback !== null
+            ) {
+              feedbackToStore = feedback;
+            } else {
+              feedbackToStore = feedbackText;
+            }
+          }
+
+          // ==========================================
+          // CREATE VIEWERS FOR ALL ADMINS
+          // ==========================================
+          const viewers = adminUsers.map((adminUser) => ({
+            user: adminUser._id,
+            isRead: false,
+          }));
+
+          console.log(
+            "👁️ Admin Viewers:",
+            viewers
+          );
+
+          // ==========================================
+          // CREATE ONLY ONE MESSAGE
+          // ==========================================
+          const messageData = {
+            message: professionalMessage,
+
+            equipmentId:
+              request.Equipments?._id || null,
+
+            typesNotification:
+              "TechnicianConfirmed",
+
+            Status: "Approved",
+
+            Laboratory: laboratoryId
+              ? [laboratoryId]
+              : laboratoryData,
+
+            Department: departmentId || null,
+
+            To: "Admin",
+
+            // One Message only.
+            // Use first admin as Encharge/reference.
+            Encharge: adminUsers[0]._id,
+
+            role: adminUsers[0].role || "Admin",
+
+            RequestID: request._id,
+
+            read: false,
+
+            viewers: viewers,
+
+            feedback: feedbackToStore,
+
+            feedbackType: feedbackType,
+
+            feedbackSubmittedBy:
+              feedbackSubmittedBy,
+
+            parentMessageId:
+              MessageId || null,
+          };
+
+          console.log(
+            "📨 Creating ONE TechnicianConfirmed Message:"
+          );
+
+          console.log(
+            JSON.stringify(messageData, null, 2)
+          );
+
+          adminNotification =
+            await Message.create(messageData);
+
+          console.log(
+            "✅ ONE notification message created:",
+            adminNotification._id
+          );
+
+          console.log(
+            `👥 Message is visible to ${viewers.length} admin(s)`
+          );
+        } else {
+          console.log(
+            "⚠️ No Admin/SuperAdmin found."
+          );
+        }
+
+        // ==========================================
+        // RESPONSE
+        // ==========================================
+        return res.status(200).json({
+          success: true,
+          message:
+            "Request approved successfully. Admins have been notified.",
+
+          data: updatedRequest,
+
+          messageData: updatedMessage,
+
+          adminNotifications:
+            adminNotification
+              ? [adminNotification]
+              : [],
+
+          adminNotified:
+            !!adminNotification,
+
+          adminCount:
+            adminNotification ? 1 : 0,
+
+          feedbackUpdated:
+            !!feedbackText,
+
+          feedbackData: feedback,
+
+          duplicatePrevented: false,
+        });
+      }
+      // ==========================================
+      // CHECK IF THIS IS INCHARGECONFIRMED FLOW (with remarks)
+      // ==========================================
+      else if (status === "InchargedConfirmed" && remarks && typeof remarks === "string" && remarks.trim() !== "") {
+        console.log("✅ INCHARGECONFIRMED WITH REMARKS DETECTED");
+
+        const updateData = {
+          $set: {
+            Status: "InchargedConfirmed",
+            Remarks: remarks.trim(),
+            remarksread: false
+          }
+        };
+
+        if (feedbackText) {
+          if (typeof feedback === "object" && feedback !== null) {
+            updateData.$set.feedback = feedback;
+          } else {
+            updateData.$set.feedback = feedbackText;
+          }
+          updateData.$set.feedbackread = false;
+          console.log("💬 Feedback updated to:", updateData.$set.feedback);
+        }
+
+        console.log("🔄 Update Data (RequestMaintenance):", JSON.stringify(updateData, null, 2));
+
+        const updatedRequest = await requestmaintenance.findByIdAndUpdate(
+          RequestId,
+          updateData,
+          {
+            new: true,
+            runValidators: true,
+          }
+        )
+          .populate("Equipments")
+          .populate("Department")
+          .populate("Laboratory")
+          .populate("Technician");
+
+        console.log("✅ Maintenance request updated successfully");
+        console.log("📌 New Status (RequestMaintenance):", updatedRequest.Status);
+        console.log("📝 New Remarks:", updatedRequest.Remarks);
+
+        let laboratoryId = null;
+        if (updatedRequest.Laboratory) {
+          laboratoryId = updatedRequest.Laboratory._id || updatedRequest.Laboratory;
+          console.log("🔬 Laboratory ID from updatedRequest:", laboratoryId);
+        }
+
+        // ==========================================
+        // UPDATE EXISTING MESSAGE - REMARKS ONLY (NO STATUS UPDATE)
+        // ==========================================
+        let updatedMessage = null;
+        if (MessageId) {
+          const messageUpdateData = {
+            $set: {
+              remarks: remarks.trim(),
+              read: true
+            }
+          };
+
+          if (feedbackText) {
+            if (typeof feedback === "object" && feedback !== null) {
+              messageUpdateData.$set.feedback = feedback;
+            } else {
+              messageUpdateData.$set.feedback = feedbackText;
+            }
+          }
+
+          updatedMessage = await Message.findByIdAndUpdate(
+            MessageId,
+            messageUpdateData,
+            {
+              new: true,
+              runValidators: true,
+            }
+          );
+
+          if (updatedMessage) {
+            console.log("📩 Message Remarks Updated (status unchanged):", updatedMessage._id);
+            console.log("📌 Message Status remains:", updatedMessage.Status);
+          }
+        }
+
+        // ==========================================
+        // SEND NOTIFICATION TO IN-CHARGE (NEW MESSAGE)
+        // ==========================================
+        let inchargeNotification = null;
+        const targetInchargeId = LaboratoryEnchargeId || inchargeId;
+
+        if (targetInchargeId) {
+          console.log(`📨 Sending notification to In-Charge: ${targetInchargeId}...`);
+
+          let technicianName = "Unknown Technician";
+          if (request.Technician && request.Technician.length > 0) {
+            const tech = request.Technician[0];
+            technicianName = tech.FirstName && tech.LastName
+              ? `${tech.FirstName} ${tech.LastName}`
+              : tech.username || tech.email || "Technician";
+          }
+
+          let equipmentBrand = "N/A";
+          let equipmentSerial = "N/A";
+          if (request.Equipments) {
+            equipmentBrand = request.Equipments.EquipmentBrand || request.Equipments.name || "N/A";
+            equipmentSerial = request.Equipments.EquipmentSerial || request.Equipments.serialNumber || "N/A";
+          }
+
+          const inchargeMessage = `📋 MAINTENANCE TASK COMPLETION - NEEDS YOUR CONFIRMATION
+
+Technician ${technicianName} has completed the assigned maintenance task and is awaiting your confirmation.
+
+🔧 EQUIPMENT DETAILS:
+• Equipment: ${equipmentBrand}
+• Serial Number: ${equipmentSerial}
+
+📝 TECHNICIAN'S REMARKS:
+${remarks ? remarks.trim() : 'No remarks provided.'}
+
+📌 Request Reference: ${request.Ref || request._id}
+📅 Date Completed: ${new Date().toLocaleString()}
+
+⚠️ ACTION REQUIRED: Please review the technician's work and provide your confirmation or feedback.`;
+
+          let inchargeUser = null;
+          try {
+            inchargeUser = await user.findById(targetInchargeId);
+          } catch (err) {
+            console.log("⚠️ Could not find incharge user:", err.message);
+          }
+
+          let viewers = [];
+          if (targetInchargeId) {
+            viewers = [
+              {
+                user: targetInchargeId,
+                isRead: false
+              }
+            ];
+            console.log("👁️ Viewers for In-Charge message (LaboratoryEnchargeId only):", viewers);
+          } else {
+            console.log("⚠️ No LaboratoryEnchargeId found, viewers will be empty");
+          }
+
+          inchargeNotification = await Message.create({
+            message: inchargeMessage,
+            equipmentId: request.Equipments?._id || null,
+            typesNotification: "InchargeConfirmation",
+            Status: "Waiting_Feedback_Incharge",
+            Laboratory: laboratoryData,
+            To: "Incharge",
+            Encharge: targetInchargeId,
+            role: inchargeUser?.role || "Incharge",
+            RequestID: request._id,
+            read: false,
+            viewers: viewers,
+            parentMessageId: MessageId || null
+          });
+
+          console.log(`✅ Notification sent to In-Charge: ${targetInchargeId}`);
+          console.log(`📋 Laboratory saved in notification:`, laboratoryData);
+          console.log(`👁️ Viewers saved:`, inchargeNotification.viewers);
+        } else {
+          console.log("⚠️ No In-Charge found for this request");
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: "Request confirmed successfully. In-charge has been notified.",
+          data: updatedRequest,
+          messageData: updatedMessage,
+          inchargeNotification: inchargeNotification,
+          inchargeNotified: !!inchargeNotification,
+        });
+
+      }
+      // ==========================================
+      // CHECK IF THIS IS REMARKS-ONLY FLOW (no status)
+      // ==========================================
+      else if (remarks && typeof remarks === "string" && remarks.trim() !== "") {
+        console.log("📝 REMARKS-ONLY DETECTED - Updating only remarks");
+
+        const updateData = {
+          $set: {
+            Remarks: remarks.trim(),
+            remarksread: false
+          }
+        };
+
+        console.log("🔄 Update Data (Status unchanged):", JSON.stringify(updateData, null, 2));
+
+        const updatedRequest = await requestmaintenance.findByIdAndUpdate(
+          RequestId,
+          updateData,
+          {
+            new: true,
+            runValidators: true,
+          }
+        )
+          .populate("Equipments")
+          .populate("Department")
+          .populate("Laboratory")
+          .populate("Technician");
+
+        console.log("✅ Maintenance request updated successfully");
+        console.log("📌 Status remains:", updatedRequest.Status);
+        console.log("📝 New Remarks:", updatedRequest.Remarks);
+
+        let updatedMessage = null;
+        if (MessageId) {
+          updatedMessage = await Message.findByIdAndUpdate(
+            MessageId,
+            {
+              $set: {
+                remarks: remarks.trim(),
+                read: true
+              }
+            },
+            {
+              new: true,
+              runValidators: true,
+            }
+          );
+
+          if (updatedMessage) {
+            console.log("📩 Message Remarks Updated (status unchanged):", updatedMessage._id);
+          }
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: "Remarks submitted successfully.",
+          data: updatedRequest,
+          messageData: updatedMessage,
+          adminNotified: false
+        });
+
+      }
+      // ==========================================
+      // FOR ASSIGN TECHNICIAN (no status and no remarks)
+      // ==========================================
+      else {
+        console.log("🔧 ASSIGN TECHNICIAN FLOW");
+
+        if (!technicianId) {
+          return next(
+            new CustomError(
+              "technicianId is required for assignment",
+              400
+            )
+          );
+        }
+
+        const updateData = {
+          $addToSet: {
+            Technician: technicianId,
+          },
+        };
+
+        if (request.Status === "Pending" || !request.Status) {
+          updateData.$set = {
+            Status: "Assigned",
+          };
+        }
+
+        console.log("🔄 Maintenance Update Data:", JSON.stringify(updateData, null, 2));
+
+        const updatedRequest = await requestmaintenance.findByIdAndUpdate(
+          RequestId,
+          updateData,
+          {
+            new: true,
+            runValidators: true,
+          }
+        )
+          .populate("Equipments")
+          .populate("Department")
+          .populate("Laboratory")
+          .populate("Technician");
+
+        console.log("✅ Maintenance request updated successfully");
+
+        let updatedMessage = null;
+        if (MessageId) {
+          updatedMessage = await Message.findByIdAndUpdate(
+            MessageId,
+            {
+              $set: {
+                Status: "Assigned",
+                read: true,
+                technicianId: technicianId,
+              },
+              $addToSet: {
+                viewers: {
+                  user: technicianId,
+                  isRead: false,
+                },
+              },
+            },
+            {
+              new: true,
+              runValidators: true,
+            }
+          );
+
+          if (!updatedMessage) {
+            return next(
+              new CustomError(
+                "Message not found",
+                404
+              )
+            );
+          }
+
+          console.log("📩 Existing Message Updated:", updatedMessage._id);
+        }
+
+        const messageData = {
+          message: `New maintenance request assigned to you for Equipment ID: ${request.Equipments}.`,
+          equipmentId: request.Equipments?._id || null,
+          typesNotification: status || "AssignedTechnician",
+          Status: status || "Assigned",
+          Laboratory: request.Laboratory ? [request.Laboratory] : [],
+          To: "Technician",
+          Encharge: technicianId,
+          role: "Technician",
+          RequestID: request._id,
+          viewers: [
+            {
+              user: technicianId,
+              isRead: false,
+            },
+          ],
+        };
+
+        console.log("📨 New Message Data:", JSON.stringify(messageData, null, 2));
+
+        const newMessage = await Message.create(messageData);
+
+        console.log("✅ New Message Created for technician:", newMessage._id);
+
+        return res.status(200).json({
+          success: true,
+          message: "Technician assigned successfully",
+          data: updatedRequest,
+          messageData: updatedMessage,
+          newMessage: newMessage,
+          adminNotified: false
+        });
+      }
+
+    } catch (error) {
+      console.error("❌ Error in updateDataAssignTechnician:", error);
+      console.error("❌ Stack:", error.stack);
+
+      return next(
+        new CustomError(
+          error.message || "Server error",
+          500
+        )
+      );
+    }
+  }
+);
+
+
+exports.TechnicianTask = AsyncErrorHandler(async (req, res) => {
+  // ============================================================
+  // 1. BUILD QUERY WITH FILTERS
+  // ============================================================
+  const features = new Apifeatures(requestmaintenance.find(), req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate();
+
+  // ============================================================
+  // 2. EXECUTE QUERY
+  // ============================================================
+  const filteredrequest = await features.query;
+
+  // ============================================================
+  // 3. IF NO RESULTS
+  // ============================================================
+  if (!filteredrequest || filteredrequest.length === 0) {
+    return res.status(200).json({
+      status: "success",
+      results: 0,
+      totalTechnicians: 0,
+      data: {
+        technicians: [],
+        unassigned: {
+          count: 0,
+          tasks: [],
+        },
+        summary: {
+          totalTechnicians: 0,
+          totalTasks: 0,
+          totalAssigned: 0,
+          unassignedCount: 0,
+        },
+      },
+    });
+  }
+
+  // ============================================================
+  // 4. GET ONLY ASSIGNED TASKS WITH TECHNICIAN
+  // ============================================================
+  const technicianTasks = await requestmaintenance.aggregate([
+    {
+      $match: {
+        _id: {
+          $in: filteredrequest.map((item) => item._id),
+        },
+
+        // IMPORTANT:
+        // Only requests with Status === "Assigned"
+        Status: "Assigned",
+
+        // Only requests that have a Technician
+        Technician: {
+          $ne: null,
+        },
+      },
+    },
+
+    // ============================================================
+    // 5. LOOKUP TECHNICIAN
+    // ============================================================
+    {
+      $lookup: {
+        from: "users",
+        localField: "Technician",
+        foreignField: "_id",
+        as: "TechnicianDetails",
+      },
+    },
+
+    // ============================================================
+    // 6. UNWIND TECHNICIAN
+    // ============================================================
+    {
+      $unwind: {
+        path: "$TechnicianDetails",
+        preserveNullAndEmptyArrays: false,
+      },
+    },
+
+    // ============================================================
+    // 7. GROUP BY TECHNICIAN
+    // ============================================================
+    {
+      $group: {
+        _id: {
+          technicianId: "$Technician",
+          firstName: "$TechnicianDetails.FirstName",
+          middleName: "$TechnicianDetails.MiddleName",
+          lastName: "$TechnicianDetails.LastName",
+          email: "$TechnicianDetails.Email",
+        },
+
+        // Since only Assigned records are included,
+        // every task here is Assigned.
+        totalTasks: {
+          $sum: 1,
+        },
+
+        assignedTasks: {
+          $sum: 1,
+        },
+
+        tasks: {
+          $push: {
+            _id: "$_id",
+            Ref: "$Ref",
+            Status: "$Status",
+            Description: "$Description",
+            DateTime: "$DateTime",
+          },
+        },
+      },
+    },
+
+    // ============================================================
+    // 8. PROJECT OUTPUT
+    // ============================================================
+    {
+      $project: {
+        _id: 0,
+
+        technicianId: "$_id.technicianId",
+
+        technicianName: {
+          $trim: {
+            input: {
+              $concat: [
+                {
+                  $ifNull: ["$_id.firstName", ""],
+                },
+                " ",
+                {
+                  $ifNull: ["$_id.middleName", ""],
+                },
+                " ",
+                {
+                  $ifNull: ["$_id.lastName", ""],
+                },
+              ],
+            },
+          },
+        },
+
+        technicianEmail: "$_id.email",
+
+        totalTasks: 1,
+
+        assignedTasks: 1,
+
+        tasks: {
+          $slice: ["$tasks", 5],
+        },
+
+        taskCount: {
+          $size: "$tasks",
+        },
+      },
+    },
+
+    // ============================================================
+    // 9. SORT
+    // ============================================================
+    {
+      $sort: {
+        totalTasks: -1,
+      },
+    },
+  ]);
+
+  // ============================================================
+  // 10. GET UNASSIGNED ASSIGNED TASKS
+  // ============================================================
+  const unassignedTasks = await requestmaintenance.aggregate([
+    {
+      $match: {
+        _id: {
+          $in: filteredrequest.map((item) => item._id),
+        },
+
+        // Only Assigned status
+        Status: "Assigned",
+
+        // No technician assigned
+        $or: [
+          {
+            Technician: null,
+          },
+          {
+            Technician: {
+              $exists: false,
+            },
+          },
+        ],
+      },
+    },
+
+    {
+      $group: {
+        _id: null,
+
+        count: {
+          $sum: 1,
+        },
+
+        tasks: {
+          $push: {
+            _id: "$_id",
+            Ref: "$Ref",
+            Status: "$Status",
+            Description: "$Description",
+            DateTime: "$DateTime",
+          },
+        },
+      },
+    },
+  ]);
+
+  // ============================================================
+  // 11. PREPARE UNASSIGNED DATA
+  // ============================================================
+  const unassigned = unassignedTasks.length > 0
+    ? {
+      count: unassignedTasks[0].count,
+      tasks: unassignedTasks[0].tasks.slice(0, 5),
+    }
+    : {
+      count: 0,
+      tasks: [],
+    };
+
+  // ============================================================
+  // 12. PREPARE RESPONSE
+  // ============================================================
+  const responseData = {
+    technicians: technicianTasks,
+
+    unassigned,
+
+    summary: {
+      // Only technicians with Assigned tasks
+      totalTechnicians: technicianTasks.length,
+
+      // Only Assigned tasks
+      totalTasks: technicianTasks.reduce(
+        (sum, technician) => sum + technician.totalTasks,
+        0
+      ),
+
+      totalAssigned: technicianTasks.reduce(
+        (sum, technician) => sum + technician.assignedTasks,
+        0
+      ),
+
+      unassignedCount: unassigned.count,
+    },
+  };
+
+  // ============================================================
+  // 13. SEND RESPONSE
+  // ============================================================
+  return res.status(200).json({
+    status: "success",
+
+    results: technicianTasks.length,
+
+    totalTechnicians: technicianTasks.length,
+
+    data: responseData,
+  });
+});
+
+
+
