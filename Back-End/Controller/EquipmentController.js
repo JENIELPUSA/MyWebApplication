@@ -87,8 +87,8 @@ exports.Displaytool = AsyncErrorHandler(async (req, res) => {
         let: { equipmentId: "$_id" },
         pipeline: [
           { $match: { $expr: { $eq: ["$equipmentType", "$$equipmentId"] } } },
-          { $sort: { lastMaintenanceDate: -1 } }, // latest first
-          { $limit: 1 }, // only latest maintenance
+          { $sort: { lastMaintenanceDate: -1 } },
+          { $limit: 1 },
           {
             $project: {
               _id: 1,
@@ -155,6 +155,11 @@ exports.Displaytool = AsyncErrorHandler(async (req, res) => {
         _id: 1,
       },
     },
+
+    // ✅ SORT BY BRAND A-Z
+    {
+      $sort: { Brand: 1 } // 1 = A-Z, -1 = Z-A
+    }
   ]);
 
   res.status(200).json({

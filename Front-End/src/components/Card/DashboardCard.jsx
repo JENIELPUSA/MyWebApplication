@@ -1,5 +1,43 @@
 // src/components/DashboardCard.jsx
-import { MdPerson, MdBuild, MdScience, MdApartment, MdCheckCircle, MdHourglassEmpty, MdWarning, MdPending, MdCheck, MdClose, MdSmsFailed, MdDoneAll, MdSchedule, MdAssignment, MdDevices, MdInventory, MdErrorOutline, MdOutlineCheckCircle, MdOutlinePending, MdOutlineWarning, MdChevronLeft, MdChevronRight } from "react-icons/md";
+import { 
+    MdPerson, 
+    MdBuild, 
+    MdScience, 
+    MdApartment, 
+    MdCheckCircle, 
+    MdHourglassEmpty, 
+    MdWarning, 
+    MdPending, 
+    MdCheck, 
+    MdClose, 
+    MdSmsFailed, 
+    MdDoneAll, 
+    MdSchedule, 
+    MdAssignment, 
+    MdDevices, 
+    MdInventory, 
+    MdErrorOutline, 
+    MdOutlineCheckCircle, 
+    MdOutlinePending, 
+    MdOutlineWarning, 
+    MdChevronLeft, 
+    MdChevronRight,
+    // Supply Dashboard Icons
+    MdInventory2,
+    MdCheckCircleOutline,
+    MdCancel,
+    MdReportProblem,
+    MdCategory,
+    MdBrandingWatermark,
+    MdShowChart,
+    MdCalendarToday,
+    MdDashboard,
+    MdOutlineInventory,
+    MdOutlineCheckCircle as MdOutlineCheck,
+    MdOutlineCancel,
+    MdOutlineWarning as MdOutlineAlert
+} from "react-icons/md";
+
 import React, { useState, useContext, useEffect, useRef, useMemo, useCallback } from "react";
 import { EquipmentDataContext } from "../../contexts/EquipmentContext/EquipmentContext.jsx";
 import { LaboratoryContext } from "../../contexts/LaboratoryContext/LaboratoryContext.jsx";
@@ -9,13 +47,15 @@ import { FilterSpecificAssignContext } from "../../contexts/FilterSpecificAssign
 import { MaintenanceRequestContext } from "../../contexts/MaintenanceRequestContext/MaintenanceRequestContext.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 
-function DashboardCard({ statisticsData, technicianStats }) {
+function DashboardCard({ statisticsData, technicianStats, supplyStatistics }) {
 
-  console.log("technicianStats", technicianStats?.dashboardCards);
-  
+  console.log("supplyStatistics", supplyStatistics);
+
   // Extract summary data from statisticsData
   const summary = statisticsData?.summary || {};
   const technicianCard = technicianStats?.dashboardCards || {};
+  const supplyCard = supplyStatistics?.summary || {};
+  const supplyCards = supplyStatistics?.cards || [];
 
   const [piedataTechnician, setPiedatatoTechnician] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -106,9 +146,59 @@ function DashboardCard({ statisticsData, technicianStats }) {
         { icon: MdPerson, label: "Requests with Technician", value: technicianCard.requestsWithTechnician || 0 },
         { icon: MdOutlineWarning, label: "Requests without Technician", value: technicianCard.requestsWithoutTechnician || 0 },
       ];
+    } else if (role === "Supply") {
+      // Use supplyCards from API if available, otherwise use default
+      if (supplyCards && supplyCards.length > 0) {
+        const iconMap = {
+          'Total Equipment': MdInventory2,
+          'Available': MdCheckCircleOutline,
+          'Not Available': MdCancel,
+          'With Issues': MdReportProblem
+        };
+        
+        return supplyCards.map((card) => ({
+          icon: iconMap[card.title] || MdInventory,
+          label: card.title,
+          value: card.value,
+          subtitle: card.subtitle,
+          color: card.color
+        }));
+      }
+
+      // Default Supply cards
+      return [
+        {
+          icon: MdInventory2,
+          label: "Total Equipment",
+          value: supplyCard?.totalEquipment || 0,
+          subtitle: "All registered equipment",
+          color: "blue"
+        },
+        {
+          icon: MdCheckCircleOutline,
+          label: "Available",
+          value: supplyCard?.availableEquipment || 0,
+          subtitle: `${supplyCard?.totalEquipment > 0 ? ((supplyCard?.availableEquipment / supplyCard?.totalEquipment) * 100).toFixed(1) : 0}% of total`,
+          color: "green"
+        },
+        {
+          icon: MdCancel,
+          label: "Not Available",
+          value: supplyCard?.notAvailableEquipment || 0,
+          subtitle: `${supplyCard?.totalEquipment > 0 ? ((supplyCard?.notAvailableEquipment / supplyCard?.totalEquipment) * 100).toFixed(1) : 0}% of total`,
+          color: "red"
+        },
+        {
+          icon: MdReportProblem,
+          label: "With Issues",
+          value: supplyCard?.equipmentWithRemarks || 0,
+          subtitle: `${supplyCard?.totalEquipment > 0 ? ((supplyCard?.equipmentWithRemarks / supplyCard?.totalEquipment) * 100).toFixed(1) : 0}% have remarks`,
+          color: "yellow"
+        },
+      ];
     }
     return [];
-  }, [role, summary, technicianCard, laboratoryData]);
+  }, [role, summary, technicianCard, supplyCard, supplyCards]);
 
   // MEMOIZED cards to prevent recalculation on every render
   const cards = useMemo(() => getCardData(), [getCardData]);
@@ -144,7 +234,7 @@ function DashboardCard({ statisticsData, technicianStats }) {
         autoSlideInterval.current = null;
       }
     };
-  }, [totalPages, isPaused]); // Only depend on totalPages and isPaused
+  }, [totalPages, isPaused]);
 
   // Effect for technician data filtering
   useEffect(() => {
@@ -266,7 +356,7 @@ function DashboardCard({ statisticsData, technicianStats }) {
   }), []);
 
   // Reusable Card Component - BIPSU Yellow Theme with BLUE accent bar
-  const CardItem = useCallback(({ icon: Icon, label, value, index }) => (
+  const CardItem = useCallback(({ icon: Icon, label, value, index, subtitle, color }) => (
     <motion.div
       className="w-full px-3 mb-6 flex-shrink-0"
       style={{ width: `${100 / cardsPerPage}%` }}
@@ -321,6 +411,16 @@ function DashboardCard({ statisticsData, technicianStats }) {
           >
             {label}
           </motion.div>
+          {subtitle && (
+            <motion.div
+              className="text-[10px] text-gray-400 mt-0.5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.3 }}
+            >
+              {subtitle}
+            </motion.div>
+          )}
         </div>
       </motion.div>
     </motion.div>
@@ -390,6 +490,8 @@ function DashboardCard({ statisticsData, technicianStats }) {
                   icon={card.icon}
                   label={card.label}
                   value={card.value}
+                  subtitle={card.subtitle}
+                  color={card.color}
                   index={index}
                 />
               ))}

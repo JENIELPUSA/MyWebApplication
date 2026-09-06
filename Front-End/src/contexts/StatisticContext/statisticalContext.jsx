@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from "react";
+import React, { createContext, useState, useEffect, useContext, useCallback, useRef, useMemo } from "react";
 import axios from "axios";
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../components/ReusableComponent/SuccessandFailedModal";
@@ -29,6 +29,13 @@ export const StatisticsProvider = ({ children }) => {
     const [maintenanceStats, setMaintenanceStats] = useState(null);
     const [requestStats, setRequestStats] = useState(null);
 
+    // Supply Statistics States
+    const [supplyStatistics, setSupplyStatistics] = useState(null);
+    const [supplySummary, setSupplySummary] = useState(null);
+    const [supplyCards, setSupplyCards] = useState(null);
+    const [supplyCharts, setSupplyCharts] = useState(null);
+    const [supplyRecentlyAdded, setSupplyRecentlyAdded] = useState(null);
+
     // Chart Data States
     const [pieChartData, setPieChartData] = useState(null);
     const [lineGraphData, setLineGraphData] = useState(null);
@@ -47,15 +54,46 @@ export const StatisticsProvider = ({ children }) => {
     const [modalMessage, setModalMessage] = useState("");
 
     // ======================================================
+    // REFS FOR PREVENTING MULTIPLE CALLS
+    // ======================================================
+    const isFetchingRef = useRef(false);
+    const fetchTimeoutRef = useRef(null);
+    const lastFetchTimeRef = useRef(0);
+    const hasInitializedRef = useRef(false);
+
+    // ======================================================
+    // HELPER: CHECK IF WE SHOULD FETCH
+    // ======================================================
+    const shouldFetch = useCallback(() => {
+        const now = Date.now();
+        const timeSinceLastFetch = now - lastFetchTimeRef.current;
+        
+        if (isFetchingRef.current) {
+            console.log("⏳ Fetch already in progress, skipping...");
+            return false;
+        }
+
+        if (timeSinceLastFetch < 500) {
+            console.log("⏳ Too soon since last fetch, skipping...");
+            return false;
+        }
+
+        return true;
+    }, []);
+
+    // ======================================================
     // FETCH STATISTICS DATA (Admin/General)
     // ======================================================
-    const fetchStatisticsData = async () => {
+    const fetchStatisticsData = useCallback(async () => {
+        if (!shouldFetch()) return;
+
         if (!authToken) {
             setError("Authentication required");
             setLoading(false);
             return;
         }
 
+        isFetchingRef.current = true;
         setLoading(true);
         setError(null);
 
@@ -73,18 +111,12 @@ export const StatisticsProvider = ({ children }) => {
             if (response.data && response.data.status === "success") {
                 const data = response.data.data;
 
-                // Store full data
                 setStatisticsData(data);
-
-                // Store summary
                 setEquipmentStats(data.summary);
-
-                // Store chart data
                 setPieChartData(data.pieCharts || null);
                 setLineGraphData(data.lineGraphs || null);
                 setBarChartData(data.barCharts || null);
 
-                // Store individual stats for easy access
                 setMaintenanceStats({
                     totalSchedules: data.summary.totalMaintenanceSchedules,
                     totalOverdue: data.summary.totalOverdueSchedules,
@@ -101,6 +133,9 @@ export const StatisticsProvider = ({ children }) => {
                     byYear: data.lineGraphs?.requestsByYear || [],
                     byMonth: data.lineGraphs?.requestsByMonth || [],
                 });
+
+                lastFetchTimeRef.current = Date.now();
+                hasInitializedRef.current = true;
 
                 return { success: true, data: data };
             } else {
@@ -121,19 +156,84 @@ export const StatisticsProvider = ({ children }) => {
             return { success: false, error: errorMessage };
         } finally {
             setLoading(false);
+            isFetchingRef.current = false;
         }
-    };
+    }, [authToken, shouldFetch]);
 
     // ======================================================
-    // FETCH TECHNICIAN STATISTICS
+    // FETCH SUPPLY STATISTICS (Equipment Statistics)
     // ======================================================
-    const fetchTechnicianStatistics = async () => {
+    const fetchSupplyStatistics = useCallback(async () => {
+        if (!shouldFetch()) return;
+
         if (!authToken) {
             setError("Authentication required");
             setLoading(false);
             return;
         }
 
+        isFetchingRef.current = true;
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosInstance.get(
+                `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/statistical/supply_statistical`,
+                {
+                    headers: {
+                        withCredentials: true,
+                        Authorization: `Bearer ${authToken}`,
+                    },
+                }
+            );
+
+            if (response.data && response.data.success === true) {
+                const data = response.data.data;
+
+                setSupplyStatistics(data);
+                setSupplySummary(data.summary);
+                setSupplyCards(data.cards);
+                setSupplyCharts(data.charts);
+                setSupplyRecentlyAdded(data.recentlyAdded);
+
+                lastFetchTimeRef.current = Date.now();
+
+                return { success: true, data: data };
+            } else {
+                throw new Error(response.data?.message || "Unexpected response from server");
+            }
+        } catch (error) {
+            const errorMessage =
+                error.response?.data?.message ||
+                error.message ||
+                "Failed to fetch supply statistics";
+
+            setError(errorMessage);
+            setCustomError(errorMessage);
+            setModalStatus("failed");
+            setModalMessage(errorMessage);
+            setShowModal(true);
+
+            return { success: false, error: errorMessage };
+        } finally {
+            setLoading(false);
+            isFetchingRef.current = false;
+        }
+    }, [authToken, shouldFetch]);
+
+    // ======================================================
+    // FETCH TECHNICIAN STATISTICS
+    // ======================================================
+    const fetchTechnicianStatistics = useCallback(async () => {
+        if (!shouldFetch()) return;
+
+        if (!authToken) {
+            setError("Authentication required");
+            setLoading(false);
+            return;
+        }
+
+        isFetchingRef.current = true;
         setLoading(true);
         setError(null);
 
@@ -151,18 +251,15 @@ export const StatisticsProvider = ({ children }) => {
             if (response.data && response.data.status === "success") {
                 const data = response.data.data;
 
-                // Store full technician data
+                console.log("data", data);
+
                 setTechnicianStats(data);
-
-                // Store dashboard cards
                 setTechnicianDashboardCards(data.dashboardCards || null);
-
-                // Store technician equipment list
                 setTechnicianEquipment(data.technicianEquipment || null);
-
-                // Store chart data
                 setTechnicianPieCharts(data.pieCharts || null);
                 setTechnicianLineGraphs(data.lineGraphs || null);
+
+                lastFetchTimeRef.current = Date.now();
 
                 return { success: true, data: data };
             } else {
@@ -183,34 +280,35 @@ export const StatisticsProvider = ({ children }) => {
             return { success: false, error: errorMessage };
         } finally {
             setLoading(false);
+            isFetchingRef.current = false;
         }
-    };
+    }, [authToken, shouldFetch]);
 
     // ======================================================
     // REFRESH DATA
     // ======================================================
-    const refreshData = async () => {
-        setLoading(true);
+    const refreshData = useCallback(async () => {
+        lastFetchTimeRef.current = 0;
         await fetchStatisticsData();
-        setLoading(false);
-    };
+    }, [fetchStatisticsData]);
 
-    // ======================================================
-    // REFRESH TECHNICIAN DATA
-    // ======================================================
-    const refreshTechnicianData = async () => {
-        setLoading(true);
+    const refreshSupplyData = useCallback(async () => {
+        lastFetchTimeRef.current = 0;
+        await fetchSupplyStatistics();
+    }, [fetchSupplyStatistics]);
+
+    const refreshTechnicianData = useCallback(async () => {
+        lastFetchTimeRef.current = 0;
         await fetchTechnicianStatistics();
-        setLoading(false);
-    };
+    }, [fetchTechnicianStatistics]);
 
     // ======================================================
     // CLEAR ERROR
     // ======================================================
-    const clearError = () => {
+    const clearError = useCallback(() => {
         setError(null);
         setCustomError("");
-    };
+    }, []);
 
     // ======================================================
     // AUTO-DISMISS ERROR
@@ -226,19 +324,9 @@ export const StatisticsProvider = ({ children }) => {
     }, [customError]);
 
     // ======================================================
-    // INITIAL FETCH
+    // CONTEXT VALUE - MEMOIZED - TINANGGAL ANG DEBOUNCE
     // ======================================================
-    useEffect(() => {
-        if (authToken) {
-            fetchStatisticsData();
-            fetchTechnicianStatistics();
-        }
-    }, [authToken]);
-
-    // ======================================================
-    // CONTEXT VALUE
-    // ======================================================
-    const contextValue = {
+    const contextValue = useMemo(() => ({
         // State - General Statistics
         loading,
         error,
@@ -250,6 +338,13 @@ export const StatisticsProvider = ({ children }) => {
         pieChartData,
         lineGraphData,
         barChartData,
+
+        // State - Supply Statistics (Equipment)
+        supplyStatistics,
+        supplySummary,
+        supplyCards,
+        supplyCharts,
+        supplyRecentlyAdded,
 
         // State - Technician Statistics
         technicianStats,
@@ -263,10 +358,14 @@ export const StatisticsProvider = ({ children }) => {
         modalStatus,
         modalMessage,
 
-        // Functions - General
+        // Functions - Direct, walang debounce para iwas loop
         fetchStatisticsData,
         refreshData,
         clearError,
+
+        // Functions - Supply
+        fetchSupplyStatistics,
+        refreshSupplyData,
 
         // Functions - Technician
         fetchTechnicianStatistics,
@@ -276,7 +375,38 @@ export const StatisticsProvider = ({ children }) => {
         setShowModal,
         setModalStatus,
         setModalMessage,
-    };
+    }), [
+        loading,
+        error,
+        customError,
+        statisticsData,
+        equipmentStats,
+        maintenanceStats,
+        requestStats,
+        pieChartData,
+        lineGraphData,
+        barChartData,
+        supplyStatistics,
+        supplySummary,
+        supplyCards,
+        supplyCharts,
+        supplyRecentlyAdded,
+        technicianStats,
+        technicianDashboardCards,
+        technicianEquipment,
+        technicianPieCharts,
+        technicianLineGraphs,
+        showModal,
+        modalStatus,
+        modalMessage,
+        fetchStatisticsData,
+        refreshData,
+        clearError,
+        fetchSupplyStatistics,
+        refreshSupplyData,
+        fetchTechnicianStatistics,
+        refreshTechnicianData,
+    ]);
 
     // ======================================================
     // RENDER

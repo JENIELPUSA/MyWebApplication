@@ -170,7 +170,7 @@ function SignUpForm({ onClose, isOpen, user, onUpdate, onAddUser }) {
                   {dropdownOpen && (
                     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                       className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden border-t-4 border-t-yellow-400">
-                      {["Admin", "Technician", "User"].map((role) => (
+                      {["Admin", "Technician", "User","Supply"].map((role) => (
                         <div key={role} onClick={() => handleRoleSelect(role)}
                           className="px-4 py-3 text-sm font-bold text-slate-600 hover:bg-blue-50 hover:text-[#1e3a8a] cursor-pointer transition-colors border-b border-slate-50 last:border-0">
                           {role}

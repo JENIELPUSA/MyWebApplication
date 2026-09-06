@@ -5,14 +5,15 @@ import CalibrationTable from "../Calibration/CalibrationTable";
 import TypesofMaintenceForm from "../TypesOfMaintenance/TypesofMaintenceForm";
 import { motion } from "framer-motion";
 import { TypeofMaintenanceContext } from "../../contexts/TypesofMainten/TypeofMaintenanceContext";
+import { AuthContext } from "../../contexts/AuthContext";
 
 // Lucide React Icons
-import { 
-  Wrench, 
-  Eye, 
-  RefreshCw, 
-  Calendar, 
-  AlertCircle 
+import {
+  Wrench,
+  Eye,
+  RefreshCw,
+  Calendar,
+  AlertCircle
 } from "lucide-react";
 
 function MaintenanceDisplay() {
@@ -21,6 +22,10 @@ function MaintenanceDisplay() {
   const [isOpenMaintenanceModal, setOpenMaintenanceModal] = useState(false);
   const [isCalibration, setCalibration] = useState(false);
   const [isTypesofMaintenanceModal, setTypesofMaintenanceModal] = useState(false);
+  const { role } = useContext(AuthContext);
+
+  // Check if user has edit permissions
+  const canEdit = role !== "Supply";
 
   // NEW STATE: Para sa PMS Modal
   const [isPMSModalOpen, setPMSModalOpen] = useState(false);
@@ -124,6 +129,19 @@ function MaintenanceDisplay() {
 
   return (
     <motion.div className="space-y-4" initial="hidden" animate="visible" variants={pageVariants}>
+      {/* View Only Banner for Supply Role */}
+      {!canEdit && (
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-blue-600" />
+            <span className="text-sm font-medium text-blue-800">View Only Mode</span>
+          </div>
+          <span className="text-xs font-bold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
+            {role || "Supply"} Role
+          </span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <motion.div variants={pageVariants} className="border rounded-lg p-4 shadow-sm bg-white">
           <h2 className="text-sm font-medium text-gray-500 mb-1 uppercase tracking-wider">In-charge</h2>
@@ -161,13 +179,16 @@ function MaintenanceDisplay() {
                 <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">Category</th>
                 <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">Last Maint.</th>
                 <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">Next Maint.</th>
-                <th className="p-4 border-b text-xs font-bold uppercase text-gray-600 text-center">Actions</th>
+                {/* HIDE Actions Header when role is Supply */}
+                {canEdit && (
+                  <th className="p-4 border-b text-xs font-bold uppercase text-gray-600 text-center">Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {paginatedEquipment.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-10 text-center text-gray-400 italic">
+                  <td colSpan={canEdit ? 6 : 5} className="p-10 text-center text-gray-400 italic">
                     No equipment found.
                   </td>
                 </tr>
@@ -186,52 +207,55 @@ function MaintenanceDisplay() {
                         )}
                       </div>
                     </td>
-                    <td className="p-4 flex space-x-2 justify-center items-center">
-                      {/* PMS BUTTON */}
-                      {equipment.hasMaintenance && (
-                        <button
-                          onClick={() => handlePMSClick(equipment, laboratory)}
-                          className="px-2.5 py-1 text-white bg-red-600 rounded hover:bg-red-700 transition-colors flex items-center justify-center"
-                          title="Planned Maintenance System"
-                        >
-                          <span className="text-[10px] font-bold">PMS</span>
-                        </button>
-                      )}
+                    {/* HIDE ALL Action Buttons when role is Supply */}
+                    {canEdit && (
+                      <td className="p-4 flex space-x-2 justify-center items-center flex-wrap gap-1">
+                        {/* PMS BUTTON */}
+                        {equipment.hasMaintenance && (
+                          <button
+                            onClick={() => handlePMSClick(equipment, laboratory)}
+                            className="px-2.5 py-1 text-white bg-red-600 rounded hover:bg-red-700 transition-colors flex items-center justify-center"
+                            title="Planned Maintenance System"
+                          >
+                            <span className="text-[10px] font-bold">PMS</span>
+                          </button>
+                        )}
 
-                      <button
-                        onClick={() => handleCalibration(equipment, laboratory)}
-                        className="p-2 text-white bg-teal-500 rounded-lg hover:bg-teal-600 transition-colors"
-                        title="Calibration"
-                      >
-                        <Wrench className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => handleSelectEquipment(equipment, laboratory)}
-                        className="p-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-
-                      {equipmentTypes.includes(equipment._id) ? (
                         <button
-                          onClick={() => handleRetrieve(equipment)}
-                          className="p-2 text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
-                          title="Retrieve"
+                          onClick={() => handleCalibration(equipment, laboratory)}
+                          className="p-2 text-white bg-teal-500 rounded-lg hover:bg-teal-600 transition-colors"
+                          title="Calibration"
                         >
-                          <RefreshCw className="w-4 h-4" />
+                          <Wrench className="w-4 h-4" />
                         </button>
-                      ) : (
+
                         <button
-                          onClick={() => handleSendData(equipment, laboratory)}
-                          className="p-2 text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors"
-                          title="Schedule Maintenance"
+                          onClick={() => handleSelectEquipment(equipment, laboratory)}
+                          className="p-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                          title="View Details"
                         >
-                          <Calendar className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </button>
-                      )}
-                    </td>
+
+                        {equipmentTypes.includes(equipment._id) ? (
+                          <button
+                            onClick={() => handleRetrieve(equipment)}
+                            className="p-2 text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+                            title="Retrieve"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleSendData(equipment, laboratory)}
+                            className="p-2 text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors"
+                            title="Schedule Maintenance"
+                          >
+                            <Calendar className="w-4 h-4" />
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -262,8 +286,8 @@ function MaintenanceDisplay() {
           </div>
         </div>
 
-        {/* Modals Container */}
-        {isOpenMaintenanceModal && (
+        {/* Modals Container - Only open if canEdit */}
+        {isOpenMaintenanceModal && canEdit && (
           <MaintenanceDisplayModal
             isOpen={isOpenMaintenanceModal}
             Lab={SendDataLab}
@@ -271,7 +295,7 @@ function MaintenanceDisplay() {
             onClose={handleCloseModal}
           />
         )}
-        {isTypesofMaintenanceModal && (
+        {isTypesofMaintenanceModal && canEdit && (
           <TypesofMaintenceForm
             isOpen={isTypesofMaintenanceModal}
             toLab={SendDataLab}
@@ -279,7 +303,7 @@ function MaintenanceDisplay() {
             onClose={handleCloseModal}
           />
         )}
-        {isCalibration && (
+        {isCalibration && canEdit && (
           <CalibrationTable
             isOpen={isCalibration}
             toLab={SendDataLab}
@@ -289,7 +313,7 @@ function MaintenanceDisplay() {
         )}
 
         {/* NEW: PMS Modal Integration */}
-        {isPMSModalOpen && (
+        {isPMSModalOpen && canEdit && (
           <TypeMaintenanceModal
             isOpen={isPMSModalOpen}
             onClose={handleCloseModal}

@@ -22,6 +22,8 @@ const MessageRequestRoutes = require("./Routes/MessaRoute");
 const MaintenanceTypess = require("./Routes/TypesMaintenancRoute");
 const authentic = require("./Routes/authRouter");
 const StatisticalRoute = require("./Routes/StatisticalRoute")
+const ProblemRoute = require("./Routes/ProblemRoute")
+const HistoryRoute= require("./Routes/HistoryRoute")
 
 
 let app = express();
@@ -81,7 +83,9 @@ app.use("/api/v1/TypesMaintenanceRequest", MaintenanceTypess);
 app.use("/api/v1/MessageRequest", MessageRequestRoutes);
 app.use("/api/v1/IncomingRequests", IncomingRequest);
 app.use("/api/v1/GeneratePDF", PDFRoutes);
-app.use("/api/v1/statistical", StatisticalRoute)
+app.use("/api/v1/statistical", StatisticalRoute);
+app.use("/api/v1/problem", ProblemRoute);
+app.use("/api/v1/History", HistoryRoute);
 
 app.use(ErrorController);
 

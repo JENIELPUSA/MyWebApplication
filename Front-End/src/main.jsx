@@ -24,44 +24,52 @@ import { AddAssignProvider } from './contexts/AssignContext/AddAssignContext.jsx
 
 import { MessagePostProvider } from './contexts/MessageContext/POSTmessage.jsx'
 
+import { ProblemProvider } from './contexts/ProblemContext/ProblemContext.jsx'
+
+import { HistoryProvider } from './contexts/HistoryContext/HistoryContext.jsx'
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <StatisticsProvider>
-        <MessagePostProvider>
-          <MaintenanceRequestProvider>
-            <IncomingDisplayProvider>
-              <DepartmentDisplayProvider>
-                <TypeofMaintenanceProvider>
-                  <AssignProvider>
-                    <UserProvider>
-                      <FilterSpecificAssignProvider>
-                        <LaboratorytProvider>
-                          <LaboratoryProvider>
-                            {/*  Wrap EquipmentProvider with EquipmentDataProvider */}
-                            <EquipmentProvider>
-                              <EquipmentProvider>
-                                <AddAssignProvider>
-                                  <DeleteAssignProvider>
-                                    <AssignLabProvider>
-                                      <App />
-                                      <SocketListener />
-                                    </AssignLabProvider>
-                                  </DeleteAssignProvider>
-                                </AddAssignProvider>
-                              </EquipmentProvider>
-                            </EquipmentProvider>
-                          </LaboratoryProvider>
-                        </LaboratorytProvider>
-                      </FilterSpecificAssignProvider>
-                    </UserProvider>
-                  </AssignProvider>
-                </TypeofMaintenanceProvider>
-              </DepartmentDisplayProvider>
-            </IncomingDisplayProvider>
-          </MaintenanceRequestProvider>
-        </MessagePostProvider>
-      </StatisticsProvider>
+      <HistoryProvider>
+        <ProblemProvider>
+          <StatisticsProvider>
+            <MessagePostProvider>
+              <MaintenanceRequestProvider>
+                <IncomingDisplayProvider>
+                  <DepartmentDisplayProvider>
+                    <TypeofMaintenanceProvider>
+                      <AssignProvider>
+                        <UserProvider>
+                          <FilterSpecificAssignProvider>
+                            <LaboratorytProvider>
+                              <LaboratoryProvider>
+                                {/*  Wrap EquipmentProvider with EquipmentDataProvider */}
+                                <EquipmentProvider>
+                                  <EquipmentProvider>
+                                    <AddAssignProvider>
+                                      <DeleteAssignProvider>
+                                        <AssignLabProvider>
+                                          <App />
+                                          <SocketListener />
+                                        </AssignLabProvider>
+                                      </DeleteAssignProvider>
+                                    </AddAssignProvider>
+                                  </EquipmentProvider>
+                                </EquipmentProvider>
+                              </LaboratoryProvider>
+                            </LaboratorytProvider>
+                          </FilterSpecificAssignProvider>
+                        </UserProvider>
+                      </AssignProvider>
+                    </TypeofMaintenanceProvider>
+                  </DepartmentDisplayProvider>
+                </IncomingDisplayProvider>
+              </MaintenanceRequestProvider>
+            </MessagePostProvider>
+          </StatisticsProvider>
+        </ProblemProvider>
+      </HistoryProvider>
     </AuthProvider>
   </StrictMode>,
 )

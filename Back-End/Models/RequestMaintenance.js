@@ -56,12 +56,12 @@ const MaintenanceRequestSchema = new mongoose.Schema(
       required: true,
     },
 
-    Technician: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User", // Reference to the Equipment model
-      },
-    ],
+    Technician:
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User", // Reference to the Equipment model
+    },
+
     read: { type: Boolean, default: false }, // Para sa unread status
     remarksread: { type: Boolean, default: false },
     feedbackread: { type: Boolean, default: false },

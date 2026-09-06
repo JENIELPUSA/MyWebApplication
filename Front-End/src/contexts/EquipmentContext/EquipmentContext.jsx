@@ -21,15 +21,6 @@ export const EquipmentProvider = ({ children }) => {
     const [customError, setCustomError] = useState("");
 
     useEffect(() => {
-        if (!authToken) {
-            setEquipment([]);
-            setLoading(false);
-            return;
-        }
-        fetchEquipmentData();
-    }, [authToken]);
-
-    useEffect(() => {
         if (customError) {
             const timer = setTimeout(() => {
                 setCustomError(null);

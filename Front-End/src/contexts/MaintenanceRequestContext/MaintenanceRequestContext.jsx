@@ -227,7 +227,7 @@ export const MaintenanceRequestProvider = ({ children }) => {
 
   const UpdateAssignTechnician = async ({
     technicianId,
-    RequestId, status, remarks, LaboratoryEnchargeId, feedback,
+    RequestId, status, remarks, LaboratoryEnchargeId, feedback,action,
     MessageId = null,
   }) => {
 
@@ -236,7 +236,7 @@ export const MaintenanceRequestProvider = ({ children }) => {
       MessageId = null,)
     try {
       const payload = {
-        status, remarks, LaboratoryEnchargeId, feedback,
+        status, remarks, LaboratoryEnchargeId, feedback,action,
         technicianId,
         ...(MessageId ? { MessageId } : {}),
       };

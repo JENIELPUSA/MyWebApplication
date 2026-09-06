@@ -54,7 +54,7 @@ export const navbarLinks = [
                 path: "/dashboard/report",
             },
             {
-                label: "Assign Laboratory",
+                label: "Department & Laboratory",
                 icon: ClipboardCheck,
                 path: "/dashboard/assign",
             },
@@ -67,6 +67,11 @@ export const navbarLinks = [
                 label: "Maintenance History",
                 icon: History,
                 path: "/dashboard/maintenance",
+            },
+            {
+                label: "Computer Problem",
+                icon: History,
+                path: "/dashboard/problem",
             },
         ],
     }

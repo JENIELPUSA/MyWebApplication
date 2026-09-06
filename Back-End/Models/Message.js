@@ -17,7 +17,7 @@ const messageSchema = new mongoose.Schema({
       'Rejected',
       'TaskCompleted',
       'Pending',
-      'UnderMaintenance','TechnicianConfirmed','InchargeConfirmation',
+      'UnderMaintenance', 'TechnicianConfirmed', 'InchargeConfirmation','ReAssignedTechnician',
       'NewMessage',
       'StatusUpdate',
       'Reminder',
@@ -25,7 +25,6 @@ const messageSchema = new mongoose.Schema({
       'General'
     ],
     default: 'General',
-    required: true,
     index: true
   },
   Status: {
@@ -59,6 +58,7 @@ const messageSchema = new mongoose.Schema({
     default: "User",
     required: true,
   },
+  isReassign: { type: Boolean, default: false },
   viewers: [
     {
       user: {

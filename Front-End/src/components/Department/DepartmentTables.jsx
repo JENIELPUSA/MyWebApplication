@@ -19,10 +19,14 @@ const DepartmentTables = () => {
     DeleteDepartment,
   } = useContext(DepartmentDisplayContext);
 
-  const { authToken } = useContext(AuthContext);
+  const { role } = useContext(AuthContext);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [isAddFormOpen, setAddFormOpen] = useState(false);
+
+  // Check if user has edit/delete permissions
+  const canEdit = role !== "Supply";
+  const canAdd = role !== "Supply";
 
   // --- LOGIC: FILTER & PAGINATION ---
   const filterDepartment = department?.filter(
@@ -99,7 +103,7 @@ const DepartmentTables = () => {
         </div>
       </div>
 
-      {/* SEARCH & ACTIONS */}
+      {/* SEARCH & ACTIONS - HIDE ADD BUTTON FOR SUPPLY */}
       <div className="p-4 flex flex-col sm:flex-row gap-3 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700">
         <div className="relative flex-1">
           <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={14} />
@@ -111,12 +115,14 @@ const DepartmentTables = () => {
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
           />
         </div>
-        <button
-          onClick={handleAddClick}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-semibold shadow-sm whitespace-nowrap"
-        >
-          <FaPlus size={12} /> <span>Add Department</span>
-        </button>
+        {canAdd && (
+          <button
+            onClick={handleAddClick}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-lg transition-colors text-sm font-semibold shadow-sm whitespace-nowrap"
+          >
+            <FaPlus size={12} /> <span>Add Department</span>
+          </button>
+        )}
       </div>
 
       {/* TABLE SECTION */}
@@ -130,13 +136,15 @@ const DepartmentTables = () => {
                   Department Name
                 </div>
               </th>
-              <th className="px-6 py-3 text-center">Actions</th>
+              {canEdit && (
+                <th className="px-6 py-3 text-center">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-900">
             {loading ? (
               <tr>
-                <td colSpan={2} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={canEdit ? 2 : 1} className="py-12 text-center text-gray-500 dark:text-gray-400">
                   <div className="flex justify-center items-center gap-2">
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 dark:border-blue-400 border-t-transparent"></div>
                     <span>Loading departments...</span>
@@ -145,7 +153,7 @@ const DepartmentTables = () => {
               </tr>
             ) : paginatedDepartment.length === 0 ? (
               <tr>
-                <td colSpan={2} className="py-12 text-center text-gray-400 dark:text-gray-500 italic">
+                <td colSpan={canEdit ? 2 : 1} className="py-12 text-center text-gray-400 dark:text-gray-500 italic">
                   {searchTerm ? 'No matching departments found.' : 'No departments found. Click "Add Department" to get started.'}
                 </td>
               </tr>
@@ -160,24 +168,26 @@ const DepartmentTables = () => {
                       <span>{dept.DepartmentName}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex justify-center items-center gap-2">
-                      <button
-                        onClick={() => handleEditClick(dept)}
-                        className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
-                        title="Edit Department"
-                      >
-                        <FaEdit size={15} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(dept._id)}
-                        className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
-                        title="Delete Department"
-                      >
-                        <FaTrashAlt size={15} />
-                      </button>
-                    </div>
-                  </td>
+                  {canEdit && (
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex justify-center items-center gap-2">
+                        <button
+                          onClick={() => handleEditClick(dept)}
+                          className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
+                          title="Edit Department"
+                        >
+                          <FaEdit size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(dept._id)}
+                          className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+                          title="Delete Department"
+                        >
+                          <FaTrashAlt size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -236,8 +246,8 @@ const DepartmentTables = () => {
         </div>
       </div>
 
-      {/* FORM MODAL - Still a modal for adding/editing department */}
-      {isAddFormOpen && (
+      {/* FORM MODAL - Only show if user can edit */}
+      {isAddFormOpen && canEdit && (
         <DepartmentFormModal
           isOpen={isAddFormOpen}
           onAddDepartment={(newDept) => {

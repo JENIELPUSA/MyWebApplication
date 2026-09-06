@@ -184,6 +184,7 @@ exports.DisplayMessage = AsyncErrorHandler(async (req, res) => {
         message: 1,
         Status: 1,
         read: 1,
+        isReassign:1,
         role: 1,
         DateTime: 1,
         readonUser: 1,

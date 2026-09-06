@@ -29,6 +29,7 @@ import {
 import { MaintenanceRequestContext } from "../contexts/MaintenanceRequestContext/MaintenanceRequestContext";
 import { AuthContext } from "../contexts/AuthContext";
 
+
 // Helper functions
 const isEmptyOrWhitespace = (value) => {
     if (!value) return true;
@@ -109,6 +110,8 @@ export const MessageDetailModal = ({
     const [isSubmittingRemarks, setIsSubmittingRemarks] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
 
+    console.log("selectedMessage",selectedMessage)
+
     // =============================================
     // FEEDBACK STATES
     // =============================================
@@ -118,6 +121,11 @@ export const MessageDetailModal = ({
     const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
     if (!selectedMessage) return null;
+
+    // =============================================
+    // CHECK IF RE-ASSIGN - ACCESS FROM data OBJECT
+    // =============================================
+    const isReassign = selectedMessage.data?.isReassign === true;
 
     // =============================================
     // HANDLE ASSIGN TECHNICIAN
@@ -382,7 +390,7 @@ export const MessageDetailModal = ({
     };
 
     // =============================================
-    // STATUS CHECKS WITH DEBUGGING - UPDATED
+    // STATUS CHECKS
     // =============================================
     const isAssignedTechnician = selectedMessage.data?.typesNotification === "AssignedTechnician";
     const currentStatus = getDisplayValue(selectedMessage.data?.RequestStatus);
@@ -391,50 +399,26 @@ export const MessageDetailModal = ({
     const isInchargedConfirmed = currentStatus === "InchargedConfirmed";
     const isInchargeConfirmation = currentStatus === "InchargeConfirmation";
     const isFeedbackSubmitted = currentStatus === "FeedbackSubmitted";
-    const isCompleted = currentStatus === "Completed"; // Added this check
+    const isCompleted = currentStatus === "Completed";
 
     // =============================================
-    // SHOW FEEDBACK BUTTON - WITH FLEXIBLE CONDITIONS
+    // SHOW FEEDBACK BUTTON
     // =============================================
-    // Check if user should see feedback button
-    // Option 1: Exact match for "InchargeConfirmation"
-    const showFeedbackButtonExact = role === "User" && isInchargeConfirmation && !isFeedbackSubmitted;
-
-    // Option 2: Check if status contains "Incharge" or "Confirmation" (case-insensitive)
     const statusLower = (currentStatus || "").toLowerCase();
     const isInchargeRelated = statusLower.includes("incharge") ||
         statusLower.includes("confirmation") ||
         statusLower === "inchargeconfirmation";
-    const showFeedbackButtonFlexible = role === "User" && isInchargeRelated && !isFeedbackSubmitted;
-
-    // Option 3: Show for ANY status except FeedbackSubmitted or Completed (for testing)
-    const showFeedbackButtonTest = role === "User" &&
-        currentStatus !== "FeedbackSubmitted" &&
-        currentStatus !== "Completed" &&
-        currentStatus !== "Rejected";
-
-    // Use the flexible condition by default
-    const showFeedbackButton = showFeedbackButtonFlexible;
-
-    // Log which condition is true
-    console.log("  showFeedbackButtonExact:", showFeedbackButtonExact);
-    console.log("  showFeedbackButtonFlexible:", showFeedbackButtonFlexible);
-    console.log("  showFeedbackButtonTest:", showFeedbackButtonTest);
-    console.log("  FINAL showFeedbackButton:", showFeedbackButton);
+    const showFeedbackButton = role === "User" && isInchargeRelated && !isFeedbackSubmitted;
 
     // =============================================
-    // BUTTON VISIBILITY - UPDATED
+    // BUTTON VISIBILITY - HIDE ALL WHEN ISREASSIGN IS TRUE
     // =============================================
-    // Show remarks button only when AssignedTechnician and Approved
-    const showRemarksButton = isAssignedTechnician && isApproved;
-    
-    // Show approve button only when AssignedTechnician, NOT Approved, NOT InchargedConfirmed, NOT Completed
-    const showApproveButton = isAssignedTechnician && !isApproved && !isInchargedConfirmed && !isCompleted;
-    
-    // Show assign button
-    const showAssignButton = !isAssignedTechnician &&
+    const showRemarksButton = !isReassign && isAssignedTechnician && isApproved;
+    const showApproveButton = !isReassign && isAssignedTechnician && !isApproved && !isInchargedConfirmed && !isCompleted;
+    const showAssignButton = !isReassign && !isAssignedTechnician &&
         selectedMessage.data?.typesNotification === "MaintenanceRequest" &&
         getDisplayValue(selectedMessage.data?.RequestStatus) !== "Completed";
+    const showFeedbackButtonFinal = !isReassign && showFeedbackButton;
 
     const hasAdditionalInfo =
         (selectedMessage.data?.EquipmentRemarks && !isEmptyOrWhitespace(selectedMessage.data.EquipmentRemarks)) ||
@@ -449,9 +433,44 @@ export const MessageDetailModal = ({
                 onClick={onClose}
             >
                 <div
-                    className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                    className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative"
                     onClick={(e) => e.stopPropagation()}
                 >
+                    {/* ========================================== */}
+                    {/* RE-ASSIGN WATERMARK - TOP RIGHT CORNER */}
+                    {/* ========================================== */}
+                    {isReassign && (
+                        <div className="absolute top-6 right-6 z-10">
+                            <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow-lg transform rotate-12 border-2 border-orange-600 flex items-center gap-2 animate-pulse">
+                                <span className="text-lg">🔄</span>
+                                Re-Assign
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ========================================== */}
+                    {/* RE-ASSIGN OVERLAY WATERMARK - DIAGONAL */}
+                    {/* ========================================== */}
+                    {isReassign && (
+                        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-25deg] opacity-5">
+                                <span className="text-8xl font-black text-orange-600 whitespace-nowrap tracking-widest select-none">
+                                    RE-ASSIGN
+                                </span>
+                            </div>
+                            <div className="absolute top-[30%] left-[20%] rotate-[-25deg] opacity-5">
+                                <span className="text-6xl font-black text-orange-600 whitespace-nowrap tracking-widest select-none">
+                                    RE-ASSIGN
+                                </span>
+                            </div>
+                            <div className="absolute bottom-[30%] right-[20%] rotate-[-25deg] opacity-5">
+                                <span className="text-6xl font-black text-orange-600 whitespace-nowrap tracking-widest select-none">
+                                    RE-ASSIGN
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* ========================================== */}
                     {/* CONFIRMATION BANNER */}
                     {/* ========================================== */}
@@ -486,11 +505,19 @@ export const MessageDetailModal = ({
                             <div>
                                 <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
                                     {getDisplayValue(selectedMessage.title)}
+                                    {isReassign && (
+                                        <span className="ml-2 text-xs font-medium text-orange-500 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full border border-orange-300 dark:border-orange-700">
+                                            Re-Assign
+                                        </span>
+                                    )}
                                 </h2>
                                 <div className="flex items-center gap-2">
-                                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getStatusBg(currentStatus)} ${getStatusColor(currentStatus)}`}>
-                                        {displayStatus}
-                                    </span>
+                                    {/* Hide status badge when isReassign is true */}
+                                    {!isReassign && (
+                                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getStatusBg(currentStatus)} ${getStatusColor(currentStatus)}`}>
+                                            {displayStatus}
+                                        </span>
+                                    )}
                                     <span className="text-xs text-slate-400 dark:text-slate-500">
                                         {formatFullDate(selectedMessage.data?.DateTime)}
                                     </span>
@@ -506,7 +533,7 @@ export const MessageDetailModal = ({
                     </div>
 
                     {/* ========================================== */}
-                    {/* CONTENT - SENTENCE STYLE (NO MESSAGE) */}
+                    {/* CONTENT */}
                     {/* ========================================== */}
                     <div className="p-6 space-y-5 text-sm text-slate-700 dark:text-slate-200">
 
@@ -693,14 +720,25 @@ export const MessageDetailModal = ({
                     {/* MODAL FOOTER */}
                     {/* ========================================== */}
                     <div className="sticky bottom-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-wrap items-center justify-between gap-3 rounded-b-2xl">
-    
+
+                        {/* Left side - Re-assign info or status */}
+                        {isReassign ? (
+                            <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
+                                <Clock size={16} />
+                                <span className="font-medium">This request is pending re-assignment</span>
+                            </div>
+                        ) : (
+                            <div className="text-sm text-slate-400 dark:text-slate-500">
+                                Request Details
+                            </div>
+                        )}
 
                         {/* Right side - Action Buttons */}
                         <div className="flex flex-wrap items-center gap-2">
                             {/* ========================================== */}
-                            {/* ADD FEEDBACK BUTTON - VISIBLE FOR USER ROLE */}
+                            {/* ADD FEEDBACK BUTTON */}
                             {/* ========================================== */}
-                            {showFeedbackButton && (
+                            {showFeedbackButtonFinal && (
                                 <button
                                     onClick={handleOpenFeedbackPopup}
                                     className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white shadow-md hover:shadow-lg animate-pulse"
@@ -858,7 +896,7 @@ export const MessageDetailModal = ({
                                 </div>
                             )}
 
-                            {/* APPROVE BUTTON - Now hidden when status is InchargedConfirmed */}
+                            {/* APPROVE BUTTON */}
                             {showApproveButton && (
                                 <button
                                     onClick={handleApprove}
@@ -890,15 +928,15 @@ export const MessageDetailModal = ({
                             )}
 
                             {/* ALREADY APPROVED BADGE */}
-                            {isAssignedTechnician && isApproved && !showRemarksButton && (
+                            {!isReassign && isAssignedTechnician && isApproved && !showRemarksButton && (
                                 <span className="px-4 py-2 rounded-lg text-sm font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 flex items-center gap-2">
                                     <Check size={16} />
                                     Already Confirmed ✓
                                 </span>
                             )}
 
-                            {/* INCHARGE CONFIRMED BADGE - Show when status is InchargedConfirmed */}
-                            {isInchargedConfirmed && (
+                            {/* INCHARGE CONFIRMED BADGE */}
+                            {!isReassign && isInchargedConfirmed && (
                                 <span className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 flex items-center gap-2">
                                     <Clock size={16} />
                                     Waiting For Feedback
@@ -906,7 +944,7 @@ export const MessageDetailModal = ({
                             )}
 
                             {/* INCHARGE CONFIRMATION BADGE */}
-                            {isInchargeConfirmation && !showFeedbackButton && (
+                            {!isReassign && isInchargeConfirmation && !showFeedbackButtonFinal && (
                                 <span className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 flex items-center gap-2">
                                     <Clock size={16} />
                                     Awaiting Your Response
@@ -914,7 +952,7 @@ export const MessageDetailModal = ({
                             )}
 
                             {/* FEEDBACK SUBMITTED BADGE */}
-                            {isFeedbackSubmitted && (
+                            {!isReassign && isFeedbackSubmitted && (
                                 <span className="px-4 py-2 rounded-lg text-sm font-medium bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 flex items-center gap-2">
                                     <Check size={16} />
                                     Feedback Submitted ✓

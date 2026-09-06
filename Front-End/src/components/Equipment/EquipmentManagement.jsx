@@ -18,17 +18,34 @@ const EquipmentForm = () => {
     setCurrentPage,
     equipmentsPerPage,
     DeleteDatas,
+    fetchEquipmentData,
   } = useContext(EquipmentDataContext);
 
   const { view } = useContext(MaintenanceRequestContext)
 
-  console.log("view",view)
+  console.log("view", view)
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormModalOpen, setFormModalOpen] = useState(false);
   const [isRetrieveModalOpen, setIsRetrieveModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
+
+  // ==========================================
+  // FETCH EQUIPMENT DATA ON MOUNT
+  // ==========================================
+  useEffect(() => {
+    fetchEquipmentData();
+  }, []); // Empty dependency array - runs once on mount
+
+  // ==========================================
+  // OPTIONAL: REFETCH WHEN VIEW CHANGES
+  // ==========================================
+  useEffect(() => {
+    if (view) {
+      fetchEquipmentData();
+    }
+  }, [view]); // Refetch when view changes
 
   // --- PAGINATION & FILTER LOGIC ---
   const filteredEquipment = equipment?.filter((equip) =>
@@ -89,6 +106,13 @@ const EquipmentForm = () => {
     }
   };
 
+  // ==========================================
+  // HANDLE REFRESH
+  // ==========================================
+  const handleRefresh = () => {
+    fetchEquipmentData();
+  };
+
   return (
     <div className="w-full bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
       {/* HEADER */}
@@ -102,8 +126,18 @@ const EquipmentForm = () => {
             <p className="text-xs text-gray-500 dark:text-gray-400">Manage your equipment and assets</p>
           </div>
         </div>
-        <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-          Total Items: <span className="font-bold text-blue-600 dark:text-blue-400">{equipment?.length || 0}</span>
+        <div className="flex items-center gap-3">
+          {/* Refresh Button */}
+          <button
+            onClick={handleRefresh}
+            className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+            title="Refresh equipment list"
+          >
+            <RefreshCw size={16} />
+          </button>
+          <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+            Total Items: <span className="font-bold text-blue-600 dark:text-blue-400">{equipment?.length || 0}</span>
+          </div>
         </div>
       </div>
 
@@ -191,15 +225,14 @@ const EquipmentForm = () => {
                   </td>
 
                   <td className="px-6 py-4 text-center">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase ${
-                      item.status === "Available"
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase ${item.status === "Available"
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                         : item.status === "In Use"
                           ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                           : item.status === "Maintenance"
                             ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
                             : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
+                      }`}>
                       {item.status || 'Unknown'}
                     </span>
                   </td>
@@ -228,11 +261,10 @@ const EquipmentForm = () => {
                       </button>
                       <button
                         onClick={() => handleAssignClick(item)}
-                        className={`p-1.5 rounded transition-colors ${
-                          item.status === "Not Available"
+                        className={`p-1.5 rounded transition-colors ${item.status === "Not Available"
                             ? 'text-orange-500 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/30'
                             : 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30'
-                        }`}
+                          }`}
                         title={item.status === "Not Available" ? "Retrieve Equipment" : "Assign Equipment"}
                       >
                         {item.status === "Not Available" ? (

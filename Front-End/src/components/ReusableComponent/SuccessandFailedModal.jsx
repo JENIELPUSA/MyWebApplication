@@ -67,8 +67,8 @@ export default function StatusModal({ isOpen, onClose, status = "success" }) {
               {/* Message */}
               <p className="text-[12px] font-bold text-slate-500 uppercase tracking-wide mb-10 leading-relaxed px-2">
                 {isSuccess
-                  ? "Ang iyong request ay matagumpay na na-proseso sa aming system database."
-                  : "Nagkaroon ng problema sa pag-proseso. Mangyaring suriin ang iyong koneksyon."}
+                  ? "Your request has been successfully processed in our system database."
+                  : "There was a problem processing your request. Please check your connection."}
               </p>
 
               {/* BIPSU Styled Action Button */}
@@ -81,7 +81,7 @@ export default function StatusModal({ isOpen, onClose, status = "success" }) {
                 }`}
               >
                 {isSuccess && <FaShieldAlt className="text-yellow-400" />}
-                Ipagpatuloy
+                Continue
               </button>
             </div>
 

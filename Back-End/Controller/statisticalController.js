@@ -579,9 +579,12 @@ exports.getEquipmentStatistics = AsyncErrorHandler(
             },
         ]);
 
-        // Maintenance requests with technician assigned - PIE CHART
+        // ======================================================
+        // MAINTENANCE REQUESTS WITH TECHNICIAN ASSIGNED
+        // Technician is now a single ObjectId, not an array
+        // ======================================================
         const requestsWithTechnician = await RequestMaintenance.countDocuments({
-            Technician: { $ne: [], $exists: true }
+            Technician: { $ne: null, $exists: true }
         });
         const requestsWithoutTechnician = totalMaintenanceRequests - requestsWithTechnician;
 
@@ -631,8 +634,8 @@ exports.getEquipmentStatistics = AsyncErrorHandler(
         const requestsByFeedbackType = await RequestMaintenance.aggregate([
             {
                 $match: {
-                    "feedback.type": { 
-                        $in: ["Satisfied", "Dissatisfied"] 
+                    "feedback.type": {
+                        $in: ["Satisfied", "Dissatisfied"]
                     }
                 }
             },
@@ -859,7 +862,6 @@ exports.getEquipmentStatistics = AsyncErrorHandler(
                     requestsWithFeedback,
                     requestsWithoutFeedback,
                     unreadRequests,
-                    // ✅ Feedback type counts
                     satisfiedCount: satisfiedCount,
                     dissatisfiedCount: dissatisfiedCount,
                 },
@@ -868,34 +870,15 @@ exports.getEquipmentStatistics = AsyncErrorHandler(
                 // PIE CHART DATA
                 // ==================================================
                 pieCharts: {
-                    // Equipment Status Distribution
                     equipmentAvailability: equipmentAvailabilityStatus,
-
-                    // Equipment Assignment Status
                     equipmentAssignment: equipmentAssignmentStatus,
-
-                    // Equipment by Category
                     equipmentByCategory: equipmentByCategory,
-
-                    // Maintenance Schedule by Type
                     maintenanceByScheduleType: maintenanceByScheduleType,
-
-                    // Maintenance Technician Assignment
                     maintenanceTechnicianStatus: technicianAssignmentStatus,
-
-                    // Maintenance Request Status
                     requestsByStatus: requestsByStatus,
-
-                    // Request Technician Assignment
                     requestTechnicianStatus: technicianAssignmentRequests,
-
-                    // Request Feedback Status
                     requestFeedbackStatus: feedbackStatus,
-
-                    // Request Read Status
                     requestReadStatus: readStatus,
-
-                    // ✅ Feedback Type Distribution (Satisfied/Dissatisfied/No Feedback)
                     feedbackTypeDistribution: feedbackTypeDistribution,
                 },
 
@@ -903,19 +886,10 @@ exports.getEquipmentStatistics = AsyncErrorHandler(
                 // LINE GRAPH DATA
                 // ==================================================
                 lineGraphs: {
-                    // Equipment Created by Year
                     equipmentByYear: equipmentByYear,
-
-                    // Equipment Created by Month
                     equipmentByMonth: equipmentByMonth,
-
-                    // Maintenance Requests by Year
                     requestsByYear: requestsByYear,
-
-                    // Maintenance Requests by Month
                     requestsByMonth: requestsByMonth,
-
-                    // Combined Equipment & Requests by Year
                     equipmentAndRequestsByYear: {
                         labels: equipmentByYear.map(item => item.year.toString()),
                         datasets: [
@@ -935,22 +909,11 @@ exports.getEquipmentStatistics = AsyncErrorHandler(
                 // BAR CHART DATA
                 // ==================================================
                 barCharts: {
-                    // Assigned Equipment by Laboratory
                     assignedByLaboratory: assignedByLaboratory,
-
-                    // Maintenance Schedule by Laboratory
                     maintenanceByLaboratory: maintenanceByLaboratory,
-
-                    // Maintenance Schedule by Department
                     maintenanceByDepartment: maintenanceByDepartment,
-
-                    // Maintenance Requests by Laboratory
                     requestsByLaboratory: requestsByLaboratory,
-
-                    // Maintenance Requests by Department
                     requestsByDepartment: requestsByDepartment,
-
-                    // ✅ MAINTENANCE REQUESTS BY FEEDBACK TYPE (SATISFIED/DISSATISFIED) - BAR CHART
                     requestsByFeedbackType: requestsByFeedbackType,
                 },
 
@@ -964,7 +927,6 @@ exports.getEquipmentStatistics = AsyncErrorHandler(
         });
     }
 );
-
 exports.getTechnicianStatistics = AsyncErrorHandler(
     async (req, res, next) => {
 
@@ -980,12 +942,13 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
         // ======================================================
         // FILTERS FOR TECHNICIAN ROLE ONLY
         // ======================================================
-        const maintenanceFilter = role === "Technician" 
-            ? { assignedTechnician: userId } 
+        const maintenanceFilter = role === "Technician"
+            ? { assignedTechnician: userId }
             : {};
 
-        const requestFilter = role === "Technician" 
-            ? { Technician: { $in: [userId] } } 
+        // Technician is now a single ObjectId, not an array
+        const requestFilter = role === "Technician"
+            ? { Technician: userId }
             : {};
 
         console.log("Maintenance Filter:", JSON.stringify(maintenanceFilter));
@@ -996,7 +959,7 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
         // ======================================================
         const maintenanceCount = await MaintenanceSchedule.countDocuments(maintenanceFilter);
         console.log("Maintenance count with filter:", maintenanceCount);
-        
+
         const requestCount = await RequestMaintenance.countDocuments(requestFilter);
         console.log("Request count with filter:", requestCount);
 
@@ -1092,7 +1055,7 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
         const technicianEquipment = await MaintenanceSchedule.find(maintenanceFilter)
             .populate('equipmentType')
             .lean();
-        
+
         const technicianEquipmentList = technicianEquipment
             .filter(item => item.equipmentType)
             .map(item => ({
@@ -1100,8 +1063,8 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
                 equipmentName: item.equipmentType.name || item.equipmentType.EquipmentName || 'Unknown',
                 scheduleType: item.scheduleType,
                 nextMaintenanceDate: item.nextMaintenanceDate,
-                status: item.nextMaintenanceDate && new Date() > new Date(item.nextMaintenanceDate) 
-                    ? 'Overdue' 
+                status: item.nextMaintenanceDate && new Date() > new Date(item.nextMaintenanceDate)
+                    ? 'Overdue'
                     : 'Upcoming'
             }));
 
@@ -1142,10 +1105,13 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
             { $sort: { count: -1 } }
         ]);
 
-        // Maintenance requests with technician assigned - PIE CHART
+        // ======================================================
+        // MAINTENANCE REQUESTS WITH TECHNICIAN ASSIGNED
+        // Technician is now a single ObjectId, not an array
+        // ======================================================
         const requestsWithTechnician = await RequestMaintenance.countDocuments({
             ...requestFilter,
-            Technician: { $ne: [], $exists: true }
+            Technician: { $ne: null, $exists: true }
         });
         const requestsWithoutTechnician = Math.max(totalMaintenanceRequests - requestsWithTechnician, 0);
 
@@ -1193,16 +1159,16 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
         // ======================================================
         // 3. TECHNICIAN PERFORMANCE METRICS
         // ======================================================
-        
+
         // Get all requests for this technician
         const allRequests = await RequestMaintenance.find(requestFilter).lean();
-        
+
         // Count by status
         const completedRequests = allRequests.filter(req => req.Status === "Completed");
         const completedRequestsCount = completedRequests.length;
-        
+
         // Count "Not Accomplish" - all status that are NOT "Completed"
-        const notAccomplishRequests = allRequests.filter(req => 
+        const notAccomplishRequests = allRequests.filter(req =>
             req.Status !== "Completed"
         );
         const notAccomplishCount = notAccomplishRequests.length;
@@ -1354,9 +1320,9 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
         // ======================================================
         const maintenanceYears = maintenanceByYear.map(item => item.year);
         const requestYears = requestsByYear.map(item => item.year);
-        
+
         const allYears = [...maintenanceYears, ...requestYears];
-        const uniqueYears = allYears.length > 0 
+        const uniqueYears = allYears.length > 0
             ? [...new Set(allYears)].sort((a, b) => a - b)
             : [new Date().getFullYear()];
 
@@ -1373,19 +1339,19 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
         // ======================================================
         // 9. COMBINED MONTHLY DATA - LINE GRAPH
         // ======================================================
-        const maintenanceMonthKeys = maintenanceByMonth.map(item => 
+        const maintenanceMonthKeys = maintenanceByMonth.map(item =>
             `${item.year}-${String(item.month).padStart(2, '0')}`
         );
-        const requestMonthKeys = requestsByMonth.map(item => 
+        const requestMonthKeys = requestsByMonth.map(item =>
             `${item.year}-${String(item.month).padStart(2, '0')}`
         );
         const allMonthKeys = [...maintenanceMonthKeys, ...requestMonthKeys];
-        
+
         let maintenanceAndRequestsByMonth = [];
-        
+
         if (allMonthKeys.length > 0) {
             const uniqueMonthKeys = [...new Set(allMonthKeys)].sort();
-            
+
             maintenanceAndRequestsByMonth = uniqueMonthKeys.map(key => {
                 const [year, month] = key.split('-').map(Number);
                 const maintenance = maintenanceByMonth.find(
@@ -1394,11 +1360,11 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
                 const request = requestsByMonth.find(
                     item => item.year === year && item.month === month
                 );
-                
-                const monthName = maintenance ? maintenance.monthName : 
-                                 (request ? request.monthName : 
-                                 ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][month - 1]);
-                
+
+                const monthName = maintenance ? maintenance.monthName :
+                    (request ? request.monthName :
+                        ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][month - 1]);
+
                 return {
                     year,
                     month,
@@ -1412,7 +1378,7 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth() + 1;
             const monthName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][currentMonth - 1];
-            
+
             maintenanceAndRequestsByMonth = [{
                 year: currentYear,
                 month: currentMonth,
@@ -1434,8 +1400,8 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
                 scope: {
                     role,
                     userId: role === "Technician" ? userId : null,
-                    filterApplied: role === "Technician" 
-                        ? "Filtered by assigned technician" 
+                    filterApplied: role === "Technician"
+                        ? "Filtered by assigned technician"
                         : "No filter applied (all data)"
                 },
                 // ==================================================
@@ -1487,5 +1453,289 @@ exports.getTechnicianStatistics = AsyncErrorHandler(
                 }
             }
         });
+    }
+);
+
+exports.getSupplyStatistical = AsyncErrorHandler(
+    async (req, res, next) => {
+        try {
+            // =============================================
+            // 1. BASIC COUNTS
+            // =============================================
+            const totalEquipment = await Equipment.countDocuments();
+            const availableEquipment = await Equipment.countDocuments({ status: "Available" });
+            const notAvailableEquipment = await Equipment.countDocuments({ status: "Not Available" });
+
+            // =============================================
+            // 2. PIE CHART - STATUS DISTRIBUTION
+            // =============================================
+            const statusPie = [
+                { 
+                    id: "Available", 
+                    label: "Available", 
+                    value: availableEquipment, 
+                    color: "#10B981" 
+                },
+                { 
+                    id: "Not Available", 
+                    label: "Not Available", 
+                    value: notAvailableEquipment, 
+                    color: "#EF4444" 
+                }
+            ];
+
+            // =============================================
+            // 3. PIE CHART - CATEGORY DISTRIBUTION
+            // =============================================
+            const categoryData = await Equipment.aggregate([
+                {
+                    $lookup: {
+                        from: "categories",
+                        localField: "Category",
+                        foreignField: "_id",
+                        as: "categoryDetails"
+                    }
+                },
+                {
+                    $unwind: {
+                        path: "$categoryDetails",
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
+                {
+                    $group: {
+                        _id: "$Category",
+                        name: { $first: "$categoryDetails.CategoryName" },
+                        count: { $sum: 1 },
+                        available: {
+                            $sum: {
+                                $cond: [{ $eq: ["$status", "Available"] }, 1, 0]
+                            }
+                        },
+                        notAvailable: {
+                            $sum: {
+                                $cond: [{ $eq: ["$status", "Not Available"] }, 1, 0]
+                            }
+                        }
+                    }
+                },
+                {
+                    $sort: { count: -1 }
+                },
+                {
+                    $limit: 10
+                }
+            ]);
+
+            const chartColors = ["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#6366F1", "#84CC16"];
+            
+            const categoryPie = categoryData.map((item, index) => ({
+                id: item.name || "Uncategorized",
+                label: item.name || "Uncategorized",
+                value: item.count,
+                available: item.available,
+                notAvailable: item.notAvailable,
+                color: chartColors[index % chartColors.length]
+            }));
+
+            // =============================================
+            // 4. LINE CHART - MONTHLY TREND (Last 6 months)
+            // =============================================
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+            const monthlyData = await Equipment.aggregate([
+                {
+                    $match: {
+                        DateTime: { $gte: sixMonthsAgo }
+                    }
+                },
+                {
+                    $group: {
+                        _id: {
+                            month: { $month: "$DateTime" },
+                            year: { $year: "$DateTime" }
+                        },
+                        count: { $sum: 1 },
+                        available: {
+                            $sum: {
+                                $cond: [{ $eq: ["$status", "Available"] }, 1, 0]
+                            }
+                        },
+                        notAvailable: {
+                            $sum: {
+                                $cond: [{ $eq: ["$status", "Not Available"] }, 1, 0]
+                            }
+                        }
+                    }
+                },
+                {
+                    $sort: { "_id.year": 1, "_id.month": 1 }
+                }
+            ]);
+
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            
+            const lineChart = {
+                labels: monthlyData.map(item => `${monthNames[item._id.month - 1]} ${item._id.year}`),
+                datasets: [
+                    {
+                        label: "Total Equipment",
+                        data: monthlyData.map(item => item.count),
+                        borderColor: "#3B82F6",
+                        backgroundColor: "rgba(59, 130, 246, 0.2)",
+                        fill: true
+                    },
+                    {
+                        label: "Available",
+                        data: monthlyData.map(item => item.available),
+                        borderColor: "#10B981",
+                        backgroundColor: "rgba(16, 185, 129, 0.2)",
+                        fill: true
+                    },
+                    {
+                        label: "Not Available",
+                        data: monthlyData.map(item => item.notAvailable),
+                        borderColor: "#EF4444",
+                        backgroundColor: "rgba(239, 68, 68, 0.2)",
+                        fill: true
+                    }
+                ]
+            };
+
+            // =============================================
+            // 5. BRAND DISTRIBUTION
+            // =============================================
+            const brandData = await Equipment.aggregate([
+                {
+                    $group: {
+                        _id: "$Brand",
+                        count: { $sum: 1 },
+                        available: {
+                            $sum: {
+                                $cond: [{ $eq: ["$status", "Available"] }, 1, 0]
+                            }
+                        },
+                        notAvailable: {
+                            $sum: {
+                                $cond: [{ $eq: ["$status", "Not Available"] }, 1, 0]
+                            }
+                        }
+                    }
+                },
+                {
+                    $sort: { count: -1 }
+                },
+                {
+                    $limit: 10
+                }
+            ]);
+
+            const brandColors = ["#6366F1", "#EC4899", "#14B8A6", "#F97316", "#8B5CF6", "#06B6D4", "#D946EF", "#84CC16", "#F43F5E", "#0EA5E9"];
+            
+            const brandPie = brandData.map((item, index) => ({
+                id: item._id || "Unknown",
+                label: item._id || "Unknown",
+                value: item.count,
+                available: item.available,
+                notAvailable: item.notAvailable,
+                color: brandColors[index % brandColors.length]
+            }));
+
+            // =============================================
+            // 6. EQUIPMENT WITH REMARKS (Issues)
+            // =============================================
+            const equipmentWithRemarks = await Equipment.countDocuments({
+                remarks: { $ne: null, $ne: "", $ne: "N/A" }
+            });
+
+            // =============================================
+            // 7. RECENTLY ADDED EQUIPMENT
+            // =============================================
+            const recentlyAdded = await Equipment.find()
+                .populate("Category", "CategoryName")
+                .sort({ DateTime: -1 })
+                .limit(5)
+                .lean();
+
+            // =============================================
+            // 8. SUMMARY CARDS (WITHOUT ICONS)
+            // =============================================
+            const cards = [
+                {
+                    title: "Total Equipment",
+                    value: totalEquipment,
+                    color: "blue",
+                    subtitle: "All registered equipment"
+                },
+                {
+                    title: "Available",
+                    value: availableEquipment,
+                    color: "green",
+                    subtitle: `${totalEquipment > 0 ? ((availableEquipment / totalEquipment) * 100).toFixed(1) : 0}% of total`
+                },
+                {
+                    title: "Not Available",
+                    value: notAvailableEquipment,
+                    color: "red",
+                    subtitle: `${totalEquipment > 0 ? ((notAvailableEquipment / totalEquipment) * 100).toFixed(1) : 0}% of total`
+                },
+                {
+                    title: "With Issues",
+                    value: equipmentWithRemarks,
+                    color: "yellow",
+                    subtitle: `${totalEquipment > 0 ? ((equipmentWithRemarks / totalEquipment) * 100).toFixed(1) : 0}% have remarks`
+                }
+            ];
+
+            // =============================================
+            // 9. RESPONSE
+            // =============================================
+            res.status(200).json({
+                success: true,
+                data: {
+                    cards,
+                    charts: {
+                        statusPie,
+                        categoryPie,
+                        brandPie,
+                        lineChart
+                    },
+                    recentlyAdded: recentlyAdded.map(item => ({
+                        id: item._id,
+                        brand: item.Brand,
+                        brandName: item.BrandName || item.Brand,
+                        serialNumber: item.SerialNumber,
+                        specification: item.Specification,
+                        status: item.status,
+                        category: item.Category?.CategoryName || "Uncategorized",
+                        remarks: item.remarks || "N/A",
+                        dateAdded: item.DateTime || item.createdAt
+                    })),
+                    summary: {
+                        totalEquipment,
+                        availableEquipment,
+                        notAvailableEquipment,
+                        equipmentWithRemarks,
+                        totalCategories: categoryPie.length,
+                        availablePercentage: totalEquipment > 0 
+                            ? ((availableEquipment / totalEquipment) * 100).toFixed(1) 
+                            : 0,
+                        notAvailablePercentage: totalEquipment > 0 
+                            ? ((notAvailableEquipment / totalEquipment) * 100).toFixed(1) 
+                            : 0
+                    }
+                },
+                timestamp: new Date().toISOString()
+            });
+
+        } catch (error) {
+            console.error("Error in getSupplyStatistical:", error);
+            return res.status(500).json({
+                success: false,
+                message: "Error fetching equipment statistics",
+                error: error.message
+            });
+        }
     }
 );

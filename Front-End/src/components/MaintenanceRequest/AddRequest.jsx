@@ -1,7 +1,6 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useMemo } from "react";
 import { MaintenanceRequestContext } from "../../contexts/MaintenanceRequestContext/MaintenanceRequestContext";
-import { motion, AnimatePresence } from "framer-motion";
-import { FaTimes, FaTools, FaSave, FaClipboardList, FaExclamationTriangle, FaWrench } from "react-icons/fa";
+import { ProblemContext } from "../../contexts/ProblemContext/ProblemContext";
 
 function AddRequest({
   DepartmentID,
@@ -12,21 +11,50 @@ function AddRequest({
   isOpen,
   onAddRequest,
 }) {
+  const { problems } = useContext(ProblemContext);
   const { addDescription, customError } = useContext(MaintenanceRequestContext);
-  const [animateExit, setAnimateExit] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedProblem, setSelectedProblem] = useState(null);
+
   const [values, setValues] = useState({
     Description: description || "",
+    Category: "",
+    ProblemId: null
   });
+
+  // Get unique categories from problems
+  const categories = useMemo(() => {
+    if (!problems || problems.length === 0) return [];
+    const uniqueCategories = [...new Set(problems.map(p => p.category))];
+    return uniqueCategories.sort();
+  }, [problems]);
+
+  // Filter problems based on selected category
+  const filteredProblems = useMemo(() => {
+    if (!problems || problems.length === 0) return [];
+    if (!selectedCategory) return [];
+    return problems.filter(p => p.category === selectedCategory);
+  }, [problems, selectedCategory]);
+
+  // Reset form when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedCategory("");
+      setSelectedProblem(null);
+      setValues({
+        Description: description || "",
+        Category: "",
+        ProblemId: null
+      });
+    }
+  }, [isOpen, description]);
 
   if (!isOpen) return null;
 
   const handleClose = () => {
-    setAnimateExit(true);
-    setTimeout(() => {
-      setAnimateExit(false);
-      onClose();
-    }, 400);
+    onClose();
   };
 
   const handleInput = (event) => {
@@ -34,8 +62,29 @@ function AddRequest({
     setValues({ ...values, [name]: value });
   };
 
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    setValues(prev => ({ ...prev, Category: category, ProblemId: null }));
+    setSelectedProblem(null);
+  };
+
+  const handleProblemSelect = (problem) => {
+    setSelectedProblem(problem);
+    setValues(prev => ({
+      ...prev,
+      ProblemId: problem._id,
+      Description: problem.title
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!values.Description?.trim()) {
+      alert("Please provide a description of the issue.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -43,12 +92,11 @@ function AddRequest({
         values.Description,
         EquipmentID,
         LaboratoryID,
-        DepartmentID
+        DepartmentID,
+        values.ProblemId || null
       );
 
       if (result?.success === true) {
-        // ✅ Inalis ang socket.emit() calls
-        // Callback na lang para mag-update ng parent component
         if (onAddRequest) {
           onAddRequest(result.data);
         }
@@ -62,102 +110,124 @@ function AddRequest({
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-      {/* Backdrop with Blur */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={handleClose}
-        className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
-      />
-
-      <motion.div
-        initial={{ opacity: 0, y: 50, scale: 0.95 }}
-        animate={animateExit ? { opacity: 0, y: 50, scale: 0.95 } : { opacity: 1, y: 0, scale: 1 }}
-        className="relative w-full max-w-lg bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-[#1e3a8a]"
-      >
-        {/* Header - Industrial Blue */}
-        <div className="bg-[#1e3a8a] px-8 py-6 text-white relative">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
-            <FaWrench size={70} />
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="relative w-full max-w-lg bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="bg-blue-600 px-6 py-4 text-white sticky top-0 z-10">
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 text-white/50 hover:text-yellow-400 transition-colors"
+            className="absolute top-3 right-4 text-white/70 hover:text-white"
           >
-            <FaTimes size={20} />
+            ✕
           </button>
-
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-yellow-400 rounded-2xl text-[#1e3a8a] shadow-lg shadow-yellow-400/20">
-              <FaTools size={20} />
-            </div>
-            <div>
-              <h2 className="text-xl font-black uppercase tracking-tighter">
-                {description ? "Modify" : "New"} <span className="text-yellow-400">Request</span>
-              </h2>
-              <p className="text-[10px] text-blue-200 font-bold uppercase tracking-[0.2em]">
-                Maintenance Operations Log
-              </p>
-            </div>
-          </div>
+          <h2 className="text-xl font-bold">
+            {description ? "Modify" : "New"} Request
+          </h2>
+          <p className="text-sm text-blue-100">Maintenance Request Form</p>
         </div>
 
-        <div className="p-8">
+        <div className="p-6">
           {customError && (
-            <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-[10px] font-black uppercase rounded-r-md">
-              <FaExclamationTriangle className="inline mr-2" /> {customError}
+            <div className="mb-4 p-3 bg-red-50 border border-red-400 text-red-700 text-sm rounded">
+              ⚠ {customError}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                Issue Description
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Category Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category <span className="text-gray-400">(optional)</span>
               </label>
-              <div className="relative group">
-                <FaClipboardList className="absolute left-4 top-4 text-slate-300 group-focus-within:text-[#1e3a8a]" />
-                <textarea
-                  name="Description"
-                  value={values.Description}
-                  onChange={handleInput}
-                  rows="4"
-                  placeholder="Clearly describe the equipment issue or required service..."
-                  className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-600/5 focus:border-[#1e3a8a] outline-none font-bold text-slate-700 text-sm transition-all resize-none shadow-inner"
-                  required
-                />
-              </div>
+              <select
+                value={selectedCategory}
+                onChange={(e) => handleCategorySelect(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select a category...</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+              {categories.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">No categories available.</p>
+              )}
             </div>
+
+            {/* Problem Selection */}
+            {selectedCategory && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Problem <span className="text-gray-400">(optional)</span>
+                </label>
+                <select
+                  value={selectedProblem?._id || ""}
+                  onChange={(e) => {
+                    const problem = filteredProblems.find(p => p._id === e.target.value);
+                    if (problem) handleProblemSelect(problem);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select a problem...</option>
+                  {filteredProblems.map((problem) => (
+                    <option key={problem._id} value={problem._id}>
+                      {problem.title}
+                    </option>
+                  ))}
+                </select>
+                {filteredProblems.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-1">No problems in this category.</p>
+                )}
+              </div>
+            )}
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Issue Description <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                name="Description"
+                value={values.Description}
+                onChange={handleInput}
+                rows="4"
+                placeholder="Describe the specific issue or required service..."
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                required
+              />
+              {selectedProblem && (
+                <p className="text-xs text-blue-600 mt-1">
+                  Auto-filled from selected problem. You can edit manually.
+                </p>
+              )}
+            </div>
+
+            {/* Selected Problem Preview */}
+            {selectedProblem && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-xs font-semibold text-blue-700">Selected Problem</p>
+                <p className="font-medium text-gray-800">{selectedProblem.title}</p>
+                <p className="text-xs text-gray-500">Category: {selectedProblem.category}</p>
+              </div>
+            )}
 
             <button
               type="submit"
-              disabled={isLoading}
-              className={`w-full py-4 rounded-2xl font-black text-white uppercase tracking-[0.2em] text-xs transition-all shadow-lg flex items-center justify-center gap-3
+              disabled={isLoading || !values.Description?.trim()}
+              className={`w-full py-2.5 px-4 rounded font-medium text-white transition
                 ${
-                  isLoading
-                    ? "bg-slate-400 cursor-not-allowed"
-                    : "bg-[#1e3a8a] hover:bg-[#112d7a] active:scale-95 shadow-blue-900/20"
+                  isLoading || !values.Description?.trim()
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
                 }`}
             >
-              {isLoading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <FaSave /> {description ? "Update Request" : "Submit Request"}
-                </>
-              )}
+              {isLoading ? "Submitting..." : description ? "Update Request" : "Submit Request"}
             </button>
           </form>
         </div>
-
-        {/* Footer Accent */}
-        <div className="bg-yellow-400 py-2 text-center">
-          <p className="text-[9px] font-black text-blue-900 uppercase tracking-widest">
-            System Maintenance Protocol Alpha
-          </p>
-        </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

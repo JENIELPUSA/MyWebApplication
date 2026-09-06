@@ -24,7 +24,8 @@ export const Sidebar = forwardRef(({ collapsed }, ref) => {
             "/dashboard/laboratory",
             "/dashboard/report",
             "/dashboard/assign",
-            "/dashboard/maintenance"
+            "/dashboard/maintenance",
+            "/dashboard/problem"
         ],
         Technician: [
             "/dashboard",
@@ -32,6 +33,20 @@ export const Sidebar = forwardRef(({ collapsed }, ref) => {
             "/dashboard/pms",
             "/dashboard/maintenance",
             "/dashboard/assign",
+        ],
+        Supply: [
+            "/dashboard",
+            "/dashboard/equipment",
+            "/dashboard/laboratory",
+            "/dashboard",
+            "/dashboard/LaboratoryAssign",
+            "/dashboard/RequestMaintenances",
+            "/dashboard/equipment",
+            "/dashboard/department",
+            "/dashboard/laboratory",
+            "/dashboard/report",
+            "/dashboard/assign",
+
         ],
         User: [
             "/dashboard"]
@@ -93,7 +108,7 @@ export const Sidebar = forwardRef(({ collapsed }, ref) => {
                     alt="Bipsu Logo"
                     className={cn(
                         "rounded-full object-cover border-2 border-[#fbbf24] shadow-lg shadow-[#fbbf24]/30",
-                        collapsed ? "w-10 h-10" : "w-16 h-16" // Binabaan ang sukat (Maaari mong gawing w-20 h-20 kung gusto mo ng medyo mas malaki)
+                        collapsed ? "w-10 h-10" : "w-16 h-16"
                     )}
                 />
             </div>
@@ -144,10 +159,10 @@ export const Sidebar = forwardRef(({ collapsed }, ref) => {
 
                                                 return (
                                                     <>
-                                                        {/* Active Indicator Line */}
+                                                        {/* Active Indicator Line - Changed to Blue */}
                                                         {shouldBeActive && (
                                                             <span className={cn(
-                                                                "absolute top-1/2 -translate-y-1/2 w-1 h-6 bg-yellow-400 rounded-r-full left-0"
+                                                                "absolute top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-400 rounded-r-full left-0"
                                                             )} />
                                                         )}
 

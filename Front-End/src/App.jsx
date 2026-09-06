@@ -16,6 +16,7 @@ import AssignLab from "./components/Assign/AssignLab";
 import ModalReport from "./components/Report/ModalReport";
 import PmsExport from "./components/PMSExport/PmsDisplay";
 import MaintenanceManagement from "./components/MaintenanceHistory/MaintenanceManagement";
+import ProblemTable from "./components/ProblemManagementComponents/ProblemTable";
 
 
 function App() {
@@ -48,6 +49,7 @@ function App() {
                         { path: "assign", element: <AssignLab /> },
                         { path: "pms", element: <PmsExport /> },
                         { path: "maintenance", element: <MaintenanceManagement /> },
+                        { path: "problem", element: <ProblemTable /> },
                     ],
                 },
             ],

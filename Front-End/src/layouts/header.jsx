@@ -44,20 +44,17 @@ import profileImg from "@/assets/profile-image.jpg";
 import PropTypes from "prop-types";
 import { MessagePOSTcontext } from "../contexts/MessageContext/POSTmessage";
 import { UserDataContext } from "../contexts/UserContext/UserContext";
-import { MaintenanceRequestContext } from "../contexts/MaintenanceRequestContext/MaintenanceRequestContext";
 import { MessageDetailModal } from "./MessageDetailModal";
 
 export const Header = ({ collapsed, setCollapsed }) => {
     const { messages } = useContext(MessagePOSTcontext);
-    const { UpdateAssignTechnician } = useContext(MaintenanceRequestContext);
     const { theme, setTheme } = useTheme();
     const [showNotifications, setShowNotifications] = useState(false);
     const [selectedMessage, setSelectedMessage] = useState(null);
     const [isLoadingTechnicians, setIsLoadingTechnicians] = useState(false);
     const [localTechnicians, setLocalTechnicians] = useState([]);
 
-
-    console.log("messages",messages)
+    console.log("messages", messages);
 
     const { technicians = [] } = useContext(UserDataContext) || {};
 
@@ -66,59 +63,48 @@ export const Header = ({ collapsed, setCollapsed }) => {
         return !str || str.trim() === "" || str === "N/A" || str === "   ";
     };
 
-    // Helper function to format technician name
-    const getTechnicianName = (tech) => {
-        if (!tech) return '';
-        const firstName = tech.FirstName || tech.firstName || '';
-        const lastName = tech.LastName || tech.lastName || '';
-        return `${firstName} ${lastName}`.trim();
-    };
-
-    // Fetch Technicians
-    useEffect(() => {
-        const fetchTechnicians = async () => {
-            setIsLoadingTechnicians(true);
-            try {
-                if (!technicians || technicians.length === 0) {
-                    const mockData = [
-                        {
-                            _id: "69d216565a210cf0a25ef385",
-                            FirstName: "Christian",
-                            LastName: "Gonzaga",
-                            Middle: "",
-                            role: "Technician",
-                            username: "tech@gmail.com"
-                        },
-                        {
-                            _id: "69f1d04ef7373b429d249d0b",
-                            FirstName: "Margaritha",
-                            LastName: "Espejon",
-                            Middle: "",
-                            role: "Technician",
-                            username: "margaritha@gmail.com"
-                        }
-                    ];
-                    setLocalTechnicians(mockData);
-                } else {
-                    setLocalTechnicians(technicians);
-                }
-            } catch (error) {
-                console.error("❌ Error fetching technicians:", error);
-            } finally {
-                setIsLoadingTechnicians(false);
-            }
-        };
-
-        if (selectedMessage && selectedMessage.data?.typesNotification === "MaintenanceRequest") {
-            fetchTechnicians();
-        }
-    }, [selectedMessage, technicians]);
-
     // Transform messages into notifications format with improved icons
     const notifications = useMemo(() => {
         if (!messages || messages.length === 0) return [];
 
-        return messages.map((msg, index) => {
+        // Step 1: Group messages by RequestID
+        const groupedByRequestId = {};
+        messages.forEach((msg) => {
+            const requestId = msg.RequestID || msg.RequestId;
+            if (!requestId) {
+                // If no RequestID, treat as unique group
+                const key = `no-id-${msg._id || Math.random()}`;
+                groupedByRequestId[key] = [msg];
+                return;
+            }
+            if (!groupedByRequestId[requestId]) {
+                groupedByRequestId[requestId] = [];
+            }
+            groupedByRequestId[requestId].push(msg);
+        });
+
+        // Step 2: Filter each group - only keep TechnicianConfirmed if exists, otherwise keep all
+        const filteredMessages = [];
+        Object.values(groupedByRequestId).forEach((group) => {
+            // Check if any message in this group has typesNotification "TechnicianConfirmed"
+            const hasTechnicianConfirmed = group.some(
+                (msg) => msg.typesNotification === "TechnicianConfirmed"
+            );
+
+            if (hasTechnicianConfirmed) {
+                // If there's a TechnicianConfirmed, only keep messages with "TechnicianConfirmed"
+                const confirmedMessages = group.filter(
+                    (msg) => msg.typesNotification === "TechnicianConfirmed"
+                );
+                filteredMessages.push(...confirmedMessages);
+            } else {
+                // If no TechnicianConfirmed, keep all messages in the group
+                filteredMessages.push(...group);
+            }
+        });
+
+        // Step 3: Transform filtered messages into notifications
+        return filteredMessages.map((msg, index) => {
             let icon = AlertCircle;
             let iconColor = "text-blue-500";
             let bgColor = "bg-blue-100 dark:bg-blue-900/30";
@@ -131,6 +117,12 @@ export const Header = ({ collapsed, setCollapsed }) => {
                 bgColor = "bg-yellow-100 dark:bg-yellow-900/30";
                 statusColor = "text-yellow-600 dark:text-yellow-400";
                 statusBg = "bg-yellow-100 dark:bg-yellow-900/30";
+            } else if (msg.typesNotification === "TechnicianConfirmed") {
+                icon = CheckCircle2;
+                iconColor = "text-green-500";
+                bgColor = "bg-green-100 dark:bg-green-900/30";
+                statusColor = "text-green-600 dark:text-green-400";
+                statusBg = "bg-green-100 dark:bg-green-900/30";
             } else if (msg.RequestStatus === "Completed" || msg.Status === "Completed") {
                 icon = CheckCircle2;
                 iconColor = "text-green-500";
@@ -267,7 +259,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
 
     const handleNotificationClick = (notif) => {
         setSelectedMessage(notif);
-        setShowNotifications(false); // Auto-close dropdown
+        setShowNotifications(false);
     };
 
     const closeDetailView = () => {
@@ -359,15 +351,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                                             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed line-clamp-2">
                                                                 {notif.desc || notif.data?.RequestDescription || notif.data?.message}
                                                             </p>
-                                                            {notif.data?.RequestStatus && (
-                                                                <span className={`inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium ${notif.statusBg} ${notif.statusColor}`}>
-                                                                    <span className="w-1 h-1 rounded-full bg-current"></span>
-                                                                    {notif.data.RequestStatus}
-                                                                </span>
-                                                            )}
-                                                            {notif.unread && (
-                                                                <span className="inline-block mt-1 w-1.5 h-1.5 bg-yellow-500 rounded-full"></span>
-                                                            )}
+                                    
                                                         </div>
                                                     </div>
                                                 </div>
@@ -419,16 +403,13 @@ export const Header = ({ collapsed, setCollapsed }) => {
                 technicians={techniciansToUse}
                 isLoadingTechnicians={isLoadingTechnicians}
                 onAssignSuccess={() => {
-                    // Optional: refresh notifications or show success message
                     console.log("Technician assigned successfully");
                 }}
                 onAssignError={(error) => {
                     console.error("Assignment error:", error);
-                    // Optional: show error toast
                 }}
                 onApprove={(requestId) => {
                     console.log("Request approved:", requestId);
-                    // Optional: refresh notifications or show success message
                 }}
             />
         </>
