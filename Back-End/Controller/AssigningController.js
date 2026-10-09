@@ -7,15 +7,58 @@ const mongoose = require("mongoose");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
+const Equipment = require('./../Models/Equipment')
 
 exports.AssignEquipment = AsyncErrorHandler(async (req, res) => {
-  // Create the AssignEquipment document
-  const Assign = await assign.create(req.body); // Use 'Assign' model with the pre-save hook
+  const Assign = await assign.create(req.body);
 
-  // Send a success response after the document is created and saved
+  console.log("Assign", Assign);
+
+  // ==========================================
+  //  UPDATE EQUIPMENT STATUS TO "Not Available"
+  // ==========================================
+  const updatedEquipment = await Equipment  .findByIdAndUpdate(
+    Assign.Equipments,                     //  ObjectId ng equipment
+    { status: "Not Available" },           //  bagong status
+    { new: true }                          //  ibalik ang updated doc
+  );
+
+  if (!updatedEquipment) {
+    console.warn(`⚠️ Equipment not found for ID: ${Assign.Equipments}`);
+  } else {
+    console.log(` Equipment ${updatedEquipment.code || updatedEquipment._id} status → Not Available`);
+  }
+
+  // ==========================================
+  //  Socket.IO emit — Assign created
+  // ==========================================
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("assignEquipment:created", {
+      status: "success",
+      action: "created",
+      data: Assign,
+      timestamp: new Date(),
+    });
+
+    //  Optional: emit din ang equipment update para real-time sa UI
+    if (updatedEquipment) {
+      io.emit("equipment:updated", {
+        status: "success",
+        action: "updated",
+        data: updatedEquipment,
+        timestamp: new Date(),
+      });
+      console.log(`📡 [Socket] Broadcasted 'equipment:updated'`);
+    }
+
+    console.log(`📡 [Socket] Broadcasted 'assignEquipment:created'`);
+  }
+
   res.status(201).json({
     status: "success",
     data: Assign,
+    equipment: updatedEquipment,   //  isama sa response (optional)
   });
 });
 
@@ -521,275 +564,275 @@ exports.AssignRemove = AsyncErrorHandler(async (req, res) => {
 
 
 exports.displayAssignHistory = AsyncErrorHandler(async (req, res, next) => {
-    // 1. DYNAMIC SEARCH ID
-    const searchID = req.query.laboratory || req.query.department;
+  // 1. DYNAMIC SEARCH ID
+  const searchID = req.query.laboratory || req.query.department;
 
-    let matchStage = {};
-    if (searchID) {
-        const objectId = new mongoose.Types.ObjectId(searchID);
-        matchStage = {
-            $or: [
-                { Laboratory: objectId },
-                { "LaboratoryInfo.department": objectId },
+  let matchStage = {};
+  if (searchID) {
+    const objectId = new mongoose.Types.ObjectId(searchID);
+    matchStage = {
+      $or: [
+        { Laboratory: objectId },
+        { "LaboratoryInfo.department": objectId },
+      ],
+    };
+  }
+
+  // 2. AUTO-GENERATE DOCUMENT NUMBER & EFFECTIVE DATE
+  const totalCount = await assign.countDocuments();
+  const formattedNumber = String(totalCount + 1).padStart(3, '0');
+  const dynamicDocNo = `BIPSU-QAA-PMS-${formattedNumber}`;
+
+  const today = new Date();
+  const effectiveDate = today.toLocaleDateString('en-US', {
+    month: 'long',
+    day: '2-digit',
+    year: 'numeric'
+  });
+
+  // 3. AGGREGATION PIPELINE
+  const assigns = await assign.aggregate([
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "Laboratory",
+        foreignField: "_id",
+        as: "LaboratoryInfo",
+      },
+    },
+    { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
+    ...(searchID ? [{ $match: matchStage }] : []),
+    {
+      $lookup: {
+        from: "users",
+        localField: "LaboratoryInfo.Encharge",
+        foreignField: "_id",
+        as: "EnchargeInfo",
+      },
+    },
+    { $unwind: { path: "$EnchargeInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "LaboratoryInfo.department",
+        foreignField: "_id",
+        as: "DepartmentInfo",
+      },
+    },
+    { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "equipment",
+        localField: "Equipments",
+        foreignField: "_id",
+        as: "EquipmentsInfo",
+      },
+    },
+    { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "categories",
+        localField: "EquipmentsInfo.Category",
+        foreignField: "_id",
+        as: "CategoryInfo",
+      },
+    },
+    { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
+    {
+      $group: {
+        _id: "$LaboratoryInfo.LaboratoryName",
+        encharge: { $first: "$EnchargeInfo" },
+        departmentName: { $first: "$DepartmentInfo.DepartmentName" },
+        equipments: {
+          $addToSet: {
+            $mergeObjects: [
+              "$EquipmentsInfo",
+              { categoryName: "$CategoryInfo.CategoryName" },
             ],
-        };
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        laboratoryName: "$_id",
+        encharge: {
+          $concat: [
+            "$encharge.FirstName", " ",
+            { $ifNull: ["$encharge.Middle", ""] }, " ",
+            "$encharge.LastName",
+          ],
+        },
+        departmentName: 1,
+        equipments: 1,
+      },
+    },
+  ]);
+
+  if (!assigns || assigns.length === 0) {
+    return next(new CustomError("No records found.", 404));
+  }
+
+  // 4. PDF CONFIG
+  const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 30 });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=History_Report_${formattedNumber}.pdf`);
+  doc.pipe(res);
+
+  const margin = 30;
+  const tableWidth = doc.page.width - margin * 2;
+  let currentY = margin;
+
+  const col = {
+    code: 40, name: 110, date: 50, status: 80, type: 70, breakdown: 70, avail: 60, remarks: 55
+  };
+
+  const drawHeader = (labName, deptName) => {
+    doc.rect(margin, currentY, tableWidth, 80).stroke();
+    const logoPath = path.join(__dirname, "../public/image/logo.jpg");
+    if (fs.existsSync(logoPath)) doc.image(logoPath, margin + 5, currentY + 5, { width: 70 });
+    doc.moveTo(margin + 80, currentY).lineTo(margin + 80, currentY + 80).stroke();
+
+    const infoWidth = 130;
+    const infoX = margin + tableWidth - infoWidth;
+    doc.moveTo(infoX, currentY).lineTo(infoX, currentY + 80).stroke();
+
+    doc.fontSize(7).font("Helvetica");
+    const rowH = 20;
+    for (let i = 1; i <= 3; i++) {
+      doc.moveTo(infoX, currentY + (rowH * i)).lineTo(margin + tableWidth, currentY + (rowH * i)).stroke();
     }
 
-    // 2. AUTO-GENERATE DOCUMENT NUMBER & EFFECTIVE DATE
-    const totalCount = await assign.countDocuments();
-    const formattedNumber = String(totalCount + 1).padStart(3, '0');
-    const dynamicDocNo = `BIPSU-QAA-PMS-${formattedNumber}`;
+    doc.text("Document No:", infoX + 5, currentY + 5);
+    doc.font("Helvetica-Bold").text(dynamicDocNo, infoX + 5, currentY + 12);
+    doc.font("Helvetica").text("Page: 1 of 1", infoX + 5, currentY + rowH + 8);
+    doc.text("Effective Date:", infoX + 5, currentY + (rowH * 2) + 5);
+    doc.font("Helvetica-Bold").text(effectiveDate, infoX + 5, currentY + (rowH * 2) + 12);
+    doc.font("Helvetica").text("Issuance/Revision: 02/01", infoX + 5, currentY + (rowH * 3) + 8);
 
-    const today = new Date();
-    const effectiveDate = today.toLocaleDateString('en-US', {
-        month: 'long',
-        day: '2-digit',
-        year: 'numeric'
-    });
+    const centerWidth = tableWidth - 80 - infoWidth;
+    const centerX = margin + 80;
+    doc.font("Helvetica-Bold").fontSize(9).text("QUALITY MANAGEMENT SYSTEM", centerX, currentY + 15, { align: 'center', width: centerWidth });
+    doc.text("PERIODIC MAINTENANCE SYSTEM - FORM", centerX, currentY + 25, { align: 'center', width: centerWidth });
+    doc.moveTo(centerX, currentY + 40).lineTo(infoX, currentY + 40).stroke();
+    doc.fontSize(10).text("EQUIPMENT/TOOL HISTORY FILE", centerX, currentY + 55, { align: 'center', width: centerWidth });
 
-    // 3. AGGREGATION PIPELINE
-    const assigns = await assign.aggregate([
-        {
-            $lookup: {
-                from: "laboratories",
-                localField: "Laboratory",
-                foreignField: "_id",
-                as: "LaboratoryInfo",
-            },
-        },
-        { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
-        ...(searchID ? [{ $match: matchStage }] : []),
-        {
-            $lookup: {
-                from: "users",
-                localField: "LaboratoryInfo.Encharge",
-                foreignField: "_id",
-                as: "EnchargeInfo",
-            },
-        },
-        { $unwind: { path: "$EnchargeInfo", preserveNullAndEmptyArrays: true } },
-        {
-            $lookup: {
-                from: "departments",
-                localField: "LaboratoryInfo.department",
-                foreignField: "_id",
-                as: "DepartmentInfo",
-            },
-        },
-        { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
-        {
-            $lookup: {
-                from: "equipment",
-                localField: "Equipments",
-                foreignField: "_id",
-                as: "EquipmentsInfo",
-            },
-        },
-        { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
-        {
-            $lookup: {
-                from: "categories",
-                localField: "EquipmentsInfo.Category",
-                foreignField: "_id",
-                as: "CategoryInfo",
-            },
-        },
-        { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
-        {
-            $group: {
-                _id: "$LaboratoryInfo.LaboratoryName",
-                encharge: { $first: "$EnchargeInfo" },
-                departmentName: { $first: "$DepartmentInfo.DepartmentName" },
-                equipments: {
-                    $addToSet: {
-                        $mergeObjects: [
-                            "$EquipmentsInfo",
-                            { categoryName: "$CategoryInfo.CategoryName" },
-                        ],
-                    },
-                },
-            },
-        },
-        {
-            $project: {
-                laboratoryName: "$_id",
-                encharge: {
-                    $concat: [
-                        "$encharge.FirstName", " ",
-                        { $ifNull: ["$encharge.Middle", ""] }, " ",
-                        "$encharge.LastName",
-                    ],
-                },
-                departmentName: 1,
-                equipments: 1,
-            },
-        },
-    ]);
+    currentY += 95;
+    doc.font("Helvetica-Bold").fontSize(10).text("SCHOOL/OFFICE OF:", margin, currentY);
+    doc.font("Helvetica").text(`${deptName || ""} / ${labName || ""}`, margin + 110, currentY);
+    doc.moveTo(margin + 108, currentY + 11).lineTo(margin + tableWidth, currentY + 11).stroke();
 
-    if (!assigns || assigns.length === 0) {
-        return next(new CustomError("No records found.", 404));
-    }
+    currentY += 25;
 
-    // 4. PDF CONFIG
-    const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 30 });
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename=History_Report_${formattedNumber}.pdf`);
-    doc.pipe(res);
+    // TABLE GRID HEADER
+    doc.rect(margin, currentY, tableWidth, 50).stroke();
+    let curX = margin;
+    doc.fontSize(7).font("Helvetica-Bold");
 
-    const margin = 30;
-    const tableWidth = doc.page.width - margin * 2;
-    let currentY = margin;
+    doc.text("Code No.", curX, currentY + 15, { width: col.code, align: 'center' }); curX += col.code;
+    doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
+    doc.text("Name of Equipment/Tools", curX, currentY + 10, { width: col.name, align: 'center' }); curX += col.name;
+    doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
+    doc.text("Date Acquired", curX, currentY + 15, { width: col.date, align: 'center' }); curX += col.date;
+    doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
 
-    const col = {
-        code: 40, name: 110, date: 50, status: 80, type: 70, breakdown: 70, avail: 60, remarks: 55 
-    };
+    doc.text("Status", curX, currentY + 5, { width: col.status, align: 'center' });
+    doc.moveTo(curX, currentY + 15).lineTo(curX + col.status, currentY + 15).stroke();
+    doc.fontSize(5.5).text("Serviceable", curX, currentY + 25, { width: 40, align: 'center' });
+    doc.moveTo(curX + 40, currentY + 15).lineTo(curX + 40, currentY + 50).stroke();
+    doc.text("Non-Serviceable", curX + 40, currentY + 25, { width: 40, align: 'center' }); curX += col.status;
+    doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
 
-    const drawHeader = (labName, deptName) => {
-        doc.rect(margin, currentY, tableWidth, 80).stroke();
-        const logoPath = path.join(__dirname, "../public/image/logo.jpg");
-        if (fs.existsSync(logoPath)) doc.image(logoPath, margin + 5, currentY + 5, { width: 70 });
-        doc.moveTo(margin + 80, currentY).lineTo(margin + 80, currentY + 80).stroke();
+    doc.fontSize(7).text("Type/Category", curX, currentY + 15, { width: col.type, align: 'center' }); curX += col.type;
+    doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
 
-        const infoWidth = 130;
-        const infoX = margin + tableWidth - infoWidth;
-        doc.moveTo(infoX, currentY).lineTo(infoX, currentY + 80).stroke();
+    doc.text("Breakdown", curX, currentY + 5, { width: col.breakdown, align: 'center' });
+    doc.moveTo(curX, currentY + 15).lineTo(curX + col.breakdown, currentY + 15).stroke();
+    doc.text("No.", curX, currentY + 25, { width: 35, align: 'center' });
+    doc.moveTo(curX + 35, currentY + 15).lineTo(curX + 35, currentY + 50).stroke();
+    doc.text("Duration", curX + 35, currentY + 25, { width: 35, align: 'center' }); curX += col.breakdown;
+    doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
 
-        doc.fontSize(7).font("Helvetica");
-        const rowH = 20;
-        for(let i=1; i<=3; i++) {
-            doc.moveTo(infoX, currentY + (rowH * i)).lineTo(margin + tableWidth, currentY + (rowH * i)).stroke();
-        }
+    doc.fontSize(6).text("Availability & Utilization", curX, currentY + 2, { width: col.avail, align: 'center' });
+    doc.moveTo(curX, currentY + 15).lineTo(curX + col.avail, currentY + 15).stroke();
+    doc.fontSize(7).text("Yes", curX, currentY + 25, { width: 30, align: 'center' });
+    doc.moveTo(curX + 30, currentY + 15).lineTo(curX + 30, currentY + 50).stroke();
+    doc.text("No", curX + 30, currentY + 25, { width: 30, align: 'center' }); curX += col.avail;
+    doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
 
-        doc.text("Document No:", infoX + 5, currentY + 5);
-        doc.font("Helvetica-Bold").text(dynamicDocNo, infoX + 5, currentY + 12);
-        doc.font("Helvetica").text("Page: 1 of 1", infoX + 5, currentY + rowH + 8);
-        doc.text("Effective Date:", infoX + 5, currentY + (rowH * 2) + 5);
-        doc.font("Helvetica-Bold").text(effectiveDate, infoX + 5, currentY + (rowH * 2) + 12);
-        doc.font("Helvetica").text("Issuance/Revision: 02/01", infoX + 5, currentY + (rowH * 3) + 8);
+    doc.text("Remarks", curX, currentY + 15, { width: col.remarks, align: 'center' });
+    currentY += 50;
+  };
 
-        const centerWidth = tableWidth - 80 - infoWidth;
-        const centerX = margin + 80;
-        doc.font("Helvetica-Bold").fontSize(9).text("QUALITY MANAGEMENT SYSTEM", centerX, currentY + 15, { align: 'center', width: centerWidth });
-        doc.text("PERIODIC MAINTENANCE SYSTEM - FORM", centerX, currentY + 25, { align: 'center', width: centerWidth });
-        doc.moveTo(centerX, currentY + 40).lineTo(infoX, currentY + 40).stroke();
-        doc.fontSize(10).text("EQUIPMENT/TOOL HISTORY FILE", centerX, currentY + 55, { align: 'center', width: centerWidth });
+  assigns.forEach((lab, idx) => {
+    if (idx > 0) { doc.addPage({ layout: "portrait" }); currentY = margin; }
+    drawHeader(lab.laboratoryName, lab.departmentName);
 
-        currentY += 95;
-        doc.font("Helvetica-Bold").fontSize(10).text("SCHOOL/OFFICE OF:", margin, currentY);
-        doc.font("Helvetica").text(`${deptName || ""} / ${labName || ""}`, margin + 110, currentY);
-        doc.moveTo(margin + 108, currentY + 11).lineTo(margin + tableWidth, currentY + 11).stroke();
+    lab.equipments.forEach((eq) => {
+      const equipmentFullName = `${eq.Brand || ""} - ${eq.Specification || ""}`;
+      const rowHeight = Math.max(doc.heightOfString(equipmentFullName, { width: 100 }) + 10, 25);
 
-        currentY += 25;
+      // LOGIC FOR REMARKS AND CHECKMARKS
+      const statusStr = eq.remarks ? eq.remarks.toString().toLowerCase().trim() : "";
+      const isActive = (statusStr === "active" || statusStr === "functional" || statusStr === "available");
 
-        // TABLE GRID HEADER
-        doc.rect(margin, currentY, tableWidth, 50).stroke();
-        let curX = margin;
-        doc.fontSize(7).font("Helvetica-Bold");
-        
-        doc.text("Code No.", curX, currentY + 15, { width: col.code, align: 'center' }); curX += col.code;
-        doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
-        doc.text("Name of Equipment/Tools", curX, currentY + 10, { width: col.name, align: 'center' }); curX += col.name;
-        doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
-        doc.text("Date Acquired", curX, currentY + 15, { width: col.date, align: 'center' }); curX += col.date;
-        doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
+      const remarksValue = isActive ? "Functional" : "NotFunctional";
 
-        doc.text("Status", curX, currentY + 5, { width: col.status, align: 'center' });
-        doc.moveTo(curX, currentY + 15).lineTo(curX + col.status, currentY + 15).stroke();
-        doc.fontSize(5.5).text("Serviceable", curX, currentY + 25, { width: 40, align: 'center' });
-        doc.moveTo(curX + 40, currentY + 15).lineTo(curX + 40, currentY + 50).stroke();
-        doc.text("Non-Serviceable", curX + 40, currentY + 25, { width: 40, align: 'center' }); curX += col.status;
-        doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
+      // X positions for checkmarks
+      const statusCheckX = margin + col.code + col.name + col.date; // Base ng Serviceable
+      const availCheckX = statusCheckX + col.status + col.type + col.breakdown; // Base ng Avail/Util
 
-        doc.fontSize(7).text("Type/Category", curX, currentY + 15, { width: col.type, align: 'center' }); curX += col.type;
-        doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
-
-        doc.text("Breakdown", curX, currentY + 5, { width: col.breakdown, align: 'center' });
-        doc.moveTo(curX, currentY + 15).lineTo(curX + col.breakdown, currentY + 15).stroke();
-        doc.text("No.", curX, currentY + 25, { width: 35, align: 'center' });
-        doc.moveTo(curX + 35, currentY + 15).lineTo(curX + 35, currentY + 50).stroke();
-        doc.text("Duration", curX + 35, currentY + 25, { width: 35, align: 'center' }); curX += col.breakdown;
-        doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
-
-        doc.fontSize(6).text("Availability & Utilization", curX, currentY + 2, { width: col.avail, align: 'center' });
-        doc.moveTo(curX, currentY + 15).lineTo(curX + col.avail, currentY + 15).stroke();
-        doc.fontSize(7).text("Yes", curX, currentY + 25, { width: 30, align: 'center' });
-        doc.moveTo(curX + 30, currentY + 15).lineTo(curX + 30, currentY + 50).stroke();
-        doc.text("No", curX + 30, currentY + 25, { width: 30, align: 'center' }); curX += col.avail;
-        doc.moveTo(curX, currentY).lineTo(curX, currentY + 50).stroke();
-
-        doc.text("Remarks", curX, currentY + 15, { width: col.remarks, align: 'center' });
-        currentY += 50;
-    };
-
-    assigns.forEach((lab, idx) => {
-        if (idx > 0) { doc.addPage({ layout: "portrait" }); currentY = margin; }
+      if (currentY + rowHeight > 750) {
+        doc.addPage({ layout: "portrait" }); currentY = margin;
         drawHeader(lab.laboratoryName, lab.departmentName);
+      }
 
-        lab.equipments.forEach((eq) => {
-            const equipmentFullName = `${eq.Brand || ""} - ${eq.Specification || ""}`;
-            const rowHeight = Math.max(doc.heightOfString(equipmentFullName, { width: 100 }) + 10, 25);
+      // Draw Row Rect and Vertical Lines
+      doc.rect(margin, currentY, tableWidth, rowHeight).stroke();
+      let xPos = margin;
+      [40, 110, 50, 40, 40, 70, 35, 35, 30, 30].forEach(w => {
+        xPos += w;
+        doc.moveTo(xPos, currentY).lineTo(xPos, currentY + rowHeight).stroke();
+      });
 
-            // LOGIC FOR REMARKS AND CHECKMARKS
-            const statusStr = eq.remarks ? eq.remarks.toString().toLowerCase().trim() : "";
-            const isActive = (statusStr === "active" || statusStr === "functional" || statusStr === "available");
-            
-            const remarksValue = isActive ? "Functional" : "NotFunctional";
-            
-            // X positions for checkmarks
-            const statusCheckX = margin + col.code + col.name + col.date; // Base ng Serviceable
-            const availCheckX = statusCheckX + col.status + col.type + col.breakdown; // Base ng Avail/Util
+      doc.font("Helvetica").fontSize(7);
+      doc.text(eq.SerialNumber || "", margin, currentY + 8, { width: 40, align: 'center' });
+      doc.text(equipmentFullName, margin + 45, currentY + 8, { width: 100 });
 
-            if (currentY + rowHeight > 750) {
-                doc.addPage({ layout: "portrait" }); currentY = margin;
-                drawHeader(lab.laboratoryName, lab.departmentName);
-            }
+      const dateStr = eq.DateTime ? new Date(eq.DateTime).toLocaleDateString() : "N/A";
+      doc.text(dateStr, margin + 150, currentY + 8, { width: 50, align: 'center' });
 
-            // Draw Row Rect and Vertical Lines
-            doc.rect(margin, currentY, tableWidth, rowHeight).stroke();
-            let xPos = margin;
-            [40, 110, 50, 40, 40, 70, 35, 35, 30, 30].forEach(w => {
-                xPos += w;
-                doc.moveTo(xPos, currentY).lineTo(xPos, currentY + rowHeight).stroke();
-            });
+      // --- CHECKMARK LOGIC (ZapfDingbats "4" is Checkmark) ---
+      doc.font("ZapfDingbats").fontSize(10);
+      if (isActive) {
+        // Serviceable Check
+        doc.text("4", statusCheckX, currentY + 8, { width: 40, align: 'center' });
+        // Availability (Yes) Check
+        doc.text("4", availCheckX, currentY + 8, { width: 30, align: 'center' });
+      } else {
+        // Non-Serviceable Check
+        doc.text("4", statusCheckX + 40, currentY + 8, { width: 40, align: 'center' });
+        // Utilization (No) Check
+        doc.text("4", availCheckX + 30, currentY + 8, { width: 30, align: 'center' });
+      }
 
-            doc.font("Helvetica").fontSize(7);
-            doc.text(eq.SerialNumber || "", margin, currentY + 8, { width: 40, align: 'center' });
-            doc.text(equipmentFullName, margin + 45, currentY + 8, { width: 100 });
-            
-            const dateStr = eq.DateTime ? new Date(eq.DateTime).toLocaleDateString() : "N/A";
-            doc.text(dateStr, margin + 150, currentY + 8, { width: 50, align: 'center' });
+      doc.font("Helvetica").fontSize(7);
+      doc.text(eq.categoryName || "", margin + 280, currentY + 8, { width: 70, align: 'center' });
 
-            // --- CHECKMARK LOGIC (ZapfDingbats "4" is Checkmark) ---
-            doc.font("ZapfDingbats").fontSize(10);
-            if (isActive) {
-                // Serviceable Check
-                doc.text("4", statusCheckX, currentY + 8, { width: 40, align: 'center' });
-                // Availability (Yes) Check
-                doc.text("4", availCheckX, currentY + 8, { width: 30, align: 'center' });
-            } else {
-                // Non-Serviceable Check
-                doc.text("4", statusCheckX + 40, currentY + 8, { width: 40, align: 'center' });
-                // Utilization (No) Check
-                doc.text("4", availCheckX + 30, currentY + 8, { width: 30, align: 'center' });
-            }
+      // --- UPDATED REMARKS ---
+      doc.text(remarksValue, margin + tableWidth - 55, currentY + 8, { width: 55, align: 'center' });
 
-            doc.font("Helvetica").fontSize(7);
-            doc.text(eq.categoryName || "", margin + 280, currentY + 8, { width: 70, align: 'center' });
-            
-            // --- UPDATED REMARKS ---
-            doc.text(remarksValue, margin + tableWidth - 55, currentY + 8, { width: 55, align: 'center' });
-
-            currentY += rowHeight;
-        });
-
-        currentY += 40;
-        doc.font("Helvetica").fontSize(9);
-        doc.text("Prepared:", margin, currentY);
-        doc.font("Helvetica-Bold").text(lab.encharge || "", margin + 50, currentY);
-
-        doc.font("Helvetica").text("Attested: ________________", margin + 210, currentY);
-        doc.text("Approved: ________________", margin + 410, currentY);
+      currentY += rowHeight;
     });
 
-    doc.end();
+    currentY += 40;
+    doc.font("Helvetica").fontSize(9);
+    doc.text("Prepared:", margin, currentY);
+    doc.font("Helvetica-Bold").text(lab.encharge || "", margin + 50, currentY);
+
+    doc.font("Helvetica").text("Attested: ________________", margin + 210, currentY);
+    doc.text("Approved: ________________", margin + 410, currentY);
+  });
+
+  doc.end();
 });

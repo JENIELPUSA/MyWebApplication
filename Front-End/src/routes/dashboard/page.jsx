@@ -34,6 +34,207 @@ import SupplyDashboard from "./dashboardRole/SupplyDashboard";
 
 import ReassignModal from './dashboardRole/ReassignModal';
 
+// ============================================================
+// ✅ SKELETON COMPONENTS (Reusable)
+// ============================================================
+const SkeletonPulse = ({ className = "" }) => (
+    <div className={`animate-pulse bg-gray-200 dark:bg-slate-700 rounded ${className}`} />
+);
+
+const SkeletonCircle = ({ size = "w-20 h-20" }) => (
+    <div className={`${size} rounded-full animate-pulse bg-gray-200 dark:bg-slate-700`} />
+);
+
+const TechnicianCardSkeleton = () => (
+    <div className="flex flex-col items-center flex-shrink-0" style={{ width: `${100 / 6}%` }}>
+        <SkeletonCircle size="w-20 h-20" />
+        <SkeletonPulse className="h-3 w-20 mt-3" />
+        <div className="flex gap-2 mt-2">
+            <SkeletonPulse className="h-2 w-6" />
+            <SkeletonPulse className="h-2 w-6" />
+            <SkeletonPulse className="h-2 w-6" />
+        </div>
+    </div>
+);
+
+const ChartSkeleton = ({ height = "h-80" }) => (
+    <div className="space-y-4">
+        <div className="flex items-end gap-2 h-full">
+            <SkeletonPulse className="flex-1 h-32" />
+            <SkeletonPulse className="flex-1 h-48" />
+            <SkeletonPulse className="flex-1 h-24" />
+            <SkeletonPulse className="flex-1 h-56" />
+            <SkeletonPulse className="flex-1 h-40" />
+            <SkeletonPulse className="flex-1 h-64" />
+            <SkeletonPulse className="flex-1 h-36" />
+        </div>
+        <div className="flex justify-between px-4">
+            {[...Array(7)].map((_, i) => (
+                <SkeletonPulse key={i} className="h-2 w-10" />
+            ))}
+        </div>
+    </div>
+);
+
+const PieChartSkeleton = () => (
+    <div className="flex flex-col items-center justify-center space-y-4 p-4">
+        <SkeletonCircle size="w-40 h-40" />
+        <div className="flex flex-wrap justify-center gap-3">
+            {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full animate-pulse bg-gray-200 dark:bg-slate-700" />
+                    <SkeletonPulse className="h-3 w-16" />
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
+// ============================================================
+// ✅ BANNER SKELETON
+// ============================================================
+const DashboardBannerSkeleton = () => (
+    <div className="w-full bg-gradient-to-r from-blue-700 to-blue-800 dark:from-slate-800 dark:to-slate-900 rounded-[2rem] shadow-lg p-6 sm:p-8 relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 relative z-10">
+            <SkeletonPulse className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-blue-600/40 dark:bg-slate-700" />
+            <div className="flex-1 space-y-3 w-full">
+                <SkeletonPulse className="h-5 w-64 bg-blue-600/40 dark:bg-slate-700" />
+                <SkeletonPulse className="h-3 w-80 bg-blue-600/40 dark:bg-slate-700" />
+                <div className="flex flex-wrap gap-2 mt-2">
+                    <SkeletonPulse className="h-6 w-24 rounded-full bg-blue-600/40 dark:bg-slate-700" />
+                    <SkeletonPulse className="h-6 w-28 rounded-full bg-blue-600/40 dark:bg-slate-700" />
+                    <SkeletonPulse className="h-6 w-20 rounded-full bg-blue-600/40 dark:bg-slate-700" />
+                </div>
+            </div>
+            <SkeletonPulse className="w-24 h-10 rounded-xl bg-blue-600/40 dark:bg-slate-700" />
+        </div>
+    </div>
+);
+
+// ============================================================
+// ✅ DASHBOARD CARD SKELETON (4-card stat row)
+// ============================================================
+const DashboardCardSkeleton = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+        {[...Array(4)].map((_, i) => (
+            <div
+                key={i}
+                className="bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-md border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-4"
+            >
+                <SkeletonPulse className="w-14 h-14 rounded-2xl flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                    <SkeletonPulse className="h-3 w-20" />
+                    <SkeletonPulse className="h-6 w-16" />
+                    <SkeletonPulse className="h-2 w-24" />
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+// ============================================================
+// ✅ LABORATORY SKELETON
+// ============================================================
+const LaboratorySkeleton = () => (
+    <div className="space-y-6">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-sm border border-blue-700/20 dark:border-yellow-400/20 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-2 h-full bg-yellow-400" />
+            <div className="flex items-center gap-4 mb-6">
+                <SkeletonPulse className="w-14 h-14 rounded-2xl" />
+                <div className="space-y-2">
+                    <SkeletonPulse className="h-5 w-56" />
+                    <SkeletonPulse className="h-3 w-72" />
+                </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {[...Array(4)].map((_, i) => (
+                    <div
+                        key={i}
+                        className="bg-gray-50 dark:bg-slate-800 rounded-xl p-4 space-y-2"
+                    >
+                        <SkeletonPulse className="h-3 w-24" />
+                        <SkeletonPulse className="h-6 w-12" />
+                    </div>
+                ))}
+            </div>
+            <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                    <SkeletonPulse key={i} className="h-12 w-full rounded-xl" />
+                ))}
+            </div>
+        </div>
+    </div>
+);
+
+// ============================================================
+// ✅ ADMIN DASHBOARD SKELETON
+// ============================================================
+const AdminDashboardSkeleton = () => (
+    <div className="space-y-8">
+        {/* Technicians Avatar Section Skeleton */}
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-lg p-6">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <SkeletonPulse className="w-12 h-12 rounded-xl" />
+                <div className="space-y-2">
+                    <SkeletonPulse className="h-4 w-64" />
+                    <SkeletonPulse className="h-3 w-80" />
+                </div>
+                <SkeletonPulse className="ml-auto h-6 w-32 rounded-full" />
+            </div>
+
+            <div className="relative overflow-hidden">
+                <div className="flex gap-6">
+                    {[...Array(6)].map((_, i) => (
+                        <TechnicianCardSkeleton key={i} />
+                    ))}
+                </div>
+            </div>
+        </div>
+
+        {/* Chart Toggle Skeleton */}
+        <div className="flex flex-wrap justify-between items-center gap-4">
+            <div className="flex gap-2 bg-white dark:bg-slate-800 p-1.5 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+                <SkeletonPulse className="h-10 w-32 rounded-lg" />
+                <SkeletonPulse className="h-10 w-32 rounded-lg" />
+            </div>
+        </div>
+
+        {/* Chart Skeleton */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="xl:col-span-2 bg-white dark:bg-slate-900 rounded-[2rem] shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-3">
+                        <SkeletonPulse className="w-12 h-12 rounded-xl" />
+                        <div className="space-y-2">
+                            <SkeletonPulse className="h-4 w-48" />
+                            <SkeletonPulse className="h-3 w-64" />
+                        </div>
+                    </div>
+                    <SkeletonPulse className="h-8 w-32 rounded-xl" />
+                </div>
+                <ChartSkeleton />
+            </div>
+        </div>
+
+        {/* Pie Charts Skeleton */}
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <SkeletonPulse className="w-12 h-12 rounded-xl" />
+                <SkeletonPulse className="h-4 w-56" />
+                <SkeletonPulse className="ml-auto h-6 w-24 rounded-full" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="bg-gray-50 dark:bg-slate-800 rounded-2xl p-4">
+                        <SkeletonPulse className="h-3 w-32 mb-4" />
+                        <PieChartSkeleton />
+                    </div>
+                ))}
+            </div>
+        </div>
+    </div>
+);
+
 function Dashboard() {
     const ref = useRef(null);
     const isInView = useInView(ref, { once: true });
@@ -52,6 +253,9 @@ function Dashboard() {
     } = useContext(StatisticsContext);
     const { theme } = useTheme();
     const isDark = theme === "dark";
+
+    // ✅ Loading state para sa statistics
+    const [statisticsLoading, setStatisticsLoading] = useState(false);
 
     // ==========================================
     // USE REFS PARA I-STABILIZE ANG FUNCTIONS
@@ -89,6 +293,8 @@ function Dashboard() {
 
         const fetchStatistics = async () => {
             try {
+                setStatisticsLoading(true);   // ✅ START loading
+
                 if (role === "Admin") {
                     console.log("📊 Fetching Admin Statistics...");
                     await Promise.all([
@@ -108,12 +314,17 @@ function Dashboard() {
                 hasFetchedRef.current = true;
             } catch (error) {
                 console.error(`❌ Error fetching ${role} statistics:`, error);
+            } finally {
+                if (isMounted) {
+                    setStatisticsLoading(false);   // ✅ STOP loading
+                }
             }
         };
 
         // Reset fetch flag kapag nagbago ang role
         if (role) {
             hasFetchedRef.current = false;
+            setStatisticsLoading(true);           // ✅ Loading agad pagpalit ng role
         }
 
         timeoutId = setTimeout(() => {
@@ -165,7 +376,12 @@ function Dashboard() {
                         transition={{ duration: 0.5 }}
                         className="p-4 sm:p-6 lg:p-8"
                     >
-                        <DashboardBanner role={role} laboratory={laboratory} />
+                        {/* ✅ BANNER — Skeleton habang loading */}
+                        {statisticsLoading ? (
+                            <DashboardBannerSkeleton />
+                        ) : (
+                            <DashboardBanner role={role} laboratory={laboratory} />
+                        )}
 
                         <div className="mt-2">
                             <AnimatePresence mode="wait">
@@ -176,7 +392,11 @@ function Dashboard() {
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -20 }}
                                     >
-                                        <LaboratoryView laboratory={laboratory} />
+                                        {statisticsLoading ? (
+                                            <LaboratorySkeleton />
+                                        ) : (
+                                            <LaboratoryView laboratory={laboratory} />
+                                        )}
                                     </motion.div>
                                 ) : (
                                     <motion.div
@@ -186,17 +406,27 @@ function Dashboard() {
                                         exit={{ opacity: 0 }}
                                         className="space-y-1"
                                     >
-                                        <div className="grid grid-cols-1">
-                                            <DashboardCard
-                                                Laboratory={laboratoryData}
-                                                statisticsData={statisticsData}
-                                                technicianStats={technicianStats}
-                                                supplyStatistics={supplyStatistics}
-                                            />
-                                        </div>
+                                        {/* ✅ CARDS — Skeleton habang loading */}
+                                        {statisticsLoading ? (
+                                            <DashboardCardSkeleton />
+                                        ) : (
+                                            <div className="grid grid-cols-1">
+                                                <DashboardCard
+                                                    Laboratory={laboratoryData}
+                                                    statisticsData={statisticsData}
+                                                    technicianStats={technicianStats}
+                                                    supplyStatistics={supplyStatistics}
+                                                />
+                                            </div>
+                                        )}
 
+                                        {/* ✅ ADMIN — Skeleton or Actual Dashboard */}
                                         {role === "Admin" && (
-                                            <AdminDashboard statisticsData={statisticsData} />
+                                            statisticsLoading ? (
+                                                <AdminDashboardSkeleton />
+                                            ) : (
+                                                <AdminDashboard statisticsData={statisticsData} />
+                                            )
                                         )}
 
                                         {role === "User" && (
@@ -222,7 +452,7 @@ function Dashboard() {
 }
 
 // ============================================================
-// ADMIN DASHBOARD - MEMOIZED
+// ADMIN DASHBOARD - Same as before (walang binago)
 // ============================================================
 const AdminDashboard = React.memo(({ statisticsData }) => {
     const { technicians, techniciansLoading } = useContext(UserDataContext);
@@ -236,7 +466,6 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const { technicianTasks } = useContext(MaintenanceRequestContext);
 
-    // Reassign Modal State
     const [showReassignModal, setShowReassignModal] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
     const [selectedTaskTechnician, setSelectedTaskTechnician] = useState('');
@@ -245,7 +474,6 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
 
     const { pieCharts, lineGraphs, barCharts } = statisticsData || {};
 
-    // Process technicianTasks data - MEMOIZED
     const taskStats = useMemo(() => {
         if (!technicianTasks || technicianTasks.length === 0) {
             return {
@@ -307,7 +535,6 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
         };
     }, [technicianTasks]);
 
-    // Carousel settings
     const itemsPerPage = 6;
     const totalPages = Math.ceil(taskStats.technicians.length / itemsPerPage);
     const maxIndex = totalPages - 1;
@@ -338,9 +565,7 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
     }, []);
 
     const handleAvatarClick = useCallback((technician) => {
-        if (!technician.hasAssignedTasks) {
-            return;
-        }
+        if (!technician.hasAssignedTasks) return;
         setSelectedTechnician(technician);
         setShowTaskModal(true);
     }, []);
@@ -350,7 +575,6 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
         setSelectedTechnician(null);
     }, []);
 
-    // Reassign functions - MEMOIZED
     const handleOpenReassignModal = useCallback((task) => {
         setSelectedTask(task);
         const tech = taskStats.technicians.find(t =>
@@ -378,7 +602,6 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
         }, 1500);
     }, [handleCloseReassignModal]);
 
-    // Pagination handlers - MEMOIZED
     const handlePrevPage = useCallback(() => {
         setCurrentIndex(prev => Math.max(0, prev - 1));
     }, []);
@@ -391,22 +614,12 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
         setCurrentIndex(idx);
     }, []);
 
-    // Chart toggle handlers - MEMOIZED
-    const handleSetActiveChart = useCallback((chart) => {
-        setActiveChart(chart);
-    }, []);
-
-    const handleSetBarChartType = useCallback((type) => {
-        setBarChartType(type);
-    }, []);
-
-    const handleSetTimeRange = useCallback((range) => {
-        setTimeRange(range);
-    }, []);
+    const handleSetActiveChart = useCallback((chart) => setActiveChart(chart), []);
+    const handleSetBarChartType = useCallback((type) => setBarChartType(type), []);
+    const handleSetTimeRange = useCallback((range) => setTimeRange(range), []);
 
     return (
         <div className="space-y-8">
-            {/* Technicians Avatar Section */}
             {taskStats.technicians.length > 0 ? (
                 <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-lg p-6">
                     <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
@@ -426,7 +639,6 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                         </span>
                     </div>
 
-                    {/* Avatar Grid - Carousel */}
                     <div className="relative overflow-hidden">
                         <div
                             className="flex gap-6 transition-transform duration-500 ease-in-out"
@@ -490,12 +702,6 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                                                 <span className="text-[10px] font-medium text-gray-400">No assigned tasks</span>
                                             )}
                                         </div>
-
-                                        {hasTasks && (
-                                            <span className="text-[8px] text-blue-700 dark:text-yellow-400 font-medium mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                Click to view tasks
-                                            </span>
-                                        )}
                                     </motion.div>
                                 );
                             })}
@@ -530,8 +736,7 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                                     <button
                                         key={idx}
                                         onClick={() => handlePageClick(idx)}
-                                        className={`w-2 h-2 rounded-full transition-all duration-300 ${currentIndex === idx ? 'w-6 bg-blue-700 dark:bg-yellow-400' : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
-                                            }`}
+                                        className={`w-2 h-2 rounded-full transition-all duration-300 ${currentIndex === idx ? 'w-6 bg-blue-700 dark:bg-yellow-400' : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'}`}
                                     />
                                 ))}
                             </div>
@@ -546,12 +751,9 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                 </div>
             )}
 
-            {/* Task Modal */}
+            {/* Task Modal — same as before */}
             {showTaskModal && selectedTechnician && selectedTechnician.hasAssignedTasks && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
-                    onClick={closeModal}
-                >
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={closeModal}>
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -573,10 +775,7 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                                     </p>
                                 </div>
                             </div>
-                            <button
-                                onClick={closeModal}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-                            >
+                            <button onClick={closeModal} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors">
                                 <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
@@ -613,26 +812,21 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                                                                     <td className="px-4 py-3">
                                                                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${task.Status === 'Assigned' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                                                                             task.Status === 'In Progress' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                                                                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                                            }`}>
+                                                                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
                                                                             {task.Status}
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
                                                                         {new Date(task.DateTime).toLocaleDateString('en-US', {
-                                                                            year: 'numeric',
-                                                                            month: 'short',
-                                                                            day: 'numeric'
+                                                                            year: 'numeric', month: 'short', day: 'numeric'
                                                                         })}
                                                                     </td>
                                                                     <td className="px-4 py-3 text-center">
                                                                         <button
                                                                             onClick={() => handleOpenReassignModal(task)}
                                                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg border-2 border-orange-600 transition-all shadow-sm hover:shadow-md"
-                                                                            title="Reassign this task to another technician"
                                                                         >
-                                                                            <FaUserEdit size={12} />
-                                                                            ReAssign
+                                                                            <FaUserEdit size={12} /> ReAssign
                                                                         </button>
                                                                     </td>
                                                                 </tr>
@@ -674,19 +868,12 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                                                                     </td>
                                                                     <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
                                                                         {new Date(task.DateTime).toLocaleDateString('en-US', {
-                                                                            year: 'numeric',
-                                                                            month: 'short',
-                                                                            day: 'numeric'
+                                                                            year: 'numeric', month: 'short', day: 'numeric'
                                                                         })}
                                                                     </td>
                                                                     <td className="px-4 py-3 text-center">
-                                                                        <button
-                                                                            disabled
-                                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-300 text-gray-500 text-[10px] font-bold uppercase tracking-wider rounded-lg border-2 border-gray-400 cursor-not-allowed transition-all"
-                                                                            title="Cannot reassign completed tasks"
-                                                                        >
-                                                                            <FaUserEdit size={12} />
-                                                                            ReAssign
+                                                                        <button disabled className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-300 text-gray-500 text-[10px] font-bold uppercase tracking-wider rounded-lg border-2 border-gray-400 cursor-not-allowed">
+                                                                            <FaUserEdit size={12} /> ReAssign
                                                                         </button>
                                                                     </td>
                                                                 </tr>
@@ -720,7 +907,6 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                 </div>
             )}
 
-            {/* Reassign Modal */}
             <ReassignModal
                 isOpen={showReassignModal}
                 onClose={handleCloseReassignModal}
@@ -739,27 +925,21 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                         onClick={() => handleSetActiveChart("line")}
                         className={`px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all duration-200 flex items-center gap-2.5 ${activeChart === "line"
                             ? "bg-blue-700 text-yellow-400 shadow-lg shadow-blue-700/30 scale-105"
-                            : "bg-transparent text-blue-700/60 dark:text-yellow-400/60 hover:text-blue-700 dark:hover:text-yellow-400 hover:bg-blue-50 dark:hover:bg-yellow-900/10"
-                            }`}
+                            : "bg-transparent text-blue-700/60 dark:text-yellow-400/60 hover:text-blue-700 dark:hover:text-yellow-400 hover:bg-blue-50 dark:hover:bg-yellow-900/10"}`}
                     >
                         <FaChartLine size={16} className={activeChart === "line" ? "text-yellow-400" : "text-current"} />
                         Line Chart
-                        {activeChart === "line" && (
-                            <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-                        )}
+                        {activeChart === "line" && <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />}
                     </button>
                     <button
                         onClick={() => handleSetActiveChart("bar")}
                         className={`px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all duration-200 flex items-center gap-2.5 ${activeChart === "bar"
                             ? "bg-blue-700 text-yellow-400 shadow-lg shadow-blue-700/30 scale-105"
-                            : "bg-transparent text-blue-700/60 dark:text-yellow-400/60 hover:text-blue-700 dark:hover:text-yellow-400 hover:bg-blue-50 dark:hover:bg-yellow-900/10"
-                            }`}
+                            : "bg-transparent text-blue-700/60 dark:text-yellow-400/60 hover:text-blue-700 dark:hover:text-yellow-400 hover:bg-blue-50 dark:hover:bg-yellow-900/10"}`}
                     >
                         <FaChartBar size={16} className={activeChart === "bar" ? "text-yellow-400" : "text-current"} />
                         Bar Chart
-                        {activeChart === "bar" && (
-                            <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-                        )}
+                        {activeChart === "bar" && <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />}
                     </button>
                 </div>
 
@@ -776,8 +956,7 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                                 onClick={() => handleSetBarChartType(type.value)}
                                 className={`px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all duration-200 flex items-center gap-2 ${barChartType === type.value
                                     ? "bg-yellow-400 text-blue-700 shadow-lg shadow-yellow-400/30"
-                                    : "bg-transparent text-blue-700/50 dark:text-yellow-400/50 hover:text-blue-700 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-blue-900/10"
-                                    }`}
+                                    : "bg-transparent text-blue-700/50 dark:text-yellow-400/50 hover:text-blue-700 dark:hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-blue-900/10"}`}
                             >
                                 {type.icon} {type.label}
                             </button>
@@ -811,8 +990,7 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                                         onClick={() => handleSetTimeRange(range)}
                                         className={`px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all duration-200 ${timeRange === range
                                             ? "bg-blue-700 text-yellow-400 shadow-md"
-                                            : "text-blue-700/50 dark:text-yellow-400/50 hover:text-blue-700 dark:hover:text-yellow-400 hover:bg-blue-50 dark:hover:bg-yellow-900/10"
-                                            }`}
+                                            : "text-blue-700/50 dark:text-yellow-400/50 hover:text-blue-700 dark:hover:text-yellow-400 hover:bg-blue-50 dark:hover:bg-yellow-900/10"}`}
                                     >
                                         {range}
                                     </button>

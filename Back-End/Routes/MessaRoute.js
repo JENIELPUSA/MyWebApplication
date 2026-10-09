@@ -10,6 +10,11 @@ router
   .get(authController.protect, MsgController.DisplayMessage)
   .patch(authController.protect, MsgController.UpdateAllStatus);
 
+
+router
+  .route("/mark-all-read")
+
+  .patch(authController.protect, MsgController.MarkAllAsRead)
 router.route("/:id").patch(MsgController.UpdateSendMSG);
 
 router

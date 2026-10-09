@@ -184,7 +184,7 @@ exports.DisplayMessage = AsyncErrorHandler(async (req, res) => {
         message: 1,
         Status: 1,
         read: 1,
-        isReassign:1,
+        isReassign: 1,
         role: 1,
         DateTime: 1,
         readonUser: 1,
@@ -456,4 +456,78 @@ exports.EmailNotification = AsyncErrorHandler(async (req, res, next) => {
   } catch (error) {
     res.status(500).json({ message: "Failed to send email", error });
   }
+});
+
+exports.MarkAllAsRead = AsyncErrorHandler(async (req, res, next) => {
+  const userId = new mongoose.Types.ObjectId(req.user._id);
+
+  // Optional: kung may specific IDs na ipinasa mula sa frontend
+  const { messageIds } = req.body || {};
+
+  // ==========================================
+  // BUILD QUERY
+  // ==========================================
+  const query = {
+    "viewers.user": userId,
+    readonUser: false,
+  };
+
+  // Kung may specific IDs, i-limit sa mga iyon
+  if (Array.isArray(messageIds) && messageIds.length > 0) {
+    query._id = { $in: messageIds };
+    console.log("[MarkAllAsRead] Limited to IDs:", messageIds);
+  }
+
+  // ==========================================
+  // CHECK KUNG MAY UNREAD
+  // ==========================================
+  const unreadCount = await message.countDocuments(query);
+  console.log("[MarkAllAsRead] Unread found:", unreadCount);
+
+  if (unreadCount === 0) {
+    return res.status(200).json({
+      status: "info",
+      message: "No unread messages to update.",
+      updatedCount: 0,
+    });
+  }
+
+  // ==========================================
+  // UPDATE ALL UNREAD
+  // ==========================================
+  const result = await message.updateMany(query, {
+    $set: { readonUser: true, read: true },
+  });
+
+  console.log("[MarkAllAsRead] Modified count:", result.modifiedCount);
+
+  // ==========================================
+  // RETURN UPDATED IDs (para sa optimistic UI)
+  // ==========================================
+  const updatedMessages = await message
+    .find(query)
+    .select("_id")
+    .lean();
+  // ==========================================
+  // ✅ Socket.IO emit — Mark All As Read
+  // ==========================================
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("mark_all:created", {
+      status: "success",
+      action: "created",
+      data: updatedMessages,
+      updatedIds: updatedMessages.map((m) => m._id),
+      timestamp: new Date(),
+    });
+    console.log(`📡 [Socket] Broadcasted 'mark_all:created' → ${updatedMessages.length} messages`);
+  }
+
+
+  res.status(200).json({
+    status: "success",
+    message: "All messages marked as read.",
+    updatedCount: result.modifiedCount,
+    updatedIds: updatedMessages.map((m) => m._id),
+  });
 });

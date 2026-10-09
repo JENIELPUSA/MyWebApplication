@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import ForgotPassword from "../../components/ForgotPassword/ForgotPassword";
 import {
   Lock,
   Mail,
@@ -13,13 +14,14 @@ import {
   AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import logobipsu from "../../../public/logo.jpg"
+import logobipsu from "../../../public/logo.jpg";
 
 export default function AuthForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [values, setValues] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isForgotOpen, setIsForgotOpen] = useState(false); // ✅ modal state
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -27,7 +29,7 @@ export default function AuthForm() {
   const handleInput = useCallback((event) => {
     const { name, value } = event.target;
     setValues((prev) => ({ ...prev, [name]: value }));
-    if (errorMessage) setErrorMessage(""); // Clear error on typing
+    if (errorMessage) setErrorMessage("");
   }, [errorMessage]);
 
   const handleLoginSubmit = async (e) => {
@@ -168,10 +170,21 @@ export default function AuthForm() {
               </div>
             </div>
 
+            {/* ✅ Forgot Password Trigger */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsForgotOpen(true)}
+                className="text-[11px] font-semibold text-blue-900 hover:text-blue-700 hover:underline transition-colors"
+              >
+                Forgot Password?
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full py-3.5 mt-3 rounded-xl font-bold text-white uppercase tracking-wider text-xs transition-all shadow-md
+              className={`w-full py-3.5 mt-1 rounded-xl font-bold text-white uppercase tracking-wider text-xs transition-all shadow-md
                 ${isLoading
                   ? "bg-slate-400 cursor-wait"
                   : "bg-blue-900 hover:bg-blue-800 active:scale-[0.98] shadow-blue-900/20"}`}
@@ -192,6 +205,16 @@ export default function AuthForm() {
           </div>
         </div>
       </motion.div>
+
+      {/*Forgot Password Modal */}
+      <AnimatePresence>
+        {isForgotOpen && (
+          <ForgotPassword
+            isOpen={isForgotOpen}
+            onClose={() => setIsForgotOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -17,6 +17,13 @@ import ModalReport from "./components/Report/ModalReport";
 import PmsExport from "./components/PMSExport/PmsDisplay";
 import MaintenanceManagement from "./components/MaintenanceHistory/MaintenanceManagement";
 import ProblemTable from "./components/ProblemManagementComponents/ProblemTable";
+import Pms011 from "./components/PMSForm/Pms011"
+import Pms002 from "./components/PMSForm/Pms002"
+import Pms003 from "./components/PMSForm/Pms003"
+import Pms004 from "./components/PMSForm/Pms004"
+import Pms005 from "./components/PMSForm/Pms005"
+import Pms006 from "./components/PMSForm/Pms006"
+import Category from "./components/Category/CategoryTable";
 
 
 function App() {
@@ -50,6 +57,14 @@ function App() {
                         { path: "pms", element: <PmsExport /> },
                         { path: "maintenance", element: <MaintenanceManagement /> },
                         { path: "problem", element: <ProblemTable /> },
+                        { path: "pms001", element: <Pms011 /> },
+                        { path: "pms002", element: <Pms002 /> },
+                        { path: "pms003", element: <Pms003 /> },
+                        { path: "pms004", element: <Pms004 /> },
+                        { path: "pms005", element: <Pms005 /> },
+                        { path: "pms006", element: <Pms006 /> },
+                        { path: "category", element: <Category /> },
+
                     ],
                 },
             ],

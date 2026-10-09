@@ -3,16 +3,29 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { AddAssignContext } from "../../contexts/AssignContext/AddAssignContext";
 import { motion } from "framer-motion";
-import { X, ChevronDown, ChevronUp, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  X,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  AlertCircle,
+  User,
+} from "lucide-react";
 
-const PopupModal = ({ isOpen, onClose, onConfirm, equipment, onAssignSuccess }) => {
+const PopupModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  equipment,
+  onAssignSuccess,
+}) => {
   const [laboratories, setLaboratories] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [filteredLaboratories, setFilteredLaboratories] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState(null);
-  const {addAssignEquipment}=useContext(AddAssignContext)
+  const { addAssignEquipment } = useContext(AddAssignContext);
   const [values, setValues] = useState({
     id: "",
     brand: "",
@@ -20,7 +33,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment, onAssignSuccess }) 
     Laboratory: "",
     department: "",
   });
-  
+
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
   const [LaboratoryDropdownOpen, setLaboratoryDropdownOpen] = useState(false);
   const [isBothSelected, setIsBothSelected] = useState(false);
@@ -28,11 +41,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment, onAssignSuccess }) 
   const token = localStorage.getItem("token");
   const [animateExit, setAnimateExit] = useState(false);
 
-  const steps = [
-    "Select Department",
-    "Select Laboratory",
-    "Review & Submit",
-  ];
+  const steps = ["Select Department", "Select Laboratory", "Review & Submit"];
 
   useEffect(() => {
     fetchInitialData();
@@ -82,6 +91,10 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment, onAssignSuccess }) 
       "Failed to fetch laboratories"
     );
   };
+
+  // Helper: get currently selected laboratory object
+  const getSelectedLaboratory = () =>
+    filteredLaboratories.find((lab) => lab._id === values.Laboratory);
 
   // Handle department change and filter laboratories based on department selection
   const handleDepartmentChange = (e) => {
@@ -162,32 +175,36 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment, onAssignSuccess }) 
 
   // Assign equipment to the selected department and laboratory
   const assignEquipment = async () => {
-
-
     try {
-      // Prepare data for assignment
+      const selectedLab = getSelectedLaboratory();
+
+      // Prepare data for assignment (includes Encharge info)
       const assignData = {
         id: values.id,
         Laboratory: values.Laboratory,
         department: values.department,
         status: values.status,
+        EnchargeId: selectedLab?.EnchargeId || "",
+        EnchargeName: selectedLab?.EnchargeName || "",
       };
-      
+
       // Call the function from context
       await addAssignEquipment(assignData);
-      
+
       // Call onAssignSuccess if provided
       if (onAssignSuccess) {
         onAssignSuccess(assignData);
       }
-      
+
       // Close modal after successful assignment
       setTimeout(() => {
         onClose();
       }, 1000);
     } catch (error) {
-      console.error('Error in assignEquipment:', error);
-      throw new Error(error.response?.data?.message || 'Failed to assign equipment');
+      console.error("Error in assignEquipment:", error);
+      throw new Error(
+        error.response?.data?.message || "Failed to assign equipment"
+      );
     }
   };
 
@@ -250,11 +267,7 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment, onAssignSuccess }) 
                           : "bg-gray-200 text-gray-500"
                       }`}
                     >
-                      {activeStep > index ? (
-                        <CheckCircle size={16} />
-                      ) : (
-                        index + 1
-                      )}
+                      {activeStep > index ? <CheckCircle size={16} /> : index + 1}
                     </div>
                     <span className="text-xs text-gray-500 mt-1 text-center hidden sm:block">
                       {label}
@@ -293,9 +306,15 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment, onAssignSuccess }) 
                         : "Select Department"}
                     </span>
                     {departmentDropdownOpen ? (
-                      <ChevronUp size={16} className="text-gray-500 flex-shrink-0 ml-2" />
+                      <ChevronUp
+                        size={16}
+                        className="text-gray-500 flex-shrink-0 ml-2"
+                      />
                     ) : (
-                      <ChevronDown size={16} className="text-gray-500 flex-shrink-0 ml-2" />
+                      <ChevronDown
+                        size={16}
+                        className="text-gray-500 flex-shrink-0 ml-2"
+                      />
                     )}
                   </div>
 
@@ -348,15 +367,26 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment, onAssignSuccess }) 
                   >
                     <span className="truncate">
                       {values.Laboratory
-                        ? filteredLaboratories.find(
-                            (lab) => lab._id === values.Laboratory
-                          )?.LaboratoryName || "Select Laboratory"
+                        ? (() => {
+                            const lab = getSelectedLaboratory();
+                            return lab
+                              ? `${lab.LaboratoryName} — ${
+                                  lab.EnchargeName || "N/A"
+                                }`
+                              : "Select Laboratory";
+                          })()
                         : "Select Laboratory"}
                     </span>
                     {LaboratoryDropdownOpen ? (
-                      <ChevronUp size={16} className="text-gray-500 flex-shrink-0 ml-2" />
+                      <ChevronUp
+                        size={16}
+                        className="text-gray-500 flex-shrink-0 ml-2"
+                      />
                     ) : (
-                      <ChevronDown size={16} className="text-gray-500 flex-shrink-0 ml-2" />
+                      <ChevronDown
+                        size={16}
+                        className="text-gray-500 flex-shrink-0 ml-2"
+                      />
                     )}
                   </div>
 
@@ -387,7 +417,13 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment, onAssignSuccess }) 
                             setLaboratoryDropdownOpen(false);
                           }}
                         >
-                          {lab.LaboratoryName}
+                          <div className="font-medium">
+                            {lab.LaboratoryName}
+                          </div>
+                          <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                            <User size={12} />
+                            Encharge: {lab.EnchargeName || "N/A"}
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -409,9 +445,16 @@ const PopupModal = ({ isOpen, onClose, onConfirm, equipment, onAssignSuccess }) 
                     </p>
                     <p className="text-sm text-gray-700">
                       <span className="font-medium">Laboratory:</span>{" "}
-                      {filteredLaboratories.find(
-                        (lab) => lab._id === values.Laboratory
-                      )?.LaboratoryName || "Not Selected"}
+                      {getSelectedLaboratory()?.LaboratoryName ||
+                        "Not Selected"}
+                    </p>
+                    <p className="text-sm text-gray-700 flex items-center gap-1">
+                      <span className="font-medium">Encharge:</span>{" "}
+                      <span className="inline-flex items-center gap-1">
+                        <User size={14} className="text-indigo-600" />
+                        {getSelectedLaboratory()?.EnchargeName ||
+                          "Not Selected"}
+                      </span>
                     </p>
                   </div>
                 </div>

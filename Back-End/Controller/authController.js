@@ -163,32 +163,49 @@ exports.login = AsyncErrorHandler(async (req, res, next) => {
   });
 });
 
-// --- FORGOT PASSWORD ---
 exports.forgotPassword = AsyncErrorHandler(async (req, res, next) => {
-  const user = await UserLogin.findOne({ username: req.body.email });
-  if (!user) return next(new CustomError("User not found", 404));
+  const { email } = req.body;
 
+  // 🔁 Look for the user by username (which stores email in your case)
+  const user = await UserLogin.findOne({ username: email });
+
+  // If user doesn't exist, return 404
+  if (!user) {
+    return next(
+      new CustomError("We could  not find the user with given email", 404),
+    );
+  }
+
+  // Generate a password reset token
   const resetToken = user.createResetTokenPassword();
   await user.save({ validateBeforeSave: false });
 
+  // Generate reset URL
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+  const message = `We have received a password reset request. Please use the below link to reset your password:\n\n${resetUrl}\n\nThis link will expire in 10 minutes.`;
 
   try {
+    // Send password reset email
     await sendEmail({
-      email: user.username,
-      subject: "Password Reset Request",
-      text: `Click here to reset your password: ${resetUrl}`,
+      email: user.username, // use username field since it holds the email
+      subject: "Password change request received",
+      text: message,
     });
-    res
-      .status(200)
-      .json({ status: "Success", message: "Reset token sent to email!" });
+
+    // Respond with success
+    res.status(200).json({
+      status: "Success",
+      message: "Password reset link sent to the user email",
+    });
   } catch (err) {
+    // Clean up if sending fails
     user.passwordResetToken = undefined;
     user.passwordResetTokenExpires = undefined;
     await user.save({ validateBeforeSave: false });
+
     return next(
       new CustomError(
-        "There was an error sending the email. Try again later.",
+        "There was an error sending password reset email. Please try again later",
         500,
       ),
     );

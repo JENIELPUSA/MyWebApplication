@@ -1,15 +1,15 @@
 import React, { useState, useContext, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import MaintenanceDisplayModal from "../MaintenanceRequest/MaintenanceModalDisplay";
-import CalibrationTable from "../Calibration/CalibrationTable";
 import TypesofMaintenceForm from "../TypesOfMaintenance/TypesofMaintenceForm";
+import MaintenanceRecord from "../PMSForm/MaintenanceRecord";
 import { motion } from "framer-motion";
 import { TypeofMaintenanceContext } from "../../contexts/TypesofMainten/TypeofMaintenanceContext";
 import { AuthContext } from "../../contexts/AuthContext";
 
 // Lucide React Icons
 import {
-  Wrench,
+  ClipboardList,
   Eye,
   RefreshCw,
   Calendar,
@@ -20,14 +20,14 @@ function MaintenanceDisplay() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isOpenMaintenanceModal, setOpenMaintenanceModal] = useState(false);
-  const [isCalibration, setCalibration] = useState(false);
   const [isTypesofMaintenanceModal, setTypesofMaintenanceModal] = useState(false);
+  const [isMaintenanceRecordModal, setMaintenanceRecordModal] = useState(false);
   const { role } = useContext(AuthContext);
 
   // Check if user has edit permissions
   const canEdit = role !== "Supply";
 
-  // NEW STATE: Para sa PMS Modal
+  // PMS Modal State
   const [isPMSModalOpen, setPMSModalOpen] = useState(false);
   const [SendDataLab, setSendDataLab] = useState(null);
   const [SendDataEquip, setSendDataEquip] = useState(null);
@@ -73,10 +73,10 @@ function MaintenanceDisplay() {
     setOpenMaintenanceModal(true);
   };
 
-  const handleCalibration = (equipment, laboratory) => {
+  const handleMaintenanceRecord = (equipment, laboratory) => {
     setSendDataEquip(equipment);
     setSendDataLab(laboratory);
-    setCalibration(true);
+    setMaintenanceRecordModal(true);
   };
 
   const handleSendData = (equipment, laboratory) => {
@@ -94,7 +94,7 @@ function MaintenanceDisplay() {
   const handleCloseModal = () => {
     setOpenMaintenanceModal(false);
     setTypesofMaintenanceModal(false);
-    setCalibration(false);
+    setMaintenanceRecordModal(false);
     setPMSModalOpen(false);
   };
 
@@ -126,6 +126,27 @@ function MaintenanceDisplay() {
   };
 
   const equipmentTypes = [...new Set(displayData?.map((item) => item.equipmentType))];
+
+  // 👇 HIDE EVERYTHING ELSE WHEN MAINTENANCE RECORD IS OPEN
+  if (isMaintenanceRecordModal && canEdit) {
+    return (
+      <motion.div
+        className="w-full"
+        initial="hidden"
+        animate="visible"
+        variants={pageVariants}
+      >
+        <MaintenanceRecord
+          isOpen={isMaintenanceRecordModal}
+          toLab={SendDataLab}
+          toEquip={SendDataEquip}
+          laboratory={SendDataLab}
+          equipment={SendDataEquip}
+          onClose={handleCloseModal}
+        />
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div className="space-y-4" initial="hidden" animate="visible" variants={pageVariants}>
@@ -179,7 +200,6 @@ function MaintenanceDisplay() {
                 <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">Category</th>
                 <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">Last Maint.</th>
                 <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">Next Maint.</th>
-                {/* HIDE Actions Header when role is Supply */}
                 {canEdit && (
                   <th className="p-4 border-b text-xs font-bold uppercase text-gray-600 text-center">Actions</th>
                 )}
@@ -207,10 +227,8 @@ function MaintenanceDisplay() {
                         )}
                       </div>
                     </td>
-                    {/* HIDE ALL Action Buttons when role is Supply */}
                     {canEdit && (
                       <td className="p-4 flex space-x-2 justify-center items-center flex-wrap gap-1">
-                        {/* PMS BUTTON */}
                         {equipment.hasMaintenance && (
                           <button
                             onClick={() => handlePMSClick(equipment, laboratory)}
@@ -222,11 +240,11 @@ function MaintenanceDisplay() {
                         )}
 
                         <button
-                          onClick={() => handleCalibration(equipment, laboratory)}
+                          onClick={() => handleMaintenanceRecord(equipment, laboratory)}
                           className="p-2 text-white bg-teal-500 rounded-lg hover:bg-teal-600 transition-colors"
-                          title="Calibration"
+                          title="Maintenance Record"
                         >
-                          <Wrench className="w-4 h-4" />
+                          <ClipboardList className="w-4 h-4" />
                         </button>
 
                         <button
@@ -303,16 +321,8 @@ function MaintenanceDisplay() {
             onClose={handleCloseModal}
           />
         )}
-        {isCalibration && canEdit && (
-          <CalibrationTable
-            isOpen={isCalibration}
-            toLab={SendDataLab}
-            toEquip={SendDataEquip}
-            onClose={handleCloseModal}
-          />
-        )}
 
-        {/* NEW: PMS Modal Integration */}
+        {/* PMS Modal Integration */}
         {isPMSModalOpen && canEdit && (
           <TypeMaintenanceModal
             isOpen={isPMSModalOpen}

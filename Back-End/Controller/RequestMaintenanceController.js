@@ -154,11 +154,21 @@ exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
   };
 
   await Message.create(messageData);
-  console.log(`✅ Message saved for maintenance request ${maintenance._id}`);
+  console.log(`Message saved for maintenance request ${maintenance._id}`);
 
+  // Socket.IO emit
   const io = req.app.get("io");
+  if (io) {
+    io.emit("requestmaintenance:created", {
+      status: "success",
+      action: "created",
+      data: maintenance,
+      timestamp: new Date(),
+    });
+    console.log(`📡 [Socket] Broadcasted 'assignEquipment:created'`);
+  }
 
-  io.emit("AyudaCreate", messageData);
+
   res.status(201).json({
     status: "success",
     data: maintenance,
@@ -188,8 +198,7 @@ exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
         // Use the Laboratory ID to filter maintenance requests
         query.Laboratory = laboratory._id;
 
-        // Optional: Add logging for debugging
-        console.log(`User ${userId} is Encharge of Laboratory: ${laboratory.LaboratoryName} (${laboratory._id})`);
+        // Optional: Add logging for debuggin
       } else {
         // If no laboratory found where user is Encharge, return empty result
         return res.status(200).json({
@@ -2481,12 +2490,12 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           status: lookupData.Status || "Pending",
           technician: lookupData.Technician || "N/A",
           date: lookupData.DateTime || new Date(),
-          feedback: typeof lookupData.feedback === "object" 
+          feedback: typeof lookupData.feedback === "object"
             ? lookupData.feedback.message || ""
             : lookupData.feedback || ""
         };
 
-        console.log("historyData",historyData)
+        console.log("historyData", historyData)
 
         const history = new History(historyData);
         await history.save();
@@ -2495,150 +2504,171 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
         return history;
       };
 
-// ==========================================
-// HANDLE RE-ASSIGN
-// ==========================================
-if (action  === "Re-assign") {
-  console.log("🔄 RE-ASSIGN FLOW DETECTED");
-  console.log("📌 New Technician ID:", technicianId);
+      // ==========================================
+      // HELPER FUNCTION FOR SOCKET EMIT
+      // ==========================================
+      const emitSocketUpdate = (actionType, data) => {
+        const io = req.app.get("io");
+        if (io) {
+          io.emit("requestmaintenance:created", {
+            status: "success",
+            action: actionType,
+            data: data,
+            timestamp: new Date(),
+          });
+          console.log(`📡 [Socket] Broadcasted 'requestmaintenance:created' - Action: ${actionType}`);
+        }
+      };
 
-  if (!technicianId) {
-    return next(
-      new CustomError(
-        "technicianId is required for reassignment",
-        400
-      )
-    );
-  }
+      // ==========================================
+      // HANDLE RE-ASSIGN
+      // ==========================================
+      if (action === "Re-assign") {
+        console.log("🔄 RE-ASSIGN FLOW DETECTED");
+        console.log("📌 New Technician ID:", technicianId);
 
-  // Get current assigned technician
-  const currentTechnicianId = request.Technician?._id || request.Technician;
+        if (!technicianId) {
+          return next(
+            new CustomError(
+              "technicianId is required for reassignment",
+              400
+            )
+          );
+        }
 
-  // Get old and new technician details
-  let oldTechnician = null;
-  let newTechnician = null;
+        // Get current assigned technician
+        const currentTechnicianId = request.Technician?._id || request.Technician;
 
-  if (currentTechnicianId) {
-    oldTechnician = await user.findById(currentTechnicianId);
-  }
+        // Get old and new technician details
+        let oldTechnician = null;
+        let newTechnician = null;
 
-  if (technicianId) {
-    newTechnician = await user.findById(technicianId);
-  }
+        if (currentTechnicianId) {
+          oldTechnician = await user.findById(currentTechnicianId);
+        }
 
-  const getTechnicianName = (tech) => {
-    if (!tech) return 'Unknown Technician';
-    if (tech.FirstName && tech.LastName) {
-      return `${tech.FirstName} ${tech.LastName}`;
-    }
-    return tech.username || tech.email || 'Technician';
-  };
+        if (technicianId) {
+          newTechnician = await user.findById(technicianId);
+        }
 
-  // ==========================================
-  // UPDATE MAINTENANCE REQUEST - Palitan ang Technician
-  // ==========================================
-  const updateData = {
-    $set: {
-      Technician: technicianId
-    }
-  };
+        const getTechnicianName = (tech) => {
+          if (!tech) return 'Unknown Technician';
+          if (tech.FirstName && tech.LastName) {
+            return `${tech.FirstName} ${tech.LastName}`;
+          }
+          return tech.username || tech.email || 'Technician';
+        };
 
-  if (request.Status === "Assigned" || request.Status === "In Progress") {
-    updateData.$set.Status = "Assigned";
-  }
+        // ==========================================
+        // UPDATE MAINTENANCE REQUEST - Palitan ang Technician
+        // ==========================================
+        const updateData = {
+          $set: {
+            Technician: technicianId
+          }
+        };
 
-  const updatedRequest = await requestmaintenance.findByIdAndUpdate(
-    RequestId,
-    updateData,
-    {
-      new: true,
-      runValidators: true,
-    }
-  )
-    .populate("Equipments")
-    .populate("Department")
-    .populate("Laboratory")
-    .populate("Technician");
+        if (request.Status === "Assigned" || request.Status === "In Progress") {
+          updateData.$set.Status = "Assigned";
+        }
 
-  // ==========================================
-  // NEW: GET LOOKUP DATA AND SAVE TO HISTORY
-  // ==========================================
-  const lookupData = await getRequestWithLookup(updatedRequest._id);
-  const history = await saveToHistory(lookupData, "Re-assign");
+        const updatedRequest = await requestmaintenance.findByIdAndUpdate(
+          RequestId,
+          updateData,
+          {
+            new: true,
+            runValidators: true,
+          }
+        )
+          .populate("Equipments")
+          .populate("Department")
+          .populate("Laboratory")
+          .populate("Technician");
 
-  // ==========================================
-  // UPDATE OLD MESSAGE - isReassign LANG ANG BABAGUHIN
-  // ==========================================
-  let updatedMessage = null;
+        // ==========================================
+        // NEW: GET LOOKUP DATA AND SAVE TO HISTORY
+        // ==========================================
+        const lookupData = await getRequestWithLookup(updatedRequest._id);
+        const history = await saveToHistory(lookupData, "Re-assign");
 
-  const oldMessage = await Message.findOne({ 
-    RequestID: RequestId,
-    isReassign: false
-  });
+        // ==========================================
+        // SOCKET EMIT - RE-ASSIGN
+        // ==========================================
+        emitSocketUpdate("Re-assign", lookupData || updatedRequest);
 
-  if (oldMessage) {
-    const messageId = oldMessage._id;
+        // ==========================================
+        // UPDATE OLD MESSAGE - isReassign LANG ANG BABAGUHIN
+        // ==========================================
+        let updatedMessage = null;
 
-    console.log("📩 Old Message typesNotification:", oldMessage.typesNotification);
-    console.log("📩 Old Message Status:", oldMessage.Status);
+        const oldMessage = await Message.findOne({
+          RequestID: RequestId,
+          isReassign: false
+        });
 
-    // Update ONLY isReassign to true
-    await Message.updateOne(
-      { _id: messageId },
-      { $set: { isReassign: true } },
-      { runValidators: false }
-    );
+        if (oldMessage) {
+          const messageId = oldMessage._id;
 
-    updatedMessage = await Message.findById(messageId);
+          console.log("📩 Old Message typesNotification:", oldMessage.typesNotification);
+          console.log("📩 Old Message Status:", oldMessage.Status);
 
-    console.log("✅ OLD Message updated - isReassign set to true");
-    console.log("📩 typesNotification unchanged:", updatedMessage.typesNotification);
-    console.log("📩 Status unchanged:", updatedMessage.Status);
-  }
+          // Update ONLY isReassign to true
+          await Message.updateOne(
+            { _id: messageId },
+            { $set: { isReassign: true } },
+            { runValidators: false }
+          );
 
-  // ==========================================
-  // GET EQUIPMENT DETAILS FOR MESSAGES
-  // ==========================================
-  let equipmentBrand = "N/A";
-  let equipmentSerial = "N/A";
-  let equipmentSpecs = "N/A";
-  let equipmentCategory = "N/A";
+          updatedMessage = await Message.findById(messageId);
 
-  if (request.Equipments) {
-    equipmentBrand = request.Equipments.EquipmentBrand || request.Equipments.name || "N/A";
-    equipmentSerial = request.Equipments.EquipmentSerial || request.Equipments.serialNumber || "N/A";
-    equipmentSpecs = request.Equipments.EquipmentSpecification || request.Equipments.specifications || "N/A";
-    equipmentCategory = request.Equipments.CategoryName || request.Equipments.category || "N/A";
-  }
+          console.log("✅ OLD Message updated - isReassign set to true");
+          console.log("📩 typesNotification unchanged:", updatedMessage.typesNotification);
+          console.log("📩 Status unchanged:", updatedMessage.Status);
+        }
 
-  let departmentName = "N/A";
-  if (request.Department) {
-    departmentName = request.Department.name || request.Department.departmentName || "N/A";
-  }
+        // ==========================================
+        // GET EQUIPMENT DETAILS FOR MESSAGES
+        // ==========================================
+        let equipmentBrand = "N/A";
+        let equipmentSerial = "N/A";
+        let equipmentSpecs = "N/A";
+        let equipmentCategory = "N/A";
 
-  let laboratoryName = "N/A";
-  if (request.Laboratory) {
-    laboratoryName = request.Laboratory.name || request.Laboratory.laboratoryName || "N/A";
-  }
+        if (request.Equipments) {
+          equipmentBrand = request.Equipments.EquipmentBrand || request.Equipments.name || "N/A";
+          equipmentSerial = request.Equipments.EquipmentSerial || request.Equipments.serialNumber || "N/A";
+          equipmentSpecs = request.Equipments.EquipmentSpecification || request.Equipments.specifications || "N/A";
+          equipmentCategory = request.Equipments.CategoryName || request.Equipments.category || "N/A";
+        }
 
-  const oldTechName = oldTechnician ? getTechnicianName(oldTechnician) : "Unknown Technician";
-  const newTechName = newTechnician ? getTechnicianName(newTechnician) : "Unknown Technician";
+        let departmentName = "N/A";
+        if (request.Department) {
+          departmentName = request.Department.name || request.Department.departmentName || "N/A";
+        }
 
-  const reassignDate = new Date().toLocaleString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+        let laboratoryName = "N/A";
+        if (request.Laboratory) {
+          laboratoryName = request.Laboratory.name || request.Laboratory.laboratoryName || "N/A";
+        }
 
-  const targetInchargeId = LaboratoryEnchargeId || inchargeId;
+        const oldTechName = oldTechnician ? getTechnicianName(oldTechnician) : "Unknown Technician";
+        const newTechName = newTechnician ? getTechnicianName(newTechnician) : "Unknown Technician";
 
-  // ==========================================
-  // MESSAGE FOR NEW TECHNICIAN
-  // ==========================================
-  const newTechnicianMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED TO YOU
+        const reassignDate = new Date().toLocaleString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+
+        const targetInchargeId = LaboratoryEnchargeId || inchargeId;
+
+        // ==========================================
+        // MESSAGE FOR NEW TECHNICIAN
+        // ==========================================
+        const newTechnicianMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED TO YOU
 
 You have been re-assigned to the following maintenance task.
 
@@ -2661,37 +2691,37 @@ You have been re-assigned to the following maintenance task.
 
 Please check the system for more details.`;
 
-  const newTechnicianNotification = await Message.create({
-    message: newTechnicianMessage,
-    equipmentId: request.Equipments?._id || null,
-    typesNotification: "AssignedTechnician",
-    Status: "Re-Assigned",
-    Laboratory: laboratoryData,
-    Department: request.Department?._id || null,
-    To: "Technician",
-    Encharge: technicianId,
-    role: "Technician",
-    RequestID: request._id,
-    read: false,
-    viewers: [
-      {
-        user: technicianId,
-        isRead: false,
-      },
-    ],
-    parentMessageId: oldMessage?._id || MessageId || null,
-    reassignedFrom: currentTechnicianId,
-    reassignedTo: technicianId,
-    reassignedAt: new Date(),
-  });
+        const newTechnicianNotification = await Message.create({
+          message: newTechnicianMessage,
+          equipmentId: request.Equipments?._id || null,
+          typesNotification: "AssignedTechnician",
+          Status: "Re-Assigned",
+          Laboratory: laboratoryData,
+          Department: request.Department?._id || null,
+          To: "Technician",
+          Encharge: technicianId,
+          role: "Technician",
+          RequestID: request._id,
+          read: false,
+          viewers: [
+            {
+              user: technicianId,
+              isRead: false,
+            },
+          ],
+          parentMessageId: oldMessage?._id || MessageId || null,
+          reassignedFrom: currentTechnicianId,
+          reassignedTo: technicianId,
+          reassignedAt: new Date(),
+        });
 
-  // ==========================================
-  // MESSAGE FOR OLD TECHNICIAN
-  // ==========================================
-  let oldTechnicianNotification = null;
+        // ==========================================
+        // MESSAGE FOR OLD TECHNICIAN
+        // ==========================================
+        let oldTechnicianNotification = null;
 
-  if (currentTechnicianId) {
-    const oldTechnicianMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED
+        if (currentTechnicianId) {
+          const oldTechnicianMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED
 
 The maintenance task you were previously assigned to has been re-assigned to another technician.
 
@@ -2713,40 +2743,40 @@ The maintenance task you were previously assigned to has been re-assigned to ano
 
 ℹ️ You are no longer assigned to this task. Please check the system for updates.`;
 
-    oldTechnicianNotification = await Message.create({
-      message: oldTechnicianMessage,
-      equipmentId: request.Equipments?._id || null,
-      typesNotification: "AssignedTechnician",
-      Status: "Re-Assigned",
-      Laboratory: laboratoryData,
-      Department: request.Department?._id || null,
-      To: "Technician",
-      Encharge: currentTechnicianId,
-      role: "Technician",
-      RequestID: request._id,
-      read: false,
-      viewers: [
-        {
-          user: currentTechnicianId,
-          isRead: false,
-        },
-      ],
-      parentMessageId: oldMessage?._id || MessageId || null,
-      reassignedFrom: currentTechnicianId,
-      reassignedTo: technicianId,
-      reassignedAt: new Date(),
-      isReassignFrom: true,
-      isReassign: true,
-    });
-  }
+          oldTechnicianNotification = await Message.create({
+            message: oldTechnicianMessage,
+            equipmentId: request.Equipments?._id || null,
+            typesNotification: "AssignedTechnician",
+            Status: "Re-Assigned",
+            Laboratory: laboratoryData,
+            Department: request.Department?._id || null,
+            To: "Technician",
+            Encharge: currentTechnicianId,
+            role: "Technician",
+            RequestID: request._id,
+            read: false,
+            viewers: [
+              {
+                user: currentTechnicianId,
+                isRead: false,
+              },
+            ],
+            parentMessageId: oldMessage?._id || MessageId || null,
+            reassignedFrom: currentTechnicianId,
+            reassignedTo: technicianId,
+            reassignedAt: new Date(),
+            isReassignFrom: true,
+            isReassign: true,
+          });
+        }
 
-  // ==========================================
-  // MESSAGE FOR LABORATORY ENCHARGE
-  // ==========================================
-  let inchargeNotification = null;
+        // ==========================================
+        // MESSAGE FOR LABORATORY ENCHARGE
+        // ==========================================
+        let inchargeNotification = null;
 
-  if (targetInchargeId) {
-    const inchargeMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED
+        if (targetInchargeId) {
+          const inchargeMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED
 
 The maintenance task has been re-assigned to a new technician.
 
@@ -2770,52 +2800,52 @@ The maintenance task has been re-assigned to a new technician.
 
 ⚠️ Please ensure the new technician acknowledges the re-assignment.`;
 
-    let inchargeUser = null;
-    try {
-      inchargeUser = await user.findById(targetInchargeId);
-    } catch (err) {
-      // Silently handle error
-    }
+          let inchargeUser = null;
+          try {
+            inchargeUser = await user.findById(targetInchargeId);
+          } catch (err) {
+            // Silently handle error
+          }
 
-    inchargeNotification = await Message.create({
-      message: inchargeMessage,
-      equipmentId: request.Equipments?._id || null,
-      typesNotification: "AssignedTechnician",
-      Status: "Re-Assigned",
-      Laboratory: laboratoryData,
-      Department: request.Department?._id || null,
-      To: "Incharge",
-      Encharge: targetInchargeId,
-      role: inchargeUser?.role || "Incharge",
-      RequestID: request._id,
-      read: false,
-      viewers: [
-        {
-          user: targetInchargeId,
-          isRead: false,
-        },
-      ],
-      parentMessageId: oldMessage?._id || MessageId || null,
-      reassignedFrom: currentTechnicianId,
-      reassignedTo: technicianId,
-      reassignedAt: new Date(),
-      isReassign: true,
-    });
-  }
+          inchargeNotification = await Message.create({
+            message: inchargeMessage,
+            equipmentId: request.Equipments?._id || null,
+            typesNotification: "AssignedTechnician",
+            Status: "Re-Assigned",
+            Laboratory: laboratoryData,
+            Department: request.Department?._id || null,
+            To: "Incharge",
+            Encharge: targetInchargeId,
+            role: inchargeUser?.role || "Incharge",
+            RequestID: request._id,
+            read: false,
+            viewers: [
+              {
+                user: targetInchargeId,
+                isRead: false,
+              },
+            ],
+            parentMessageId: oldMessage?._id || MessageId || null,
+            reassignedFrom: currentTechnicianId,
+            reassignedTo: technicianId,
+            reassignedAt: new Date(),
+            isReassign: true,
+          });
+        }
 
-  // ==========================================
-  // MESSAGE FOR ADMIN
-  // ==========================================
-  let adminNotification = null;
+        // ==========================================
+        // MESSAGE FOR ADMIN
+        // ==========================================
+        let adminNotification = null;
 
-  const adminUsers = await user.find({
-    role: {
-      $in: ["Admin", "SuperAdmin"],
-    },
-  });
+        const adminUsers = await user.find({
+          role: {
+            $in: ["Admin", "SuperAdmin"],
+          },
+        });
 
-  if (adminUsers.length > 0) {
-    const adminMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED
+        if (adminUsers.length > 0) {
+          const adminMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED
 
 The maintenance task has been re-assigned from ${oldTechName} to ${newTechName}.
 
@@ -2837,53 +2867,53 @@ The maintenance task has been re-assigned from ${oldTechName} to ${newTechName}.
 
 ⚠️ Please ensure the new technician acknowledges the re-assignment.`;
 
-    const viewers = adminUsers.map((adminUser) => ({
-      user: adminUser._id,
-      isRead: false,
-    }));
+          const viewers = adminUsers.map((adminUser) => ({
+            user: adminUser._id,
+            isRead: false,
+          }));
 
-    adminNotification = await Message.create({
-      message: adminMessage,
-      equipmentId: request.Equipments?._id || null,
-      typesNotification: "AssignedTechnician",
-      Status: "Re-Assigned",
-      Laboratory: laboratoryData,
-      Department: request.Department?._id || null,
-      To: "Admin",
-      Encharge: adminUsers[0]._id,
-      role: "Admin",
-      RequestID: request._id,
-      read: false,
-      viewers: viewers,
-      parentMessageId: oldMessage?._id || MessageId || null,
-      reassignedFrom: currentTechnicianId,
-      reassignedTo: technicianId,
-      reassignedAt: new Date(),
-      isReassign: true,
-    });
-  }
+          adminNotification = await Message.create({
+            message: adminMessage,
+            equipmentId: request.Equipments?._id || null,
+            typesNotification: "AssignedTechnician",
+            Status: "Re-Assigned",
+            Laboratory: laboratoryData,
+            Department: request.Department?._id || null,
+            To: "Admin",
+            Encharge: adminUsers[0]._id,
+            role: "Admin",
+            RequestID: request._id,
+            read: false,
+            viewers: viewers,
+            parentMessageId: oldMessage?._id || MessageId || null,
+            reassignedFrom: currentTechnicianId,
+            reassignedTo: technicianId,
+            reassignedAt: new Date(),
+            isReassign: true,
+          });
+        }
 
-  // ==========================================
-  // RESPONSE - ADDED history AND lookupData
-  // ==========================================
-  return res.status(200).json({
-    success: true,
-    message: "Task re-assigned successfully",
-    data: lookupData || updatedRequest,
-    history: history,
-    messageData: updatedMessage,
-    newTechnicianNotification: newTechnicianNotification,
-    oldTechnicianNotification: oldTechnicianNotification,
-    inchargeNotification: inchargeNotification,
-    adminNotification: adminNotification,
-    newTechnicianNotified: !!newTechnicianNotification,
-    oldTechnicianNotified: !!oldTechnicianNotification,
-    inchargeNotified: !!inchargeNotification,
-    adminNotified: !!adminNotification,
-    reassignedFrom: currentTechnicianId,
-    reassignedTo: technicianId,
-  });
-}
+        // ==========================================
+        // RESPONSE - ADDED history AND lookupData
+        // ==========================================
+        return res.status(200).json({
+          success: true,
+          message: "Task re-assigned successfully",
+          data: lookupData || updatedRequest,
+          history: history,
+          messageData: updatedMessage,
+          newTechnicianNotification: newTechnicianNotification,
+          oldTechnicianNotification: oldTechnicianNotification,
+          inchargeNotification: inchargeNotification,
+          adminNotification: adminNotification,
+          newTechnicianNotified: !!newTechnicianNotification,
+          oldTechnicianNotified: !!oldTechnicianNotification,
+          inchargeNotified: !!inchargeNotification,
+          adminNotified: !!adminNotification,
+          reassignedFrom: currentTechnicianId,
+          reassignedTo: technicianId,
+        });
+      }
       // ==========================================
       // CHECK IF THIS IS COMPLETED FLOW
       // ==========================================
@@ -2931,6 +2961,11 @@ The maintenance task has been re-assigned from ${oldTechName} to ${newTechName}.
         // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "Completed");
+
+        // ==========================================
+        // SOCKET EMIT - COMPLETED
+        // ==========================================
+        emitSocketUpdate("Completed", lookupData || updatedRequest);
 
         let updatedMessage = null;
 
@@ -3152,6 +3187,11 @@ ${feedbackDisplay}
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "Approved");
 
+        // ==========================================
+        // SOCKET EMIT - APPROVED
+        // ==========================================
+        emitSocketUpdate("Approved", lookupData || updatedRequest);
+
         let updatedMessage = null;
 
         // CHECK IF TECHNICIAN CONFIRMED MESSAGE ALREADY EXISTS
@@ -3365,6 +3405,11 @@ This task has been marked as APPROVED and completed by the assigned technician.`
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "InchargedConfirmed");
 
+        // ==========================================
+        // SOCKET EMIT - INCHARGECONFIRMED
+        // ==========================================
+        emitSocketUpdate("InchargedConfirmed", lookupData || updatedRequest);
+
         let laboratoryId = null;
         if (updatedRequest.Laboratory) {
           laboratoryId = updatedRequest.Laboratory._id || updatedRequest.Laboratory;
@@ -3513,6 +3558,11 @@ ${remarks ? remarks.trim() : 'No remarks provided.'}
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "Remarks Only");
 
+        // ==========================================
+        // SOCKET EMIT - REMARKS ONLY
+        // ==========================================
+        emitSocketUpdate("Remarks Only", lookupData || updatedRequest);
+
         let updatedMessage = null;
         if (MessageId) {
           updatedMessage = await Message.findByIdAndUpdate(
@@ -3581,6 +3631,11 @@ ${remarks ? remarks.trim() : 'No remarks provided.'}
         // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "Assign Technician");
+
+        // ==========================================
+        // SOCKET EMIT - ASSIGN TECHNICIAN
+        // ==========================================
+        emitSocketUpdate("Assign Technician", lookupData || updatedRequest);
 
         let updatedMessage = null;
         if (MessageId) {

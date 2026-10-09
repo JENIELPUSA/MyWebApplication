@@ -16,7 +16,7 @@ export const MessagePostProvider = ({ children }) => {
   const [SendPost, setSendPost] = useState(null);
   const [SendPatch, setSendPatch] = useState(null);
   const [sendMsg, setSendMsg] = useState(null);
-  
+
   // State para sa DisplayMessage
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -47,7 +47,7 @@ export const MessagePostProvider = ({ children }) => {
         setMessages(response.data.data || []);
         setTotalMessages(response.data.totalMessages || 0);
         setTotalMessagePending(response.data.totalMessagePending || 0);
-        
+
         console.log("Messages fetched successfully:", response.data.data?.length);
         return response.data;
       }
@@ -121,11 +121,11 @@ export const MessagePostProvider = ({ children }) => {
           types: "AssignedTechnician",
           viewers: enchargeId
             ? [
-                {
-                  user: enchargeId,
-                  isRead: false,
-                },
-              ]
+              {
+                user: enchargeId,
+                isRead: false,
+              },
+            ]
             : [],
         },
         {
@@ -189,12 +189,12 @@ export const MessagePostProvider = ({ children }) => {
     }
   };
 
-  // Function to mark message as read
-  const markMessageAsRead = useCallback(async (messageId) => {
+  // Function to mark ALL messages as read (BATCH)
+  const markAllAsRead = useCallback(async (messageIds = []) => {
     try {
       const response = await axiosInstance.patch(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${messageId}/read`,
-        {},
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/mark-all-read`,
+        { messageIds }, // body — ipapasa sa backend
         {
           withCredentials: true,
           headers: { Authorization: `Bearer ${authToken}` },
@@ -202,19 +202,21 @@ export const MessagePostProvider = ({ children }) => {
       );
 
       if (response.data?.status === "success") {
-        // Update local state
+        const updatedIds = response.data.updatedIds || messageIds;
+
         setMessages(prevMessages =>
           prevMessages.map(msg =>
-            msg._id === messageId
+            updatedIds.includes(msg._id)
               ? { ...msg, read: true, readonUser: true }
               : msg
           )
         );
-        return true;
+        return response.data;
       }
+      return response.data;
     } catch (error) {
-      console.error("Error marking message as read:", error);
-      return false;
+      console.error("Error marking all messages as read:", error);
+      throw error;
     }
   }, [authToken]);
 
@@ -229,7 +231,7 @@ export const MessagePostProvider = ({ children }) => {
         // Original functions
         setSendMsg,
         setSendPatch,
-        setSendPost,
+        setSendPost, markAllAsRead,
         // DisplayMessage functions
         messages,
         setMessages,
@@ -240,7 +242,7 @@ export const MessagePostProvider = ({ children }) => {
         fetchDisplayMessage,
         fetchMessagesWithFilter,
         refreshMessages,
-        markMessageAsRead,
+        markAllAsRead,
         getUnreadCount,
       }}
     >

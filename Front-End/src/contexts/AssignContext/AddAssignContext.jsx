@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext } from "react";
 import axios from "axios";
 import axiosInstance from "../../components/ReusableComponent/axiosInstance";
+import { toast } from "react-toastify"; // ✅ Import toast
 
 export const AddAssignContext = createContext();
 
@@ -9,8 +10,37 @@ export const AddAssignProvider = ({ children }) => {
   const token = localStorage.getItem("token");
   const [confirm, setConfirm] = useState(null);
 
+  // ==========================
+  // ✅ TOAST HELPERS
+  // ==========================
+  const showSuccess = (message) => {
+    toast.success(message || "Operation successful!", {
+      position: "top-right",
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    });
+  };
+
+  const showError = (message) => {
+    toast.error(message || "Something went wrong!", {
+      position: "top-right",
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    });
+  };
+
+  // ==========================
+  // ✅ ADD / ASSIGN EQUIPMENT
+  // ==========================
   const addAssignEquipment = async (values) => {
     if (!token) {
+      showError("No token found. Please login again.");
       return;
     }
 
@@ -23,28 +53,34 @@ export const AddAssignProvider = ({ children }) => {
           Equipments: values.id,
           Laboratory: values.Laboratory,
         },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (response.data.status === "success") {
-        await axios.patch(
-          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${values.id}`,
-          {
-            status: "Not Available",
-          },
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
+        console.log("TRigger Context");
         setConfirm(true);
+        showSuccess("Equipment assigned successfully! ✅"); // ✅ TOAST
+      } else {
+        showError(response.data.message || "Failed to assign equipment.");
       }
     } catch (error) {
       console.error("Error assigning equipment:", error);
+      showError(
+        error?.response?.data?.message || "Error assigning equipment."
+      ); // ✅ TOAST
     } finally {
       setLoading(false);
     }
   };
 
+  // ==========================
+  // ✅ DOWNLOAD PDF
+  // ==========================
   const downloadPMSEquipmentHistory = async (laboratoryId) => {
-    if (!laboratoryId) return console.error("Laboratory ID is required");
+    if (!laboratoryId) {
+      showError("Laboratory ID is required");
+      return;
+    }
 
     setLoading(true);
 
@@ -69,13 +105,20 @@ export const AddAssignProvider = ({ children }) => {
 
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
+
+      showSuccess("PDF downloaded successfully! 📄"); // ✅ TOAST
     } catch (error) {
       console.error("PDF Download Error:", error);
-      alert("No records found or unauthorized access.");
+      showError("No records found or unauthorized access."); // ✅ TOAST
     } finally {
       setLoading(false);
     }
   };
+
+  // ==========================
+  // ✅ RESET CONFIRM
+  // ==========================
+  const resetConfirm = () => setConfirm(null);
 
   return (
     <AddAssignContext.Provider
@@ -83,7 +126,10 @@ export const AddAssignProvider = ({ children }) => {
         addAssignEquipment,
         loading,
         confirm,
+        resetConfirm,
         downloadPMSEquipmentHistory,
+        showSuccess, // ✅ expose para magamit sa ibang component
+        showError,
       }}
     >
       {children}

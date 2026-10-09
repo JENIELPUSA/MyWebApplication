@@ -212,7 +212,6 @@ exports.DisplayLaboratory = AsyncErrorHandler(async (req, res) => {
   });
 
 
-
   exports.UpdateLab = AsyncErrorHandler(async (req, res, next) => {
     if (!mongoose.Types.ObjectId.isValid(req.body.department)) {
       return res.status(400).send("Invalid department ID");
@@ -486,7 +485,7 @@ exports.getSpecificDepartment = AsyncErrorHandler(async (req, res, next) => {
 });
 
 exports.GetLaboratoriesByDepartment = AsyncErrorHandler(async (req, res, next) => {
-    // 1. Kunin ang ID mula sa query (Confirmed working based sa test mo)
+    // 1. Kunin ang ID mula sa query
     const { departmentId } = req.query;
 
     // Double check kung valid ang ID format para hindi mag-crash ang MongoDB
@@ -538,7 +537,12 @@ exports.GetLaboratoriesByDepartment = AsyncErrorHandler(async (req, res, next) =
                 _id: 1, // ID ng Laboratory/Room
                 LaboratoryName: 1,
                 RefNo: 1,
+
+                // Department info
                 DepartmentName: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
+                DepartmentId: "$DepartmentInfo._id", // 👈 added
+
+                // Encharge info
                 EnchargeName: {
                     $trim: {
                         input: {
@@ -552,6 +556,7 @@ exports.GetLaboratoriesByDepartment = AsyncErrorHandler(async (req, res, next) =
                         },
                     },
                 },
+                EnchargeId: "$EnchargeInfo._id", // 👈 added (optional)
             },
         },
         {

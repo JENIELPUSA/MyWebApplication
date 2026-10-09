@@ -1,53 +1,48 @@
 import React, { useState, useEffect, useContext } from "react";
 import LoadingTableSpinner from "../ReusableComponent/loadingTableSpiner";
-import { FaPlus } from "react-icons/fa";
-import CategoryAddForm from "./CategoryForm";
-import { CategoryDisplayContext } from "../Context/Category/Display";
-import { AuthContext } from "../Context/AuthContext";
-import { motion } from "framer-motion";
-const CategoryTable = ({ isOpen, onClose }) => {
+import { FaPlus, FaEdit, FaTrashAlt } from "react-icons/fa";
+import CategoryForm from "./CategoryForm";
+import { CategoryContext } from "../../contexts/CategoryContext/categoryContext";
+import { AuthContext } from "../../contexts/AuthContext";
+
+const CategoryTable = () => {
+  // ============ CONTEXT ============
   const {
-    RemoveCategory,
-    category,
+    deleteCategory,
+    categories,
     loading,
-    setCategory,
+    setCategories,
     currentPage,
     setCurrentPage,
-    categoryPerPage,
-  } = useContext(CategoryDisplayContext); // List of departments
-  const [searchTerm, setSearchTerm] = useState(""); // Search term for filtering
-  const token = localStorage.getItem("token"); // Token for API authentication
+    categoriesPerPage,
+    setCustomError,
+    fetchCategories, // ✅ optional — kung meron sa context
+  } = useContext(CategoryContext);
+
+  const { authToken } = useContext(AuthContext);
+
+  // ============ LOCAL STATE ============
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isAddFormOpen, setAddFormOpen] = useState(false);
-  const { authToken } = useContext(AuthContext);
-  const [isVisible, setIsVisible] = useState(false);
-  const [animateExit, setAnimateExit] = useState(false);
 
+  // ============ AUTH CHECK ============
   useEffect(() => {
-    setTimeout(() => setIsVisible(true), 70); // Trigger animation
     if (!authToken) {
-      console.warn("No token found in localStorage");
-      setError("Authentication token is missing. Please log in.");
-      return;
+      console.warn("No token found");
+      setCustomError?.("Authentication token is missing. Please log in.");
     }
-  }, [authToken]);
+  }, [authToken, setCustomError]);
 
-  const handleCloseModal = () => {
+  // ============ HANDLERS ============
+  const handleCloseForm = () => {
     setAddFormOpen(false);
     setSelectedCategory(null);
-    setIsVisible(false);
   };
+
   const handleAddClick = () => {
+    setSelectedCategory(null);
     setAddFormOpen(true);
-  };
-
-  const handleAddCategory = (newCategory) => {
-    if (!newCategory || !newCategory._id) {
-      alert("Department ID is Missing!!");
-      return;
-    }
-
-    setCategory((prevCategory) => [...prevCategory, newCategory]);
   };
 
   const handleSelectCategory = (category) => {
@@ -55,198 +50,204 @@ const CategoryTable = ({ isOpen, onClose }) => {
     setAddFormOpen(true);
   };
 
-  const handleDeleteCategory = async (categoryId) => {
-    const result = await RemoveCategory(categoryId);
-    if (result.success === true) {
-      setCategory((prevCategory) =>
-        prevCategory.filter((depart) => depart._id !== categoryId)
+  // ✅ FIXED: Ang form mismo ang tumatawag sa API.
+  // Ito ay tinatawag lang pagkatapos ng successful API response.
+  const handleAddCategory = async (newCategory) => {
+    if (!newCategory) {
+      console.warn("No category returned from form");
+      return;
+    }
+    // ✅ I-refresh mula sa backend kung may fetchCategories
+    if (typeof fetchCategories === "function") {
+      await fetchCategories();
+    } else {
+      // Fallback: local state update
+      setCategories((prev) => [...prev, newCategory]);
+    }
+  };
+
+  const handleUpdateCategory = async (updatedCategory) => {
+    if (!updatedCategory) {
+      console.warn("No category returned from form");
+      return;
+    }
+    if (typeof fetchCategories === "function") {
+      await fetchCategories();
+    } else {
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat._id === updatedCategory._id ? updatedCategory : cat
+        )
       );
     }
   };
 
-  const handleUpdateCategory = (UpdateCategory) => {
-    if (!UpdateCategory || !UpdateCategory._id) {
-      alert("Category ID is missing. Cannot update.");
-      return;
+  const handleDeleteCategory = async (categoryId) => {
+    const result = await deleteCategory(categoryId);
+    if (result?.success === true) {
+      setCategories((prev) => prev.filter((cat) => cat._id !== categoryId));
     }
-
-    setCategory((prevCategory) =>
-      prevCategory.map((category) =>
-        category._id === UpdateCategory._id ? UpdateCategory : category
-      )
-    );
   };
 
-  if (!isOpen) return null;
+  // ============ FILTER + PAGINATION ============
+  const safeCategories = Array.isArray(categories) ? categories : [];
 
-  // Filter equipment based on search term
-  const filteredCategory = category.filter((category) =>
-    category.CategoryName.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCategory = safeCategories.filter((cat) =>
+    cat.CategoryName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredCategory.length / categoryPerPage); // Calculate total pages
+  const totalPages = Math.ceil(filteredCategory.length / categoriesPerPage);
 
   const paginatedCategory = filteredCategory.slice(
-    (currentPage - 1) * categoryPerPage,
-    currentPage * categoryPerPage
+    (currentPage - 1) * categoriesPerPage,
+    currentPage * categoriesPerPage
   );
 
   const paginate = (pageNumber) => {
-    if (pageNumber < 1 || pageNumber > totalPages) return; // Check for valid page number
-    setCurrentPage(pageNumber); // Update current page
+    if (pageNumber < 1 || pageNumber > totalPages) return;
+    setCurrentPage(pageNumber);
   };
 
-  const isNoCategory = filteredCategory.length === 0; // Fixed here
-
+  // ============ RENDER ============
   return (
-    <motion.div
-      className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-50 px-2 overflow-y-auto"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      <motion.div
-        div
-        className="relative flex flex-col rounded-xl bg-white px-6 py-6 w-full max-w-screen-sm sm:max-w-screen-md lg:max-w-[700x] xl:max-w-[700px] shadow-lg max-h-[90vh] sm:max-h-none overflow-y-auto"
-
-        initial={{ opacity: 0, y: -50 }}
-        animate={animateExit ? { opacity: 0, y: -50 } : { opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -50 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-      >
-        {/* Close Icon */}
-        <motion.button
-          className="absolute top-2 right-2 text-xl text-gray-500 hover:text-gray-700 transition"
-          aria-label="Close"
-          whileTap={{ scale: 0.8 }} // Shrinks on click
-          whileHover={{ scale: 1.1 }} // Enlarges on hover
-          transition={{ duration: 0.3, ease: "easeInOut" }} // Defines the duration of the scale animations
-          onClick={() => {
-            setAnimateExit(true); // Set the animation state to trigger upward motion
-            setTimeout(onClose, 500); // Close after 500ms to match the animation duration
-          }}
-        >
-          <i className="fas fa-times"></i>
-        </motion.button>
-
-       
-        <h2 className="text-xl font-bold mb-4 xs:text-sm xs:p-2 lg-p-2 lg:text-lg">
-          Category Table</h2>
-
-        <div className="mb-4">
-          <input
-            type="text"
-            placeholder="Search CategoryName..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full p-2 border rounded-lg xs:text-sm xs:p-2 lg-p-2 lg:text-sm"
-          />
+    <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800">
+            Category Table
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-500">
+            Manage your categories
+          </p>
         </div>
-        <div className="overflow-x-auto">
-        <table className="w-full text-left table-auto border-collapse mb-4 border border-gray-300">
-          <thead>
+
+        <button
+          onClick={handleAddClick}
+          className="flex items-center justify-center gap-2 px-4 py-2 text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition text-sm font-medium w-full sm:w-auto"
+        >
+          <FaPlus className="w-4 h-4" />
+          Add Category
+        </button>
+      </div>
+
+      {/* SEARCH */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search Category Name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+        />
+      </div>
+
+      {/* TABLE */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse border border-gray-200 rounded-lg">
+          <thead className="bg-gray-50">
             <tr>
-              <th className=" xs:text-sm xs:p-2 lg-p-2 lg:text-sm p-4 border-b border-gray-300">Category Name</th>
-              <th className=" xs:text-sm xs:p-2 lg-p-2 lg:text-sm p-4 border-b border-gray-300 flex justify-center items-center">
-                <button
-                  onClick={() => handleAddClick()}
-                  className="px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600"
-                >
-                  <FaPlus className="w-5 h-5" />
-                </button>
+              <th className="text-xs sm:text-sm font-semibold text-gray-600 uppercase p-3 border-b border-gray-200">
+                Category Name
+              </th>
+              <th className="text-xs sm:text-sm font-semibold text-gray-600 uppercase p-3 border-b border-gray-200 text-center w-32">
+                Actions
               </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={2}>
                   <LoadingTableSpinner />
                 </td>
               </tr>
             ) : paginatedCategory.length === 0 ? (
               <tr>
-                <td
-                  colSpan={6}
-                  className="border p-2 text-center text-gray-500"
-                >
+                <td colSpan={2} className="p-8 text-center text-gray-500 text-sm">
                   No Results Found
                 </td>
               </tr>
             ) : (
-              paginatedCategory.map((category) => (
-                <tr key={category._id} className="hover:bg-gray-100 just">
-                  <td className=" xs:text-sm xs:p-2 lg-p-2 lg:text-sm border p-2">{category.CategoryName}</td>
-                  <td className=" xs:text-sm xs:p-2 lg-p-2 lg:text-sm border p-2 flex space-x-2 justify-center">
-                    <button
-                      onClick={() => handleSelectCategory(category)}
-                      className="px-3 py-1 text-white  bg-blue-500 rounded hover:bg-blue-600 transition"
-                    >
-                      <i className="fas fa-edit"></i>
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteCategory(category._id)}
-                      className="px-3 py-1 text-white bg-red-500 rounded hover:bg-red-600"
-                    >
-                      <i className="fas fa-trash-alt"></i>
-                    </button>
+              paginatedCategory.map((cat) => (
+                <tr
+                  key={cat._id}
+                  className="hover:bg-gray-50 transition border-b border-gray-100"
+                >
+                  <td className="text-sm p-3 text-gray-700">
+                    {cat.CategoryName}
+                  </td>
+                  <td className="p-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => handleSelectCategory(cat)}
+                        className="p-2 text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition"
+                        title="Edit"
+                      >
+                        <FaEdit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(cat._id)}
+                        className="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition"
+                        title="Delete"
+                      >
+                        <FaTrashAlt className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
-          
-        </div>
+      </div>
 
-
-
-        {/* Pagination */}
+      {/* PAGINATION */}
+      {!loading && filteredCategory.length > 0 && (
         <div className="flex flex-row items-center justify-between flex-wrap mt-4 text-sm gap-2">
-          {/* Left side: Page X of Y */}
           <div className="text-gray-700">
-            Page {currentPage} of {totalPages}
+            Page {currentPage} of {totalPages || 1}
           </div>
 
-          {/* Right side: Prev and Next buttons */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => paginate(currentPage - 1)}
-              className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded disabled:opacity-50"
+              className="py-1.5 px-3 text-xs sm:text-sm bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
               disabled={currentPage === 1}
             >
               Prev
             </button>
-
             <button
               onClick={() => paginate(currentPage + 1)}
-              className="py-1 px-3 text-xs md:py-2 md:px-4 md:text-base bg-gray-200 rounded disabled:opacity-50"
-              disabled={currentPage === totalPages}
+              className="py-1.5 px-3 text-xs sm:text-sm bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              disabled={currentPage === totalPages || totalPages === 0}
             >
               Next
             </button>
           </div>
         </div>
+      )}
 
-        {/* Showing Info */}
-        <div className="mt-2 text-sm text-center text-gray-700">
-          Showing {(currentPage - 1) * categoryPerPage + 1} to{" "}
-          {Math.min(currentPage * categoryPerPage, filteredCategory.length)}{" "}
-          of {filteredCategory.length} results
+      {/* SHOWING INFO */}
+      {!loading && filteredCategory.length > 0 && (
+        <div className="mt-2 text-xs sm:text-sm text-center text-gray-500">
+          Showing {(currentPage - 1) * categoriesPerPage + 1} to{" "}
+          {Math.min(currentPage * categoriesPerPage, filteredCategory.length)} of{" "}
+          {filteredCategory.length} results
         </div>
+      )}
 
-        {isAddFormOpen && (
-          <CategoryAddForm
-            isOpen={isAddFormOpen}
-            onAddCategory={handleAddCategory}
-            category={selectedCategory}
-            onUpdate={handleUpdateCategory}
-            onClose={handleCloseModal}
-          />
-        )}
-      </motion.div>
-    </motion.div>
+      {/* ADD/EDIT FORM */}
+      {isAddFormOpen && (
+        <CategoryForm
+          isOpen={isAddFormOpen}
+          onAddCategory={handleAddCategory}
+          category={selectedCategory}
+          onUpdate={handleUpdateCategory}
+          onClose={handleCloseForm}
+        />
+      )}
+    </div>
   );
 };
 

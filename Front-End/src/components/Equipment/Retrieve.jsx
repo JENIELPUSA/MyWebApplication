@@ -5,7 +5,12 @@ import { AssignContext } from "../../contexts/AssignLabContext/AssignLabContext"
 import { DeleteAssignContext } from "../../contexts/CountContext/CountContext";
 import { motion } from "framer-motion";
 
-const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
+const Retrieve = ({
+  isOpen,
+  onClose,
+  equipment,
+  onEditStatus = () => {}, // <-- default no-op to prevent crash
+}) => {
   const { deleteAssignment } = useContext(DeleteAssignContext);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -14,20 +19,21 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
   const { fetchAssignData } = useContext(AssignContext);
   const [animateExit, setAnimateExit] = useState(false);
 
-  // Reset states when the modal is reopened
+  // Reset states when the modal is closed
   useEffect(() => {
     if (!isOpen) {
       setIsSuccess(false);
       setIsLoading(false);
       setError(null);
+      setAnimateExit(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleRetriveSync = async (equipment) => {
+  const handleRetriveSync = async (equipmentId) => {
     await axios.delete(
-      `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/Releted/${equipment}`,
+      `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/Releted/${equipmentId}`,
       {
         withCredentials: true,
         headers: { Authorization: `Bearer ${token}` },
@@ -48,10 +54,13 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
       );
 
       if (response.data && Array.isArray(response.data.data)) {
+        // Delete each assignment
         response.data.data.forEach((item) => {
           deleteAssignment(item.assignLabId);
-          fetchAssignData();
         });
+
+        // Fetch assignments once after all deletions
+        fetchAssignData();
 
         // Update equipment status on the server
         const AssignStatusUpdate = await axios.patch(
@@ -63,13 +72,16 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
           }
         );
 
-        // Call onEditStatus to update the parent component
-        onEditStatus(AssignStatusUpdate.data.data);
+        // Safely call onEditStatus to update the parent component
+        if (typeof onEditStatus === "function") {
+          onEditStatus(AssignStatusUpdate.data.data);
+        }
 
         // Show success message
         setIsSuccess(true);
 
-        handleRetriveSync(equipment);
+        // Await the sync delete so errors are caught here
+        await handleRetriveSync(equipment);
 
         // Reset states after showing success feedback
         setTimeout(() => {
@@ -79,13 +91,20 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
         }, 2000);
       } else {
         setError("Unexpected data format from the API.");
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("Error retrieving equipment:", error);
-      setError(error.response?.data?.message || "Failed to retrieve equipment");
-    } finally {
+      setError(
+        error.response?.data?.message || "Failed to retrieve equipment"
+      );
       setIsLoading(false);
     }
+  };
+
+  const handleClose = () => {
+    setAnimateExit(true);
+    setTimeout(onClose, 500);
   };
 
   return (
@@ -104,10 +123,7 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
       >
         {/* Close Button */}
         <button
-          onClick={() => {
-            setAnimateExit(true);
-            setTimeout(onClose, 500);
-          }}
+          onClick={handleClose}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
         >
           <X size={20} />
@@ -123,7 +139,11 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
             />
           ) : (
             <div className="w-12 h-12 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <AlertCircle size={24} className="text-red-500" strokeWidth={1.5} />
+              <AlertCircle
+                size={24}
+                className="text-red-500"
+                strokeWidth={1.5}
+              />
             </div>
           )}
           <h2 className="xs:text-lg sm:text-xl lg:text-xl font-bold text-gray-800">
@@ -148,10 +168,7 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
               whileTap={{ scale: 0.8 }}
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              onClick={() => {
-                setAnimateExit(true);
-                setTimeout(onClose, 500);
-              }}
+              onClick={handleClose}
               className="xs:text-sm sm:text-lg lg:text-lg xs:px-4 sm:px-5 sm:py-2 xs:py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition"
             >
               Cancel
@@ -163,8 +180,9 @@ const Retrieve = ({ isOpen, onClose, equipment, onEditStatus }) => {
               whileHover={{ scale: 1.02 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
               onClick={handleRetrieve}
-              className={`xs:text-sm sm:text-lg lg:text-lg xs:px-4 sm:px-5 sm:py-2 xs:py-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition ${isLoading ? "opacity-70 cursor-not-allowed" : ""
-                }`}
+              className={`xs:text-sm sm:text-lg lg:text-lg xs:px-4 sm:px-5 sm:py-2 xs:py-2 text-white bg-red-500 rounded-lg hover:bg-red-600 transition ${
+                isLoading ? "opacity-70 cursor-not-allowed" : ""
+              }`}
               disabled={isLoading}
             >
               {isLoading ? "Retrieving..." : "Retrieve"}
