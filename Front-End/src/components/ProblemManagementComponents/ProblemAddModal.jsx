@@ -3,12 +3,11 @@ import { FaTimes, FaSave, FaPlus, FaEdit, FaChevronDown } from "react-icons/fa";
 
 const ProblemFormModal = ({ 
   isOpen, 
-  onAdd, 
   onUpdate, 
   problem, 
   onClose,
   createProblem,
-  categories = ["Aircon", "Laptop", "Water Dispenser", "Printer", "Desktop", "Server", "Network Switch", "Projector"]
+  categories
 }) => {
   const [formData, setFormData] = useState({
     title: "",
@@ -16,9 +15,12 @@ const ProblemFormModal = ({
   });
   const [errors, setErrors] = useState({});
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [filteredCategories, setFilteredCategories] = useState(categories);
+  const [filteredCategories, setFilteredCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const dropdownRef = useRef(null);
+
+  // ✅ Extract category names as strings
+  const categoryNames = categories?.map(cat => cat.CategoryName) || [];
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -36,7 +38,10 @@ const ProblemFormModal = ({
     if (problem) {
       setFormData({
         title: problem.title || "",
-        category: problem.category || ""
+        // ✅ Handle both string and object category
+        category: typeof problem.category === "object" 
+          ? problem.category?.CategoryName || "" 
+          : problem.category || ""
       });
     } else {
       setFormData({
@@ -45,7 +50,7 @@ const ProblemFormModal = ({
       });
     }
     setErrors({});
-    setFilteredCategories(categories);
+    setFilteredCategories(categoryNames);
     setIsDropdownOpen(false);
     setIsSubmitting(false);
   }, [problem, categories, isOpen]);
@@ -62,14 +67,14 @@ const ProblemFormModal = ({
     const value = e.target.value;
     setFormData(prev => ({ ...prev, category: value }));
     
-    // Filter categories based on input
+    // ✅ Filter using string names
     if (value.trim()) {
-      const filtered = categories.filter(cat => 
+      const filtered = categoryNames.filter(cat => 
         cat.toLowerCase().includes(value.toLowerCase())
       );
       setFilteredCategories(filtered);
     } else {
-      setFilteredCategories(categories);
+      setFilteredCategories(categoryNames);
     }
     
     setIsDropdownOpen(true);
@@ -81,7 +86,7 @@ const ProblemFormModal = ({
 
   const handleCategorySelect = (category) => {
     setFormData(prev => ({ ...prev, category }));
-    setFilteredCategories(categories);
+    setFilteredCategories(categoryNames);
     setIsDropdownOpen(false);
     if (errors.category) {
       setErrors(prev => ({ ...prev, category: "" }));
@@ -113,30 +118,26 @@ const ProblemFormModal = ({
 
     try {
       if (problem) {
-        // EDIT MODE - Create complete problem object with _id
+        // EDIT MODE
         const updatedProblem = {
-          _id: problem._id,  // Make sure _id is included
+          _id: problem._id,
           ...data
         };
-        
-        // Call onUpdate with the complete object
         await onUpdate(updatedProblem);
       } else {
-        // ADD MODE - Create new problem
+        // ADD MODE
         if (createProblem) {
           const result = await createProblem(data);
-          if (result?.success) {
-            onAdd(result.data);
+          if (result?.status=="success") {
+       
           } else {
             console.error("Failed to create problem:", result?.error);
             setErrors({ submit: result?.error || "Failed to create problem" });
             setIsSubmitting(false);
             return;
           }
-        } else {
-          // Fallback to onAdd if createProblem is not provided
-          onAdd(data);
-        }
+        } 
+        
       }
       handleClose();
     } catch (error) {
@@ -241,7 +242,7 @@ const ProblemFormModal = ({
                 <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                   {/* Show "Add new" option if input doesn't match existing category */}
                   {formData.category.trim() && 
-                   !categories.some(cat => cat.toLowerCase() === formData.category.toLowerCase().trim()) && (
+                   !categoryNames.some(cat => cat.toLowerCase() === formData.category.toLowerCase().trim()) && (
                     <div
                       className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer text-blue-600 dark:text-blue-400 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2"
                       onClick={() => handleCategorySelect(formData.category.trim())}

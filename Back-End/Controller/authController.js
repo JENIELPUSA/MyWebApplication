@@ -125,7 +125,6 @@ exports.protect = AsyncErrorHandler(async (req, res, next) => {
   next();
 });
 
-// --- LOGIN LOGIC ---
 exports.login = AsyncErrorHandler(async (req, res, next) => {
   const { email, password } = req.body;
 

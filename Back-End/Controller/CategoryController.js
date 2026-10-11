@@ -97,10 +97,6 @@ exports.displayCategory = AsyncErrorHandler(async (req, res, next) => {
         const limit = req.query.limit * 1 || 100;
         const totalPages = Math.ceil(totalCount / limit);
 
-        console.log("📊 Total in DB:", totalCount);
-        console.log("📊 Returned in this page:", displayCategories.length);
-        console.log("📊 Page:", page, "of", totalPages);
-
         res.status(200).json({
             status: 'success',
             totalCategory: totalCount,        //  Total sa DB

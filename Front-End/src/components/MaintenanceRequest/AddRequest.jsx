@@ -1,4 +1,4 @@
-import React, { useState, useContext, useMemo } from "react";
+import React, { useState, useContext, useMemo, useEffect } from "react";
 import { MaintenanceRequestContext } from "../../contexts/MaintenanceRequestContext/MaintenanceRequestContext";
 import { ProblemContext } from "../../contexts/ProblemContext/ProblemContext";
 
@@ -11,7 +11,7 @@ function AddRequest({
   isOpen,
   onAddRequest,
 }) {
-  const { problems } = useContext(ProblemContext);
+  const { problems, displayProblems } = useContext(ProblemContext);
   const { addDescription, customError } = useContext(MaintenanceRequestContext);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +23,14 @@ function AddRequest({
     Category: "",
     ProblemId: null
   });
+
+  // ✅ LOAD PROBLEMS ONLY WHEN MODAL OPENS (isOpen changes)
+  useEffect(() => {
+    if (isOpen && typeof displayProblems === "function") {
+      displayProblems();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]); // 👈 isOpen lang — hindi kasama ang displayProblems
 
   // Get unique categories from problems
   const categories = useMemo(() => {
@@ -39,7 +47,7 @@ function AddRequest({
   }, [problems, selectedCategory]);
 
   // Reset form when modal opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       setSelectedCategory("");
       setSelectedProblem(null);
@@ -217,10 +225,9 @@ function AddRequest({
               type="submit"
               disabled={isLoading || !values.Description?.trim()}
               className={`w-full py-2.5 px-4 rounded font-medium text-white transition
-                ${
-                  isLoading || !values.Description?.trim()
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
+                ${isLoading || !values.Description?.trim()
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
                 }`}
             >
               {isLoading ? "Submitting..." : description ? "Update Request" : "Submit Request"}

@@ -3,13 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { AssignContext } from "../../contexts/AssignLabContext/AssignLabContext";
 import { FaSearch, FaChevronLeft, FaChevronRight, FaBuilding, FaFlask } from "react-icons/fa";
 import { motion } from "framer-motion";
-import logo from "../../../public/logo.jpg"; // Imported logo
+import logo from "../../../public/logo.jpg";
 
 const AssignLab = () => {
-  // Add null check for context
   const context = useContext(AssignContext);
-  
-  // If context is undefined, show error
+
   if (!context) {
     return (
       <div className="flex items-center justify-center min-h-[400px] p-6">
@@ -56,7 +54,6 @@ const AssignLab = () => {
     navigate("/dashboard/LaboratoryAssign", { state: { selectedLab } });
   };
 
-  // Show loading state
   if (loading) {
     return (
       <div className="flex justify-center items-center h-96">
@@ -78,10 +75,9 @@ const AssignLab = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      
-      {/* Header & Search Section (White, Blue & Yellow Theme) */}
+
+      {/* Header & Search Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-6 rounded-3xl border-2 border-blue-100 shadow-lg shadow-blue-900/5 relative overflow-hidden">
-        {/* Subtle Yellow Accent Bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-yellow-400 to-blue-600" />
 
         <div>
@@ -89,7 +85,6 @@ const AssignLab = () => {
           <p className="text-xs text-slate-500 mt-1 font-medium">Select a department facility to manage registry settings and units.</p>
         </div>
 
-        {/* Search Input */}
         <div className="relative w-full md:w-80">
           <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-600 text-sm" />
           <input
@@ -102,65 +97,96 @@ const AssignLab = () => {
         </div>
       </div>
 
-      {/* Grid Display */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {currentLabs.length > 0 ? (
-          currentLabs.map((lab, index) => (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05, duration: 0.3 }}
-              key={lab._id || index}
-              className="group bg-white border-2 border-blue-100/80 rounded-3xl p-6 shadow-md hover:shadow-xl hover:border-yellow-400 transition-all duration-300 flex flex-col justify-between relative overflow-hidden"
-            >
-              {/* Card Top Accent */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-blue-600 group-hover:bg-yellow-400 transition-colors" />
+      {/* Table Display */}
+      <div className="bg-white border-2 border-blue-100 rounded-3xl shadow-lg shadow-blue-900/5 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-blue-600">
+                <th className="px-6 py-4 text-left text-[11px] font-black text-white uppercase tracking-wider">
+                  Department
+                </th>
+                <th className="px-6 py-4 text-center text-[11px] font-black text-white uppercase tracking-wider">
+                  Units
+                </th>
+                <th className="px-6 py-4 text-center text-[11px] font-black text-white uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-right text-[11px] font-black text-white uppercase tracking-wider">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentLabs.length > 0 ? (
+                currentLabs.map((lab, index) => (
+                  <motion.tr
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05, duration: 0.3 }}
+                    key={lab._id || index}
+                    className="border-b border-blue-50 hover:bg-blue-50/50 transition-colors group"
+                  >
+                    {/* Department */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border-2 border-blue-200 overflow-hidden shadow-sm group-hover:border-yellow-400 transition-all shrink-0">
+                          <img src={logo} alt="Lab Logo" className="w-full h-full object-cover" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-blue-950 tracking-tight">
+                            {lab.departmentName || "N/A"}
+                          </p>
+                          <p className="text-[11px] text-slate-400 font-semibold">
+                            Active Department Facility
+                          </p>
+                        </div>
+                      </div>
+                    </td>
 
-              <div>
-                {/* Card Top: Icon & Badge */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="relative">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center border-2 border-blue-200 overflow-hidden shadow-sm group-hover:scale-105 group-hover:border-yellow-400 transition-all">
-                      <img
-                        src={logo}
-                        alt="Lab Logo"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-yellow-50 text-blue-950 border border-yellow-200 shadow-sm">
-                    <FaBuilding className="text-yellow-600" size={10} />
-                    {lab.count || 0} Units
-                  </span>
-                </div>
+                    {/* Units */}
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-yellow-50 text-blue-950 border border-yellow-200 shadow-sm">
+                        <FaBuilding className="text-yellow-600" size={10} />
+                        {lab.count || 0} Units
+                      </span>
+                    </td>
 
-                {/* Department Name */}
-                <h4 className="text-base font-black text-blue-950 tracking-tight line-clamp-1 mb-1">
-                  {lab.departmentName || "N/A"}
-                </h4>
-                <p className="text-xs text-slate-400 font-semibold mb-6">
-                  Active Department Facility
-                </p>
-              </div>
+                    {/* Status */}
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-green-50 text-green-700 border border-green-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                        Active
+                      </span>
+                    </td>
 
-              {/* Action Button (Blue with Yellow Accent on Hover) */}
-              <button
-                onClick={() => handleSelectDisplay(lab.departmentName)}
-                className="w-full py-2.5 bg-blue-600 hover:bg-yellow-400 text-white hover:text-blue-950 rounded-2xl font-bold text-xs transition-all duration-300 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
-              >
-                Access Facility <FaChevronRight size={10} />
-              </button>
-            </motion.div>
-          ))
-        ) : (
-          <div className="col-span-full py-16 text-center bg-white border-2 border-dashed border-blue-100 rounded-3xl shadow-sm">
-            <FaFlask className="mx-auto text-blue-300 mb-3" size={32} />
-            <p className="text-blue-900 font-bold text-xs uppercase tracking-wide">No matching laboratory records found</p>
-          </div>
-        )}
+                    {/* Action */}
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleSelectDisplay(lab.departmentName)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-yellow-400 text-white hover:text-blue-950 rounded-xl font-bold text-[11px] transition-all duration-300 shadow-sm hover:shadow-md"
+                      >
+                        Access <FaChevronRight size={9} />
+                      </button>
+                    </td>
+                  </motion.tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="4" className="py-16 text-center">
+                    <FaFlask className="mx-auto text-blue-300 mb-3" size={32} />
+                    <p className="text-blue-900 font-bold text-xs uppercase tracking-wide">
+                      No matching laboratory records found
+                    </p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Modern Pagination */}
+      {/* Pagination */}
       {filteredLaboratories && filteredLaboratories.length > itemsPerPage && (
         <div className="flex justify-center items-center gap-3 pt-4">
           <button
@@ -170,7 +196,7 @@ const AssignLab = () => {
           >
             <FaChevronLeft size={12} />
           </button>
-          
+
           <div className="px-5 py-2.5 bg-blue-600 rounded-2xl shadow-md shadow-blue-900/10">
             <span className="text-white font-black text-xs uppercase tracking-wider">
               Page {currentPage} of {totalPages}

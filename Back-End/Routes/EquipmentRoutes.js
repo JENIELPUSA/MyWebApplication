@@ -17,6 +17,11 @@ router
   .route("/")
   .post(authController.protect, EquipmentController.createtool)
   .get(authController.protect, EquipmentController.Displaytool);
+
+router
+  .route("/UpdateStatus/:id")
+  .patch(authController.protect, EquipmentController.UpdateStatus)
+
 router
   .route("/:id")
   .patch(authController.protect, EquipmentController.Updatetool)

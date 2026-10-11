@@ -11,13 +11,10 @@ const Equipment = require('./../Models/Equipment')
 
 exports.AssignEquipment = AsyncErrorHandler(async (req, res) => {
   const Assign = await assign.create(req.body);
-
-  console.log("Assign", Assign);
-
   // ==========================================
   //  UPDATE EQUIPMENT STATUS TO "Not Available"
   // ==========================================
-  const updatedEquipment = await Equipment  .findByIdAndUpdate(
+  const updatedEquipment = await Equipment.findByIdAndUpdate(
     Assign.Equipments,                     //  ObjectId ng equipment
     { status: "Not Available" },           //  bagong status
     { new: true }                          //  ibalik ang updated doc
@@ -63,143 +60,319 @@ exports.AssignEquipment = AsyncErrorHandler(async (req, res) => {
 });
 
 exports.displayAssign = AsyncErrorHandler(async (req, res) => {
-  const features = new Apifeatures(assign.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields()
-    .paginate();
+  try {
+    const userId = req.user._id;
+    const role = req.user.role;
 
-  const filterAssign = await features.query;
+    console.log("userId", userId);
+    console.log("role", role);
 
-  let assigns = await assign.aggregate([
-    { $match: { _id: { $in: filterAssign.map((tool) => tool._id) } } },
+    const {
+      search = "",
+      page = 1,
+      limit = 10,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      laboratory,   // filter by Laboratory ID (optional)
+      category,     // filter by Category ID (optional)
+      brand,        // filter by Brand (string, partial match, optional)
+      status,       // filter by equipment status (optional)
+    } = req.query;
 
-    // ---------------- Join Laboratories ----------------
-    {
-      $lookup: {
-        from: "laboratories",
-        localField: "Laboratory",
-        foreignField: "_id",
-        as: "LaboratoryInfo",
-      },
-    },
-    { $unwind: { path: "$LaboratoryInfo", preserveNullAndEmptyArrays: true } },
+    // ─── Pagination setup ────────────────────────────────────────────
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+    const skip = (pageNum - 1) * limitNum;
 
-    // ---------------- Join Encharge Users ----------------
-    {
-      $lookup: {
-        from: "users",
-        localField: "LaboratoryInfo.Encharge",
-        foreignField: "_id",
-        as: "EnchargeInfo",
-      },
-    },
-    { $unwind: { path: "$EnchargeInfo", preserveNullAndEmptyArrays: true } },
+    // ─── Build $match for Assign collection (pre-lookup) ─────────────
+    const assignMatchStage = {};
 
-    // ---------------- Join Departments ----------------
-    {
-      $lookup: {
-        from: "departments",
-        localField: "LaboratoryInfo.department",
-        foreignField: "_id",
-        as: "DepartmentInfo",
-      },
-    },
-    { $unwind: { path: "$DepartmentInfo", preserveNullAndEmptyArrays: true } },
+    // Filter by Laboratory (kung provided)
+    if (laboratory && mongoose.Types.ObjectId.isValid(laboratory)) {
+      assignMatchStage.Laboratory = new mongoose.Types.ObjectId(laboratory);
+    }
 
-    // ---------------- Join Equipments ----------------
-    {
-      $lookup: {
-        from: "equipment",
-        localField: "Equipments",
-        foreignField: "_id",
-        as: "EquipmentsInfo",
-      },
-    },
-    { $unwind: { path: "$EquipmentsInfo", preserveNullAndEmptyArrays: true } },
+    // ─── Build equipment-level $match (post-lookup) ──────────────────
+    const equipmentMatchStage = {};
 
-    // ---------------- Join Categories ----------------
-    {
-      $lookup: {
-        from: "categories",
-        localField: "EquipmentsInfo.Category",
-        foreignField: "_id",
-        as: "CategoryInfo",
-      },
-    },
-    { $unwind: { path: "$CategoryInfo", preserveNullAndEmptyArrays: true } },
+    if (category && mongoose.Types.ObjectId.isValid(category)) {
+      equipmentMatchStage["EquipmentsInfo.Category"] =
+        new mongoose.Types.ObjectId(category);
+    }
 
-    // ---------------- Join Maintenance Schedule ----------------
-    {
-      $lookup: {
-        from: "maintenanceschedules", // collection name ng maintenance
-        let: { eqId: "$EquipmentsInfo._id" },
-        pipeline: [
-          { $match: { $expr: { $eq: ["$equipmentType", "$$eqId"] } } },
-          { $sort: { lastMaintenanceDate: -1 } },
-          { $limit: 1 }, // pinaka-latest lang
-        ],
-        as: "MaintenanceInfo",
-      },
-    },
-    {
-      $addFields: {
-        "EquipmentsInfo.hasMaintenance": {
-          $cond: [{ $gt: [{ $size: "$MaintenanceInfo" }, 0] }, true, false],
-        },
-        "EquipmentsInfo.lastMaintenanceDate": {
-          $ifNull: [{ $arrayElemAt: ["$MaintenanceInfo.lastMaintenanceDate", 0] }, null],
-        },
-        "EquipmentsInfo.nextMaintenanceDate": {
-          $ifNull: [{ $arrayElemAt: ["$MaintenanceInfo.nextMaintenanceDate", 0] }, null],
+    if (brand && brand.trim()) {
+      const escaped = brand.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      equipmentMatchStage["EquipmentsInfo.Brand"] = {
+        $regex: escaped,
+        $options: "i",
+      };
+    }
+
+    if (status && status !== "All") {
+      equipmentMatchStage["EquipmentsInfo.status"] = status;
+    }
+
+    // ─── Build search stage (across equipment + lab + category) ──────
+    const searchStage = {};
+    if (search.trim()) {
+      const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      searchStage.$or = [
+        { "EquipmentsInfo.code": { $regex: escaped, $options: "i" } },
+        { "EquipmentsInfo.Brand": { $regex: escaped, $options: "i" } },
+        { "EquipmentsInfo.SerialNumber": { $regex: escaped, $options: "i" } },
+        { "EquipmentsInfo.Specification": { $regex: escaped, $options: "i" } },
+        { "LaboratoryInfo.LaboratoryName": { $regex: escaped, $options: "i" } },
+        { "CategoryInfo.CategoryName": { $regex: escaped, $options: "i" } },
+      ];
+    }
+
+    // ─── Build $sort (whitelist) ─────────────────────────────────────
+    const allowedSortFields = [
+      "createdAt",
+      "Laboratory",
+      "Equipments",
+    ];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const sortDir = sortOrder === "asc" ? 1 : -1;
+
+    // ─── Base pipeline (shared sa data + count) ──────────────────────
+    const basePipeline = [
+      // ---------------- Match (assign-level filters) ----------------
+      { $match: assignMatchStage },
+
+      // ---------------- Join Laboratories ----------------
+      {
+        $lookup: {
+          from: "laboratories",
+          localField: "Laboratory",
+          foreignField: "_id",
+          as: "LaboratoryInfo",
         },
       },
-    },
-
-    {
-      $group: {
-        _id: "$LaboratoryInfo.LaboratoryName",
-        assignCount: { $sum: 1 },
-        assignLabId: { $first: "$_id" },
-        laboratoryId: { $first: "$LaboratoryInfo._id" },
-        departmentId: { $first: "$DepartmentInfo._id" },
-        enchargeId: { $first: "$EnchargeInfo._id" },
-        encharge: { $first: "$EnchargeInfo" },
-        departmentName: { $first: "$DepartmentInfo.DepartmentName" },
-        equipments: { $addToSet: { $mergeObjects: ["$EquipmentsInfo", { categoryName: "$CategoryInfo.CategoryName" }] } },
-        categories: { $addToSet: "$CategoryInfo.CategoryName" },
+      {
+        $unwind: {
+          path: "$LaboratoryInfo",
+          preserveNullAndEmptyArrays: true,
+        },
       },
-    },
 
-    {
-      $project: {
-        _id: 1,
-        assignCount: 1,
-        assignLabId: 1,
-        laboratoryId: 1,
-        departmentId: 1,
-        laboratoryName: "$_id",
-        encharge: {
-          $concat: [
-            "$encharge.FirstName",
-            " ",
-            { $ifNull: ["$encharge.Middle", ""] },
-            " ",
-            "$encharge.LastName",
+      // ---------------- Join Encharge Users ----------------
+      {
+        $lookup: {
+          from: "users",
+          localField: "LaboratoryInfo.Encharge",
+          foreignField: "_id",
+          as: "EnchargeInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$EnchargeInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // Role-based filter: kung "user", i-match ang EnchargeInfo._id sa userId
+      ...(role === "user" || role === "User"
+        ? [{ $match: { "EnchargeInfo._id": userId } }]
+        : []),
+
+      // ---------------- Join Departments ----------------
+      {
+        $lookup: {
+          from: "departments",
+          localField: "LaboratoryInfo.department",
+          foreignField: "_id",
+          as: "DepartmentInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$DepartmentInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ---------------- Join Equipments ----------------
+      {
+        $lookup: {
+          from: "equipment",
+          localField: "Equipments",
+          foreignField: "_id",
+          as: "EquipmentsInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$EquipmentsInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ---------------- Join Categories ----------------
+      {
+        $lookup: {
+          from: "categories",
+          localField: "EquipmentsInfo.Category",
+          foreignField: "_id",
+          as: "CategoryInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$CategoryInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ---------------- Apply equipment-level filters ----------------
+      ...(Object.keys(equipmentMatchStage).length > 0
+        ? [{ $match: equipmentMatchStage }]
+        : []),
+
+      // ---------------- Apply search ----------------
+      ...(Object.keys(searchStage).length > 0
+        ? [{ $match: searchStage }]
+        : []),
+
+      // ---------------- Join Maintenance Schedule ----------------
+      {
+        $lookup: {
+          from: "maintenanceschedules",
+          let: { eqId: "$EquipmentsInfo._id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$equipmentType", "$$eqId"] } } },
+            { $sort: { lastMaintenanceDate: -1 } },
+            { $limit: 1 },
           ],
+          as: "MaintenanceInfo",
         },
-        departmentName: 1,
-        equipments: 1,
-        enchargeId: 1,
-        equipmentsCount: { $size: { $ifNull: ["$equipments", []] } },
       },
-    },
-  ]);
+      {
+        $addFields: {
+          "EquipmentsInfo.hasMaintenance": {
+            $cond: [{ $gt: [{ $size: "$MaintenanceInfo" }, 0] }, true, false],
+          },
+          "EquipmentsInfo.lastMaintenanceDate": {
+            $ifNull: [
+              { $arrayElemAt: ["$MaintenanceInfo.lastMaintenanceDate", 0] },
+              null,
+            ],
+          },
+          "EquipmentsInfo.nextMaintenanceDate": {
+            $ifNull: [
+              { $arrayElemAt: ["$MaintenanceInfo.nextMaintenanceDate", 0] },
+              null,
+            ],
+          },
+        },
+      },
+    ];
 
-  res.status(200).json({
-    status: "success",
-    data: assigns,
-  });
+    // ─── Execute in parallel (data + count) ──────────────────────────
+    const [dataResult, countResult] = await Promise.all([
+      // Data pipeline — with grouping + pagination
+      assign.aggregate([
+        ...basePipeline,
+
+        // ---------------- Group by Laboratory ----------------
+        {
+          $group: {
+            _id: "$LaboratoryInfo.LaboratoryName",
+            assignCount: { $sum: 1 },
+            assignLabId: { $first: "$_id" },
+            laboratoryId: { $first: "$LaboratoryInfo._id" },
+            departmentId: { $first: "$DepartmentInfo._id" },
+            enchargeId: { $first: "$EnchargeInfo._id" },
+            encharge: { $first: "$EnchargeInfo" },
+            departmentName: { $first: "$DepartmentInfo.DepartmentName" },
+            equipments: {
+              $addToSet: {
+                $mergeObjects: [
+                  "$EquipmentsInfo",
+                  { categoryName: "$CategoryInfo.CategoryName" },
+                ],
+              },
+            },
+            categories: { $addToSet: "$CategoryInfo.CategoryName" },
+            createdAt: { $first: "$createdAt" },
+          },
+        },
+
+        // ---------------- Sort ----------------
+        {
+          $sort: {
+            [sortField === "Laboratory" ? "_id" : "createdAt"]: sortDir,
+          },
+        },
+
+        // ---------------- Pagination ----------------
+        { $skip: skip },
+        { $limit: limitNum },
+
+        // ---------------- Project ----------------
+        {
+          $project: {
+            _id: 1,
+            assignCount: 1,
+            assignLabId: 1,
+            laboratoryId: 1,
+            departmentId: 1,
+            laboratoryName: "$_id",
+            encharge: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ["$encharge.FirstName", ""] },
+                    " ",
+                    { $ifNull: ["$encharge.Middle", ""] },
+                    " ",
+                    { $ifNull: ["$encharge.LastName", ""] },
+                  ],
+                },
+              },
+            },
+            departmentName: 1,
+            equipments: 1,
+            enchargeId: 1,
+            equipmentsCount: { $size: { $ifNull: ["$equipments", []] } },
+            createdAt: 1,
+          },
+        },
+      ]),
+
+      // Count pipeline — bilang ng GROUPS (laboratories)
+      assign.aggregate([
+        ...basePipeline,
+        { $group: { _id: "$LaboratoryInfo.LaboratoryName" } },
+        { $count: "total" },
+      ]),
+    ]);
+
+    const totalRecords = countResult[0]?.total || 0;
+
+    console.log("assigns", dataResult.length, "of", totalRecords);
+
+    // ─── Response ────────────────────────────────────────────────────
+    res.status(200).json({
+      status: "success",
+      totalRecords,
+      totalLaboratories: totalRecords, // backwards compat
+      currentPage: pageNum,
+      totalPages: Math.ceil(totalRecords / limitNum),
+      limit: limitNum,
+      count: dataResult.length,
+      data: dataResult,
+    });
+  } catch (error) {
+    console.error("❌ Error in displayAssign:", error);
+
+    res.status(500).json({
+      status: "fail",
+      message: error.message || "Failed to fetch assignments",
+      error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
 });
 
 exports.UpdateEquipments = AsyncErrorHandler(async (req, res, next) => {

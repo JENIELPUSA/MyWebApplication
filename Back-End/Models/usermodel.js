@@ -14,14 +14,17 @@ const userSchema = new mongoose.Schema({
   LastName: String,
   role: {
     type: String,
-    enum: ['User', 'Admin', 'Technician','Supply'],
+    enum: ['User', 'Admin', 'Technician', 'Supply'],
     required: [true, "Please Select a Role"]
   },
   password: {
     type: String,
     required: [true, 'Please enter a password.'],
     minlength: [8, 'Password must be at least 8 characters long.'],
-    select: false, 
+    select: false,
+  },
+  isVerified: {
+    type: Boolean, default: false
   },
   passwordChangedAt: Date,
   passwordResetToken: String,

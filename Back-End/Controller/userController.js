@@ -34,25 +34,102 @@ exports.createUser = AsyncErrorHandler(async (req, res) => {
 });
 
 exports.DisplayAll = AsyncErrorHandler(async (req, res) => {
-  const features = new Apifeatures(user.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields()
-    .paginate();
+  const {
+    search = "",
+    page = 1,
+    limit = 10,
+    sortBy = "createdAt",
+    sortOrder = "desc",
+    role,
+    status,
+  } = req.query;
 
-  let displayuser = await features.query;
+  // ─── Pagination setup ────────────────────────────────────────────
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+  const skip = (pageNum - 1) * limitNum;
 
-  if (!displayuser || displayuser.length === 0) {
-    return res.status(404).json({
-      status: "fail",
-      message: "No users found"
-    });
+  // ─── Build $match (search + filters) ─────────────────────────────
+  const matchStage = {};
+
+  // Search across multiple fields
+  if (search.trim()) {
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    matchStage.$or = [
+      { FirstName: { $regex: escaped, $options: "i" } },
+      { Middle: { $regex: escaped, $options: "i" } },
+      { LastName: { $regex: escaped, $options: "i" } },
+      { Email: { $regex: escaped, $options: "i" } },
+      { Username: { $regex: escaped, $options: "i" } },
+    ];
   }
 
+  // Filter by role (kung provided)
+  if (role && role !== "All") {
+    matchStage.role = role;
+  }
+
+  // Filter by status (kung provided)
+  if (status && status !== "All") {
+    matchStage.status = status;
+  }
+
+  // ─── Build $sort (whitelist) ─────────────────────────────────────
+  const allowedSortFields = [
+    "createdAt",
+    "FirstName",
+    "LastName",
+    "Email",
+    "Username",
+    "role",
+  ];
+  const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+  const sortDir = sortOrder === "asc" ? 1 : -1;
+
+  // ─── Shared pipeline ─────────────────────────────────────────────
+  const basePipeline = [
+    { $match: matchStage },
+
+    // Exclude sensitive fields
+    {
+      $project: {
+        password: 0,
+        passwordConfirm: 0,
+        passwordChangedAt: 0,
+        passwordResetToken: 0,
+        passwordResetExpires: 0,
+      },
+    },
+  ];
+
+  // ─── Execute in parallel (data + count) ──────────────────────────
+  const [dataResult, countResult] = await Promise.all([
+    // Data pipeline
+    user.aggregate([
+      ...basePipeline,
+      { $sort: { [sortField]: sortDir } },
+      { $skip: skip },
+      { $limit: limitNum },
+    ]),
+    // Count pipeline
+    user.aggregate([
+      ...basePipeline,
+      { $count: "total" },
+    ]),
+  ]);
+
+  const totalRecords = countResult[0]?.total || 0;
+
+  // ─── Response ────────────────────────────────────────────────────
   res.status(200).json({
     status: "success",
-    totalUser: displayuser.length,
-    data: displayuser,
+    totalRecords,
+    totalUser: totalRecords, // backwards compat sa lumang frontend
+    currentPage: pageNum,
+    totalPages: Math.ceil(totalRecords / limitNum),
+    limit: limitNum,
+    count: dataResult.length,
+    data: dataResult,
   });
 });
 

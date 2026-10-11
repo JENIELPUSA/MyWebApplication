@@ -34,27 +34,27 @@ export const navbarLinks = [
                 path: "/dashboard/User",
             },
             {
-                label: "Equipment",
+                label: "Category",
+                icon: History,
+                path: "/dashboard/category",
+            },
+            {
+                label: "Equipment Management",
                 icon: Package,
                 path: "/dashboard/equipment",
             },
             {
-                label: "Department",
+                label: "Department Management",
                 icon: Building2,
                 path: "/dashboard/department",
             },
             {
-                label: "Laboratory",
+                label: "Laboratory Management",
                 icon: FlaskConical,
                 path: "/dashboard/laboratory",
             },
             {
-                label: "Report",
-                icon: FileBarChart,
-                path: "/dashboard/report",
-            },
-            {
-                label: "Department & Laboratory",
+                label: "Laboratory Items",
                 icon: ClipboardCheck,
                 path: "/dashboard/assign",
             },
@@ -69,15 +69,11 @@ export const navbarLinks = [
                 path: "/dashboard/maintenance",
             },
             {
-                label: "Computer Problem",
+                label: "Equipment Issues",
                 icon: History,
                 path: "/dashboard/problem",
             },
-            {
-                label: "Category",
-                icon: History,
-                path: "/dashboard/category",
-            }
+
         ],
     }
 ];

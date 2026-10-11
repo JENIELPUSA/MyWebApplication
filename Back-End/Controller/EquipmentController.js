@@ -17,26 +17,66 @@ const collectionFieldMapping = {
   Assign: "Equipments",
   IncomingMaintenance: "Equipments",
 };
-const TypesMaintenances = require("../Models/TypesOfMaintenace");
 
 exports.Displaytool = AsyncErrorHandler(async (req, res) => {
-  // Apply Apifeatures methods on the query
-  const features = new Apifeatures(tools.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields()
-    .paginate();
+  const {
+    search = "",
+    page = 1,
+    limit = 5,
+    sortBy = "createdAt",
+    sortOrder = "desc",
+    status = "",       // ✅ Status filter
+    category = "",     // ✅ Category filter (ObjectId)
+  } = req.query;
 
-  // Fetch filtered and paginated data first
-  const filteredTools = await features.query;
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+  const skip = (pageNum - 1) * limitNum;
 
-  // Apply aggregation only on the filteredTools
-  const Equipment = await tools.aggregate([
-    {
-      $match: {
-        _id: { $in: filteredTools.map((tool) => tool._id) },
-      },
-    },
+  // ─── Build $match (Equipment fields) ────────────────────────────
+  const matchStage = {};
+
+  if (search.trim()) {
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    matchStage.$or = [
+      { code: { $regex: escaped, $options: "i" } },
+      { Brand: { $regex: escaped, $options: "i" } },
+      { SerialNumber: { $regex: escaped, $options: "i" } },
+      { Specification: { $regex: escaped, $options: "i" } },
+      { status: { $regex: escaped, $options: "i" } },
+    ];
+  }
+
+  // ✅ Status filter — exact match, case-insensitive
+  if (status.trim()) {
+    const escapedStatus = status.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    matchStage.status = { $regex: `^${escapedStatus}$`, $options: "i" };
+  }
+
+  // ✅ Category filter — matches Category ObjectId exactly
+  // Accepts valid ObjectId strings OR "null" / "unassigned" to filter unassigned items
+  if (category.trim()) {
+    const trimmedCategory = category.trim();
+
+    if (trimmedCategory.toLowerCase() === "null" ||
+        trimmedCategory.toLowerCase() === "unassigned") {
+      matchStage.Category = null;
+    } else if (mongoose.Types.ObjectId.isValid(trimmedCategory)) {
+      matchStage.Category = new mongoose.Types.ObjectId(trimmedCategory);
+    } else {
+      // Invalid ObjectId → return empty result instead of crashing
+      matchStage.Category = { $eq: null, $ne: null }; // impossible match
+    }
+  }
+
+  // ─── Build $sort ────────────────────────────────────────────────
+  const allowedSortFields = ["createdAt", "code", "Brand", "SerialNumber", "status"];
+  const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+  const sortDir = sortOrder === "asc" ? 1 : -1;
+
+  // ─── Shared pipeline (pre-pagination) ───────────────────────────
+  const basePipeline = [
+    { $match: matchStage },
 
     // ---------------- CATEGORY ----------------
     {
@@ -71,7 +111,7 @@ exports.Displaytool = AsyncErrorHandler(async (req, res) => {
     },
     { $unwind: { path: "$LaboratoryData", preserveNullAndEmptyArrays: true } },
 
-    // ---------------- ENCHARGE (User lookup via Laboratory.Encharge) ----------------
+    // ---------------- ENCHARGE ----------------
     {
       $lookup: {
         from: "users",
@@ -148,57 +188,72 @@ exports.Displaytool = AsyncErrorHandler(async (req, res) => {
         },
       },
     },
+  ];
 
-    // ---------------- FINAL OUTPUT ----------------
-    {
-      $project: {
-        code: 1,
-        Brand: 1,
-        SerialNumber: 1,
-        Specification: 1,
-        status: 1,
-        remarks: 1,
-        DateAcquired: 1,
-        createdAt: 1,
-        CategoryName: { $ifNull: ["$CategoryData.CategoryName", "N/A"] },
-        LaboratoryName: { $ifNull: ["$LaboratoryData.LaboratoryName", null] },
-        DepartmentName: { $ifNull: ["$DepartmentData.DepartmentName", null] },
+  // ─── Execute in parallel ────────────────────────────────────────
+  const [dataResult, countResult] = await Promise.all([
+    tools.aggregate([
+      ...basePipeline,
+      { $sort: { [sortField]: sortDir } },
+      { $skip: skip },
+      { $limit: limitNum },
+      {
+        $project: {
+          code: 1,
+          Brand: 1,
+          SerialNumber: 1,
+          Specification: 1,
+          status: 1,
+          remarks: 1,
+          DateAcquired: 1,
+          createdAt: 1,
+          CategoryName: { $ifNull: ["$CategoryData.CategoryName", "N/A"] },
+          Category: 1, // ✅ include raw category id (useful for edit forms)
+          LaboratoryName: { $ifNull: ["$LaboratoryData.LaboratoryName", null] },
+          DepartmentName: { $ifNull: ["$DepartmentData.DepartmentName", null] },
 
-        // ---------------- ENCHARGE FIELDS ----------------
-        EnchargeId: { $ifNull: ["$LaboratoryData.Encharge", null] },
-        EnchargeName: {
-          $trim: {
-            input: {
-              $concat: [
-                { $ifNull: ["$EnchargeData.FirstName", ""] },
-                " ",
-                { $ifNull: ["$EnchargeData.Middle", ""] },
-                " ",
-                { $ifNull: ["$EnchargeData.LastName", ""] },
-              ],
+          // ---------------- ENCHARGE FIELDS ----------------
+          EnchargeId: { $ifNull: ["$LaboratoryData.Encharge", null] },
+          EnchargeName: {
+            $trim: {
+              input: {
+                $concat: [
+                  { $ifNull: ["$EnchargeData.FirstName", ""] },
+                  " ",
+                  { $ifNull: ["$EnchargeData.Middle", ""] },
+                  " ",
+                  { $ifNull: ["$EnchargeData.LastName", ""] },
+                ],
+              },
             },
           },
+
+          hasMaintenance: 1,
+          lastMaintenanceDate: 1,
+          nextMaintenanceDate: 1,
+          scheduleType: 1,
+          assignedTechnician: 1,
+          _id: 1,
         },
-
-        hasMaintenance: 1,
-        lastMaintenanceDate: 1,
-        nextMaintenanceDate: 1,
-        scheduleType: 1,
-        assignedTechnician: 1,
-        _id: 1,
       },
-    },
-
-    //  SORT BY NEWEST FIRST (Last In, First Out)
-    {
-      $sort: { createdAt: -1 },
-    },
+    ]),
+    tools.aggregate([
+      ...basePipeline,
+      { $count: "total" },
+    ]),
   ]);
+
+  const totalRecords = countResult[0]?.total || 0;
 
   res.status(200).json({
     status: "success",
-    totalEquipment: Equipment.length,
-    data: Equipment,
+    totalRecords,
+    totalEquipment: totalRecords,
+    currentPage: pageNum,
+    totalPages: Math.ceil(totalRecords / limitNum),
+    limit: limitNum,
+    count: dataResult.length,
+    data: dataResult,
   });
 });
 
@@ -932,4 +987,212 @@ exports.FindByEquipment = AsyncErrorHandler(async (req, res) => {
       LaboratoryName: laboratory[0].LaboratoryName,
     },
   });
+});
+
+exports.UpdateStatus = AsyncErrorHandler(async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid equipment ID format",
+      });
+    }
+
+    if (!status) {
+      return res.status(400).json({
+        status: "fail",
+        message: "Status is required",
+      });
+    }
+
+    const ALLOWED_STATUSES = ["Not Available", "Available", "Defective", "Missing", "Fixed", "Found"];
+    if (!ALLOWED_STATUSES.includes(status)) {
+      return res.status(400).json({
+        status: "fail",
+        message: `Invalid status. Allowed values: ${ALLOWED_STATUSES.join(", ")}`,
+      });
+    }
+
+    // ✅ Gamitin ang .save() para tumakbo ang pre('save') middleware
+    const equipment = await Equipment.findById(id);
+    if (!equipment) {
+      return res.status(404).json({
+        status: "fail",
+        message: "Equipment not found",
+      });
+    }
+
+    equipment.status = status;
+    const updatedEquipment = await equipment.save();
+
+    const aggregatedResult = await tools.aggregate([
+      {
+        $match: { _id: new mongoose.Types.ObjectId(id) },
+      },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "Category",
+          foreignField: "_id",
+          as: "CategoryData",
+        },
+      },
+      { $unwind: { path: "$CategoryData", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "assigns",
+          localField: "_id",
+          foreignField: "Equipments",
+          as: "AssignData",
+        },
+      },
+      { $unwind: { path: "$AssignData", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "laboratories",
+          localField: "AssignData.Laboratory",
+          foreignField: "_id",
+          as: "LaboratoryData",
+        },
+      },
+      { $unwind: { path: "$LaboratoryData", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "LaboratoryData.Encharge",
+          foreignField: "_id",
+          as: "EnchargeData",
+        },
+      },
+      { $unwind: { path: "$EnchargeData", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "departments",
+          localField: "LaboratoryData.department",
+          foreignField: "_id",
+          as: "DepartmentData",
+        },
+      },
+      { $unwind: { path: "$DepartmentData", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "maintenanceschedules",
+          let: { equipmentId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$equipmentType", "$$equipmentId"] } } },
+            { $sort: { lastMaintenanceDate: -1 } },
+            { $limit: 1 },
+            {
+              $project: {
+                _id: 1,
+                nextMaintenanceDate: 1,
+                lastMaintenanceDate: 1,
+                scheduleType: 1,
+                assignedTechnician: 1,
+              },
+            },
+          ],
+          as: "MaintenanceData",
+        },
+      },
+      {
+        $addFields: {
+          hasMaintenance: { $gt: [{ $size: "$MaintenanceData" }, 0] },
+          nextMaintenanceDate: {
+            $cond: [
+              { $gt: [{ $size: "$MaintenanceData" }, 0] },
+              { $arrayElemAt: ["$MaintenanceData.nextMaintenanceDate", 0] },
+              null,
+            ],
+          },
+          lastMaintenanceDate: {
+            $cond: [
+              { $gt: [{ $size: "$MaintenanceData" }, 0] },
+              { $arrayElemAt: ["$MaintenanceData.lastMaintenanceDate", 0] },
+              null,
+            ],
+          },
+          scheduleType: {
+            $cond: [
+              { $gt: [{ $size: "$MaintenanceData" }, 0] },
+              { $arrayElemAt: ["$MaintenanceData.scheduleType", 0] },
+              null,
+            ],
+          },
+          assignedTechnician: {
+            $cond: [
+              { $gt: [{ $size: "$MaintenanceData" }, 0] },
+              { $arrayElemAt: ["$MaintenanceData.assignedTechnician", 0] },
+              null,
+            ],
+          },
+        },
+      },
+      {
+        $project: {
+          code: 1,
+          Brand: 1,
+          SerialNumber: 1,
+          Specification: 1,
+          status: 1,
+          remarks: 1,
+          DateAcquired: 1,
+          createdAt: 1,
+          CategoryName: { $ifNull: ["$CategoryData.CategoryName", "N/A"] },
+          LaboratoryName: { $ifNull: ["$LaboratoryData.LaboratoryName", null] },
+          DepartmentName: { $ifNull: ["$DepartmentData.DepartmentName", null] },
+          EnchargeId: { $ifNull: ["$LaboratoryData.Encharge", null] },
+          EnchargeName: {
+            $trim: {
+              input: {
+                $concat: [
+                  { $ifNull: ["$EnchargeData.FirstName", ""] },
+                  " ",
+                  { $ifNull: ["$EnchargeData.Middle", ""] },
+                  " ",
+                  { $ifNull: ["$EnchargeData.LastName", ""] },
+                ],
+              },
+            },
+          },
+          hasMaintenance: 1,
+          lastMaintenanceDate: 1,
+          nextMaintenanceDate: 1,
+          scheduleType: 1,
+          assignedTechnician: 1,
+          _id: 1,
+        },
+      },
+    ]);
+
+    const aggregatedEquipment = aggregatedResult[0] || updatedEquipment;
+
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("update_equipment:status", {
+        status: "success",
+        action: "status-updated",
+        data: aggregatedEquipment,
+        timestamp: new Date(),
+      });
+      console.log(
+        `📡 [Socket] Broadcasted 'update_equipment:status' → ${aggregatedEquipment.code} = ${status}`
+      );
+    }
+
+    res.status(200).json({
+      status: "success",
+      message: `Equipment status updated to "${status}"`,
+      data: aggregatedEquipment,
+    });
+  } catch (error) {
+    console.error("❌ Error updating equipment status:", error);
+    res.status(500).json({
+      status: "fail",
+      message: error.message || "Failed to update equipment status.",
+    });
+  }
 });

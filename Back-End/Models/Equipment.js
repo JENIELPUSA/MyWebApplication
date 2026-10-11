@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-// Define Equipment Schema and Model
 const EquipmentSchema = new mongoose.Schema(
   {
     code: {
@@ -9,7 +8,7 @@ const EquipmentSchema = new mongoose.Schema(
     },
     DateTime: {
       type: Date,
-      default: () => new Date(), // Automatically set current date and time
+      default: () => new Date(),
     },
     Brand: {
       type: String,
@@ -26,23 +25,48 @@ const EquipmentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Not Available", "Available"],
+      enum: ["Not Available", "Available", "Defective", "Missing", "Fixed", "Found"],
       default: "Available",
     },
     Category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
-      default: "Active",
+      default: null,
     },
     remarks: {
-      type: String
+      type: String,
     },
     DateAcquired: {
-      type: Date
-    }
+      type: Date,
+    },
   },
   { timestamps: true },
 );
+
+// ✅ Pre-save middleware — check Assign collection kapag Fixed o Found ang status
+EquipmentSchema.pre("save", async function (next) {
+  try {
+    if (
+      this.isModified("status") &&
+      (this.status === "Fixed" || this.status === "Found")
+    ) {
+      const Assign = mongoose.model("Assign");
+
+      const existingAssign = await Assign.findOne({ Equipments: this._id });
+
+      if (existingAssign) {
+        this.status = "Not Available";
+      } else {
+        this.status = "Available";
+      }
+    }
+
+    next();
+  } catch (error) {
+    console.error("❌ Error in Equipment pre-save middleware:", error);
+    next(error);
+  }
+});
 
 const Equipment = mongoose.model("Equipment", EquipmentSchema);
 

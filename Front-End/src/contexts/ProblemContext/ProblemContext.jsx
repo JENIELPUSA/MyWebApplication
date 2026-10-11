@@ -1,21 +1,207 @@
-import React, { createContext, useState, useContext, useEffect } from "react";
-import axios from "axios";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import axiosInstance from "../../components/ReusableComponent/axiosInstance";
+import { AuthContext } from "../../contexts/AuthContext";
 
 export const ProblemContext = createContext();
 
 export const ProblemProvider = ({ children }) => {
-  const [loading, setLoading] = useState(false);
+  const { authToken } = useContext(AuthContext);
+
+  // ==================== STATE ====================
   const [problems, setProblems] = useState([]);
   const [problem, setProblem] = useState(null);
   const [confirm, setConfirm] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const token = localStorage.getItem("token");
 
-  // CREATE - Gumawa ng bagong problema
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [problemPerPage, setProblemPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalProblems, setTotalProblems] = useState(0);
+
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  // Sorting
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  // ============================================================
+  // DEBOUNCE SEARCH — 400ms
+  // ============================================================
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1); // ✅ Reset sa page 1 kapag nag-search
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset page 1 kapag nag-change ang filters/sort
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    statusFilter,
+    priorityFilter,
+    categoryFilter,
+    fromDate,
+    toDate,
+    sortBy,
+    sortOrder,
+    problemPerPage,
+  ]);
+
+  // ============================================================
+  // DISPLAY — Kunin ang lahat ng problema
+  // ============================================================
+  const displayProblems = useCallback(
+    async (signal) => {
+      if (!authToken) {
+        setProblems([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await axiosInstance.get(
+          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/problem`,
+          {
+            params: {
+              page: currentPage,
+              limit: problemPerPage,
+              search: debouncedSearch,
+              sortBy,
+              sortOrder,
+              ...(statusFilter && statusFilter !== "All" && { status: statusFilter }),
+              ...(priorityFilter && priorityFilter !== "All" && { priority: priorityFilter }),
+              ...(categoryFilter && categoryFilter !== "All" && { category: categoryFilter }),
+              ...(fromDate && { from: fromDate }),
+              ...(toDate && { to: toDate }),
+            },
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Cache-Control": "no-cache",
+            },
+            signal,
+          }
+        );
+
+        if (response.data.status === "success") {
+          // Support both new (totalRecords) at old (totalProblems) keys
+          const total =
+            response.data.totalRecords ??
+            response.data.totalProblems ??
+            0;
+          const pages =
+            response.data.totalPages ??
+            Math.ceil(total / problemPerPage);
+
+          const problemData = response.data.data || [];
+
+          setProblems(problemData);
+          setTotalProblems(total);
+          setTotalPages(pages);
+          setIsInitialized(true);
+          setError(null);
+
+          return problemData;
+        }
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        console.error("Error fetching problems:", error);
+        setError(error.response?.data?.message || "Failed to fetch problems");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      authToken,
+      currentPage,
+      problemPerPage,
+      debouncedSearch,
+      statusFilter,
+      priorityFilter,
+      categoryFilter,
+      fromDate,
+      toDate,
+      sortBy,
+      sortOrder,
+    ]
+  );
+
+  // ============================================================
+  // AUTO-FETCH WITH ABORT CONTROLLER
+  // ============================================================
+  useEffect(() => {
+    if (!authToken) {
+      setProblems([]);
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    displayProblems(controller.signal);
+
+    return () => controller.abort();
+  }, [authToken, displayProblems]);
+
+  // ============================================================
+  // CLIENT-SIDE FILTER (Fallback lang)
+  // ============================================================
+  const filteredProblems = useMemo(() => {
+    let list = problems || [];
+
+    if (statusFilter && statusFilter !== "All") {
+      list = list.filter((p) => p.status === statusFilter);
+    }
+
+    if (priorityFilter && priorityFilter !== "All") {
+      list = list.filter((p) => p.priority === priorityFilter);
+    }
+
+    if (categoryFilter && categoryFilter !== "All") {
+      list = list.filter((p) => p.category === categoryFilter);
+    }
+
+    if (debouncedSearch && debouncedSearch.trim() !== "") {
+      const q = debouncedSearch.toLowerCase();
+      list = list.filter((p) => {
+        return (
+          p.title?.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q) ||
+          p.category?.toLowerCase().includes(q) ||
+          p.location?.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    return list;
+  }, [problems, statusFilter, priorityFilter, categoryFilter, debouncedSearch]);
+
+  // ============================================================
+  // CREATE — Gumawa ng bagong problema
+  // ============================================================
   const createProblem = async (values) => {
-    if (!token) {
+    if (!authToken) {
       console.error("No token found");
       return;
     }
@@ -29,14 +215,17 @@ export const ProblemProvider = ({ children }) => {
         {
           title: values.title,
           category: values.category,
+          description: values.description,
+          priority: values.priority,
+          location: values.location,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data.status === "success") {
         setConfirm(true);
-        setProblems(prev => [response.data.data, ...prev]);
-        return response.data.data;
+        await displayProblems(new AbortController().signal);
+        return response.data;
       }
     } catch (error) {
       console.error("Error creating problem:", error);
@@ -46,38 +235,11 @@ export const ProblemProvider = ({ children }) => {
     }
   };
 
-  // DISPLAY - Kunin ang lahat ng problema
-  const displayProblems = async (queryParams = "") => {
-    if (!token) {
-      console.error("No token found");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await axiosInstance.get(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/problem?${queryParams}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data.status === "success") {
-        setProblems(response.data.data);
-        setIsInitialized(true);
-        return response.data.data;
-      }
-    } catch (error) {
-      console.error("Error fetching problems:", error);
-      setError(error.response?.data?.message || "Failed to fetch problems");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // DISPLAY BY ID - Kunin ang isang specific na problema
+  // ============================================================
+  // DISPLAY BY ID — Kunin ang isang specific na problema
+  // ============================================================
   const getProblem = async (id) => {
-    if (!token || !id) {
+    if (!authToken || !id) {
       console.error("No token or ID found");
       return;
     }
@@ -88,7 +250,7 @@ export const ProblemProvider = ({ children }) => {
     try {
       const response = await axiosInstance.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/problems/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data.status === "success") {
@@ -103,9 +265,11 @@ export const ProblemProvider = ({ children }) => {
     }
   };
 
-  // UPDATE - I-update ang isang problema
+  // ============================================================
+  // UPDATE — I-update ang isang problema
+  // ============================================================
   const updateProblem = async (id, values) => {
-    if (!token || !id) {
+    if (!authToken || !id) {
       console.error("No token or ID found");
       return;
     }
@@ -119,15 +283,16 @@ export const ProblemProvider = ({ children }) => {
         {
           title: values.title,
           category: values.category,
+          description: values.description,
+          priority: values.priority,
+          status: values.status,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data.status === "success") {
         setConfirm(true);
-        setProblems(prev =>
-          prev.map(p => p._id === id ? response.data.data : p)
-        );
+        await displayProblems(new AbortController().signal);
         return response.data.data;
       }
     } catch (error) {
@@ -138,9 +303,11 @@ export const ProblemProvider = ({ children }) => {
     }
   };
 
-  // DELETE - Burahin ang isang problema
+  // ============================================================
+  // DELETE — Burahin ang isang problema
+  // ============================================================
   const deleteProblem = async (id) => {
-    if (!token || !id) {
+    if (!authToken || !id) {
       console.error("No token or ID found");
       return;
     }
@@ -151,12 +318,12 @@ export const ProblemProvider = ({ children }) => {
     try {
       const response = await axiosInstance.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/problem/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data.status === "success") {
         setConfirm(true);
-        setProblems(prev => prev.filter(p => p._id !== id));
+        await displayProblems(new AbortController().signal);
         return true;
       }
     } catch (error) {
@@ -167,54 +334,59 @@ export const ProblemProvider = ({ children }) => {
     }
   };
 
-  // RESET - I-reset ang confirm state
-  const resetConfirm = () => {
-    setConfirm(null);
-  };
-
-  // CLEAR ERRORS - I-clear ang error state
-  const clearErrors = () => {
-    setError(null);
-  };
-
-  // REFRESH - I-refresh ang problems list
+  // ============================================================
+  // RESET / CLEAR / REFRESH
+  // ============================================================
+  const resetConfirm = () => setConfirm(null);
+  const clearErrors = () => setError(null);
   const refreshProblems = async () => {
-    await displayProblems();
+    await displayProblems(new AbortController().signal);
   };
 
-  // --- USE EFFECT - Auto-load problems on mount ---
-  useEffect(() => {
-    // Check if token exists before fetching
-    if (token) {
-      displayProblems();
-    } else {
-      console.warn("No token found, skipping initial problems fetch");
-    }
-    
-    // Optional: Cleanup function
-    return () => {
-      // Cleanup if needed
-    };
-  }, []); // Empty dependency array means this runs once on mount
-
-  // --- OPTIONAL: Auto-refresh when token changes ---
-  useEffect(() => {
-    if (token && !isInitialized) {
-      displayProblems();
-    }
-  }, [token]);
-
+  // ============================================================
+  // PROVIDER
+  // ============================================================
   return (
     <ProblemContext.Provider
       value={{
-        // States
-        loading,
+        // Data
         problems,
+        filteredProblems,
         problem,
-        confirm,
+        loading,
         error,
         isInitialized,
-        
+        confirm,
+
+        // Pagination
+        currentPage,
+        setCurrentPage,
+        problemPerPage,
+        setProblemPerPage,
+        totalPages,
+        totalProblems,
+
+        // Search & Filter
+        searchQuery,
+        setSearchQuery,
+        debouncedSearch,
+        statusFilter,
+        setStatusFilter,
+        priorityFilter,
+        setPriorityFilter,
+        categoryFilter,
+        setCategoryFilter,
+        fromDate,
+        setFromDate,
+        toDate,
+        setToDate,
+
+        // Sorting
+        sortBy,
+        setSortBy,
+        sortOrder,
+        setSortOrder,
+
         // Functions
         createProblem,
         displayProblems,

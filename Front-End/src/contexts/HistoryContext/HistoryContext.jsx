@@ -1,54 +1,185 @@
 // contexts/HistoryContext.jsx
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import axiosInstance from "../../components/ReusableComponent/axiosInstance";
+import { AuthContext } from "../../contexts/AuthContext";
 
 export const HistoryContext = createContext();
 
 export const HistoryProvider = ({ children }) => {
-  const [loading, setLoading] = useState(false);
+  const { authToken } = useContext(AuthContext);
+
+  // ==================== STATE ====================
   const [histories, setHistories] = useState([]);
   const [history, setHistory] = useState(null);
   const [confirm, setConfirm] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const token = localStorage.getItem("token");
 
-  // ==========================================
-  // DISPLAY - Kunin ang lahat ng history records
-  // ==========================================
-  const displayHistories = async (queryParams = "") => {
-    if (!token) {
-      console.error("No token found");
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [historyPerPage, setHistoryPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalHistories, setTotalHistories] = useState(0);
+
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [actionFilter, setActionFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  // Sorting
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  // ============================================================
+  // DEBOUNCE SEARCH — 400ms
+  // ============================================================
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1); // ✅ Reset sa page 1 kapag nag-search
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset page 1 kapag nag-change ang filters/sort
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [actionFilter, fromDate, toDate, sortBy, sortOrder, historyPerPage]);
+
+  // ============================================================
+  // DISPLAY — Kunin ang lahat ng history records
+  // ============================================================
+  const displayHistories = useCallback(
+    async (signal) => {
+      if (!authToken) {
+        setHistories([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await axiosInstance.get(
+          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/history`,
+          {
+            params: {
+              page: currentPage,
+              limit: historyPerPage,
+              search: debouncedSearch,
+              sortBy,
+              sortOrder,
+              ...(actionFilter && actionFilter !== "All" && { action: actionFilter }),
+              ...(fromDate && { from: fromDate }),
+              ...(toDate && { to: toDate }),
+            },
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Cache-Control": "no-cache",
+            },
+            signal,
+          }
+        );
+
+        if (response.data.status === "success") {
+          // Support both new (totalRecords) at old (totalHistories) keys
+          const total =
+            response.data.totalRecords ??
+            response.data.totalHistories ??
+            0;
+          const pages =
+            response.data.totalPages ??
+            Math.ceil(total / historyPerPage);
+
+          const historyData = response.data.data || [];
+
+          setHistories(historyData);
+          setTotalHistories(total);
+          setTotalPages(pages);
+          setIsInitialized(true);
+          setError(null);
+
+          return historyData;
+        }
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        console.error("Error fetching histories:", error);
+        setError(error.response?.data?.message || "Failed to fetch histories");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      authToken,
+      currentPage,
+      historyPerPage,
+      debouncedSearch,
+      actionFilter,
+      fromDate,
+      toDate,
+      sortBy,
+      sortOrder,
+    ]
+  );
+
+  // ============================================================
+  // AUTO-FETCH WITH ABORT CONTROLLER
+  // ============================================================
+  useEffect(() => {
+    if (!authToken) {
+      setHistories([]);
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    const controller = new AbortController();
+    displayHistories(controller.signal);
 
-    try {
-      const response = await axiosInstance.get(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/history?${queryParams}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+    return () => controller.abort();
+  }, [authToken, displayHistories]);
 
-      if (response.data.status === "success") {
-        setHistories(response.data.data);
-        setIsInitialized(true);
-        return response.data.data;
-      }
-    } catch (error) {
-      console.error("Error fetching histories:", error);
-      setError(error.response?.data?.message || "Failed to fetch histories");
-    } finally {
-      setLoading(false);
+  // ============================================================
+  // CLIENT-SIDE FILTER (Fallback lang)
+  // ============================================================
+  const filteredHistories = useMemo(() => {
+    let list = histories || [];
+
+    if (actionFilter && actionFilter !== "All") {
+      list = list.filter((h) => h.action === actionFilter);
     }
-  };
 
-  // ==========================================
-  // DISPLAY BY ID - Kunin ang isang specific na history
-  // ==========================================
+    if (debouncedSearch && debouncedSearch.trim() !== "") {
+      const q = debouncedSearch.toLowerCase();
+      list = list.filter((h) => {
+        return (
+          h.action?.toLowerCase().includes(q) ||
+          h.description?.toLowerCase().includes(q) ||
+          h.performedBy?.toLowerCase().includes(q) ||
+          h.targetName?.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    return list;
+  }, [histories, actionFilter, debouncedSearch]);
+
+  // ============================================================
+  // DISPLAY BY ID — Kunin ang isang specific na history
+  // ============================================================
   const getHistory = async (id) => {
-    if (!token || !id) {
+    if (!authToken || !id) {
       console.error("No token or ID found");
       return;
     }
@@ -59,7 +190,7 @@ export const HistoryProvider = ({ children }) => {
     try {
       const response = await axiosInstance.get(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/history/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data.status === "success") {
@@ -74,11 +205,11 @@ export const HistoryProvider = ({ children }) => {
     }
   };
 
-  // ==========================================
-  // UPDATE - I-update ang isang history record
-  // ==========================================
+  // ============================================================
+  // UPDATE — I-update ang isang history record
+  // ============================================================
   const updateHistory = async (id, values) => {
-    if (!token || !id) {
+    if (!authToken || !id) {
       console.error("No token or ID found");
       return;
     }
@@ -90,14 +221,12 @@ export const HistoryProvider = ({ children }) => {
       const response = await axiosInstance.put(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/history/${id}`,
         values,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data.status === "success") {
         setConfirm(true);
-        setHistories(prev =>
-          prev.map(h => h._id === id ? response.data.data : h)
-        );
+        await displayHistories(new AbortController().signal);
         return response.data.data;
       }
     } catch (error) {
@@ -108,11 +237,11 @@ export const HistoryProvider = ({ children }) => {
     }
   };
 
-  // ==========================================
-  // DELETE - Burahin ang isang history record
-  // ==========================================
+  // ============================================================
+  // DELETE — Burahin ang isang history record
+  // ============================================================
   const deleteHistory = async (id) => {
-    if (!token || !id) {
+    if (!authToken || !id) {
       console.error("No token or ID found");
       return;
     }
@@ -123,12 +252,12 @@ export const HistoryProvider = ({ children }) => {
     try {
       const response = await axiosInstance.delete(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/history/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data.status === "success") {
         setConfirm(true);
-        setHistories(prev => prev.filter(h => h._id !== id));
+        await displayHistories(new AbortController().signal);
         return true;
       }
     } catch (error) {
@@ -139,52 +268,54 @@ export const HistoryProvider = ({ children }) => {
     }
   };
 
-  // ==========================================
-  // RESET - I-reset ang confirm state
-  // ==========================================
-  const resetConfirm = () => {
-    setConfirm(null);
-  };
-
-  // ==========================================
-  // CLEAR ERRORS - I-clear ang error state
-  // ==========================================
-  const clearErrors = () => {
-    setError(null);
-  };
-
-  // ==========================================
-  // REFRESH - I-refresh ang histories list
-  // ==========================================
+  // ============================================================
+  // RESET / CLEAR / REFRESH
+  // ============================================================
+  const resetConfirm = () => setConfirm(null);
+  const clearErrors = () => setError(null);
   const refreshHistories = async () => {
-    await displayHistories();
+    await displayHistories(new AbortController().signal);
   };
 
-  // ==========================================
-  // USE EFFECT - Auto-load histories on mount
-  // ==========================================
-  useEffect(() => {
-    if (token) {
-      displayHistories();
-    } else {
-      console.warn("No token found, skipping initial histories fetch");
-    }
-
-    return () => {
-      // Cleanup if needed
-    };
-  }, []);
-
+  // ============================================================
+  // PROVIDER
+  // ============================================================
   return (
     <HistoryContext.Provider
       value={{
-        // States
-        loading,
+        // Data
         histories,
+        filteredHistories,
         history,
-        confirm,
+        loading,
         error,
         isInitialized,
+        confirm,
+
+        // Pagination
+        currentPage,
+        setCurrentPage,
+        historyPerPage,
+        setHistoryPerPage,
+        totalPages,
+        totalHistories,
+
+        // Search & Filter
+        searchQuery,
+        setSearchQuery,
+        debouncedSearch,
+        actionFilter,
+        setActionFilter,
+        fromDate,
+        setFromDate,
+        toDate,
+        setToDate,
+
+        // Sorting
+        sortBy,
+        setSortBy,
+        sortOrder,
+        setSortOrder,
 
         // Functions
         displayHistories,
@@ -200,4 +331,3 @@ export const HistoryProvider = ({ children }) => {
     </HistoryContext.Provider>
   );
 };
-

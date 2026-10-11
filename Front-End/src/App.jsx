@@ -53,7 +53,7 @@ function App() {
                         { path: "department", element: <DepartmentContent /> },
                         { path: "laboratory", element: <LaboratoryContent /> },
                         { path: "report", element: <ModalReport /> },
-                        { path: "assign", element: <AssignLab /> },
+                        { path: "assign", element: <RequestMaintenance /> },
                         { path: "pms", element: <PmsExport /> },
                         { path: "maintenance", element: <MaintenanceManagement /> },
                         { path: "problem", element: <ProblemTable /> },

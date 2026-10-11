@@ -1,5 +1,5 @@
 // Header.jsx - Show ALL notifications always, mark as read changes status only
-import { useState, useContext, useMemo, useEffect } from "react";
+import { useState, useContext, useMemo, useEffect, useCallback } from "react";
 import { useTheme } from "@/hooks/use-theme";
 import {
     Bell,
@@ -40,12 +40,12 @@ import {
     ArrowLeftToLine,
     ArrowRightToLine
 } from "lucide-react";
-import profileImg from "@/assets/profile-image.jpg";
 import PropTypes from "prop-types";
 import { MessagePOSTcontext } from "../contexts/MessageContext/POSTmessage";
 import { UserDataContext } from "../contexts/UserContext/UserContext";
 import { MessageDetailModal } from "./MessageDetailModal";
 import { AuthContext } from "../contexts/AuthContext";
+
 export const Header = ({ collapsed, setCollapsed }) => {
     const { messages, markAllAsRead, markMessageAsRead } = useContext(MessagePOSTcontext);
     const { theme, setTheme } = useTheme();
@@ -55,10 +55,33 @@ export const Header = ({ collapsed, setCollapsed }) => {
     const [localTechnicians, setLocalTechnicians] = useState([]);
     const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
 
-    const { Firstname, role } = useContext(AuthContext)
+    // ✅ NEW: Optimistic "read" override set — para agad mawala ang badge
+    const [locallyReadIds, setLocallyReadIds] = useState(() => new Set());
 
-    console.log("role",Firstname)
+    // ✅ Get auth data — with fallback aliases
+    const {
+        first_name,
+        role,
+        email,
+        Firstname,  // 👈 fallback kung capital F ang gamit sa ibang components
+    } = useContext(AuthContext);
+
+    // ✅ Use fallback — kung alin ang meron
+    const displayFirstName = first_name || Firstname || "";
+
+    console.log("role:", role, "first_name:", displayFirstName);
+
     const { technicians = [] } = useContext(UserDataContext) || {};
+
+    // ✅ One-line greeting — Welcome Back + Role
+    const getGreeting = () => {
+        if (!role) return "Welcome Back";
+        const normalizedRole = role.toLowerCase();
+        if (normalizedRole === "admin") return "Welcome Back Admin";
+        if (normalizedRole === "technician") return "Welcome Back Technician";
+        if (normalizedRole === "supply") return "Welcome Back Supply";
+        return "Welcome Back User";
+    };
 
     // Helper function
     const isEmptyOrWhitespace = (str) => {
@@ -141,7 +164,10 @@ export const Header = ({ collapsed, setCollapsed }) => {
                 statusBg = "bg-purple-100 dark:bg-purple-900/30";
             }
 
-            const isUnread = msg.read === false;
+            const msgId = msg._id || index;
+
+            // ✅ Optimistic: mark as read kung nasa locallyReadIds
+            const isUnread = msg.read === false && !locallyReadIds.has(msgId);
 
             let description = msg.message || "";
             let details = [];
@@ -199,7 +225,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
             let technicianName = msg.TechnicianName;
 
             return {
-                id: msg._id || index,
+                id: msgId,
                 title: msg.typesNotification || msg.RequestStatus || "Maintenance Request",
                 desc: description,
                 details: details,
@@ -235,7 +261,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
                 }
             };
         });
-    }, [messages]);
+    }, [messages, locallyReadIds]);
 
     const unreadCount = notifications.filter(n => n.unread).length;
 
@@ -272,10 +298,30 @@ export const Header = ({ collapsed, setCollapsed }) => {
     };
 
     // ==========================================
+    // ✅ CLEANUP: Clear locallyReadIds kapag
+    //    nag-update na ang messages galing server
+    // ==========================================
+    useEffect(() => {
+        if (!messages || messages.length === 0) return;
+        setLocallyReadIds((prev) => {
+            if (prev.size === 0) return prev;
+            const next = new Set(prev);
+            let changed = false;
+            messages.forEach((msg) => {
+                if (msg.read === true && next.has(msg._id)) {
+                    next.delete(msg._id);
+                    changed = true;
+                }
+            });
+            return changed ? next : prev;
+        });
+    }, [messages]);
+
+    // ==========================================
     // MARK ALL AS READ
     // Priority: markAllAsRead(messageIds) > markMessageAsRead(id) loop
     // ==========================================
-    const handleMarkAllAsRead = async () => {
+    const handleMarkAllAsRead = useCallback(async () => {
         console.log("========================================");
         console.log("[Header] 🖱️ Mark all as read clicked");
         console.log("[Header] Current unreadCount:", unreadCount);
@@ -292,6 +338,15 @@ export const Header = ({ collapsed, setCollapsed }) => {
             console.warn("[Header] ⚠️ No unread notifications — skipping.");
             return;
         }
+
+        // ==========================================
+        // ✅ OPTIMISTIC UPDATE — agad mawawala ang badge
+        // ==========================================
+        setLocallyReadIds((prev) => {
+            const next = new Set(prev);
+            unreadIds.forEach((id) => next.add(id));
+            return next;
+        });
 
         // ==========================================
         // STRATEGY 1: Batch endpoint (markAllAsRead)
@@ -359,7 +414,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
         );
         console.log("[Header] 🏁 Mark all as read flow finished (no-op).");
         console.log("========================================");
-    };
+    }, [notifications, unreadCount, markAllAsRead, markMessageAsRead]);
 
     const techniciansToUse = localTechnicians.length > 0 ? localTechnicians : technicians;
 
@@ -513,22 +568,16 @@ export const Header = ({ collapsed, setCollapsed }) => {
                         )}
                     </div>
 
-                    {/* Profile Section */}
+                    {/* ✅ Profile Section — One-line greeting */}
                     <div className="flex items-center gap-x-3 pl-2 border-l border-slate-200 dark:border-slate-700">
-                        <div className="hidden md:flex flex-col text-right">
-                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                Incharge
-                            </span>
-                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                                incharge@gmail.com
-                            </span>
-                        </div>
-                        <button className="size-10 overflow-hidden rounded-full border-2 border-yellow-400 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-md">
-                            <img
-                                src={profileImg}
-                                alt="profile image"
-                                className="size-full object-cover"
-                            />
+                        <span className="hidden md:block text-sm font-semibold text-slate-800 dark:text-slate-200">
+                            {getGreeting()}
+                        </span>
+                        <button
+                            className="size-10 flex items-center justify-center rounded-full border-2 border-yellow-400 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-md"
+                            title={displayFirstName || "User"}
+                        >
+                            <User size={20} />
                         </button>
                     </div>
                 </div>
@@ -557,3 +606,5 @@ Header.propTypes = {
     collapsed: PropTypes.bool,
     setCollapsed: PropTypes.func,
 };
+
+export default Header;

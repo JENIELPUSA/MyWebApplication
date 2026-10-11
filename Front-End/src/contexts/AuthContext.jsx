@@ -111,145 +111,161 @@ export const AuthProvider = ({ children }) => {
             delete axios.defaults.headers.common["Authorization"];
         }
     }, [authToken]);
-    
+
     const clearJobToApply = () => {
         console.log("Clearing jobToApply from localStorage and state");
         localStorage.removeItem("jobToApply");
         setJobToApply(null);
     };
 
-const login = async (inputEmail, password, selectedJob) => {
-    console.log("Login attempt with:", { inputEmail, password, selectedJob });
+    const login = async (inputEmail, password, selectedJob) => {
+        console.log("Login attempt with:", { inputEmail, password, selectedJob });
 
-    try {
-        const res = await axios.post(
-            `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/authentication/login`,
-            { email: inputEmail, password },
-            { withCredentials: true },
-        );
+        try {
+            const res = await axios.post(
+                `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/authentication/login`,
+                { email: inputEmail, password },
+                { withCredentials: true },
+            );
 
-        // ===== Handle success =====
-        if (res.data.status === "Success") {
-            const {
-                token,
-                role,
-                email: serverEmail,
-                first_name,
-                last_name,
-                contact_number,
-                userId,
-                linkId,
-                Designatedzone,
-                theme,
-                isUpdatedInfo,
-                isApprover,
-                approverStatus,
-                isHr,
-                hrStatus,
-                isSupervisor,
-                supervisorStatus,
-            } = res.data;
+            console.log("🔥 Full login response:", res.data);
 
-            // Save to localStorage
-            localStorage.setItem("token", token);
-            localStorage.setItem("role", role);
-            localStorage.setItem("email", serverEmail);
-            localStorage.setItem("first_name", first_name);
-            localStorage.setItem("last_name", last_name);
-            localStorage.setItem("contact_number", contact_number);
-            localStorage.setItem("userId", userId);
-            localStorage.setItem("linkId", linkId);
-            localStorage.setItem("Designatedzone", Designatedzone);
-            localStorage.setItem("authToken", token);
-            localStorage.setItem("theme", theme);
-            localStorage.setItem("isUpdatedInfo", isUpdatedInfo);
+            if (res.data.status === "Success") {
+                // ✅ Handle nested data (res.data.data) o direct (res.data)
+                const userData = res.data.data || res.data;
 
-            localStorage.setItem("isApprover", isApprover);
-            localStorage.setItem("approverStatus", approverStatus || "Available");
-            localStorage.setItem("isHr", isHr);
-            localStorage.setItem("hrStatus", hrStatus || "Available");
-            localStorage.setItem("isSupervisor", isSupervisor);
-            localStorage.setItem("supervisorStatus", supervisorStatus || "Available");
+                // ✅ Safe localStorage — iwasan ang "undefined" string
+                const safeSetItem = (key, value) => {
+                    if (value === undefined || value === null || value === "") {
+                        localStorage.removeItem(key);
+                        console.warn(`⚠️ Skipped localStorage for "${key}"`);
+                    } else {
+                        localStorage.setItem(key, value);
+                    }
+                };
 
-            // Save jobToApply
-            if (selectedJob && typeof selectedJob === "object") {
-                localStorage.setItem("jobToApply", JSON.stringify(selectedJob));
-            } else if (typeof selectedJob === "string") {
-                try {
-                    const parsed = JSON.parse(selectedJob);
-                    localStorage.setItem("jobToApply", JSON.stringify(parsed));
-                } catch {
-                    localStorage.setItem("jobToApply", selectedJob);
+                const {
+                    token,
+                    role,
+                    userId,
+                    linkId,
+                    Designatedzone,
+                    theme,
+                    isUpdatedInfo,
+                    isApprover,
+                    approverStatus,
+                    isHr,
+                    hrStatus,
+                    isSupervisor,
+                    supervisorStatus,
+                } = userData;
+
+                // ✅ MAP BACKEND → FRONTEND
+                // Schema: FirstName, Middle, LastName, username
+                const serverEmail = userData.email || userData.username || inputEmail;
+                const first_name = userData.FirstName || "";
+                const last_name = userData.LastName || "";
+                const middle_name = userData.Middle || ""; // extra, kung kailangan
+                const contact_number = userData.contact_number || "";
+
+                console.log("📦 Mapped values:", {
+                    token, role, serverEmail, first_name, last_name, middle_name,
+                    contact_number, userId, linkId, Designatedzone,
+                });
+
+                // ✅ Save sa localStorage
+                safeSetItem("token", token);
+                safeSetItem("role", role);
+                safeSetItem("email", serverEmail);
+                safeSetItem("first_name", first_name);
+                safeSetItem("last_name", last_name);
+                safeSetItem("middle_name", middle_name);
+                safeSetItem("contact_number", contact_number);
+                safeSetItem("userId", userId);
+                safeSetItem("linkId", linkId);
+                safeSetItem("Designatedzone", Designatedzone);
+                safeSetItem("authToken", token);
+                safeSetItem("theme", theme);
+                safeSetItem("isUpdatedInfo", isUpdatedInfo);
+
+                safeSetItem("isApprover", isApprover);
+                safeSetItem("approverStatus", approverStatus || "Available");
+                safeSetItem("isHr", isHr);
+                safeSetItem("hrStatus", hrStatus || "Available");
+                safeSetItem("isSupervisor", isSupervisor);
+                safeSetItem("supervisorStatus", supervisorStatus || "Available");
+
+                // Save jobToApply
+                if (selectedJob && typeof selectedJob === "object") {
+                    localStorage.setItem("jobToApply", JSON.stringify(selectedJob));
+                } else if (typeof selectedJob === "string") {
+                    try {
+                        const parsed = JSON.parse(selectedJob);
+                        localStorage.setItem("jobToApply", JSON.stringify(parsed));
+                    } catch {
+                        localStorage.setItem("jobToApply", selectedJob);
+                    }
+                } else {
+                    localStorage.removeItem("jobToApply");
                 }
-            } else {
-                localStorage.removeItem("jobToApply");
-            }
 
-            // Update state
-            setAuthToken(token);
-            setRole(role);
-            setEmail(serverEmail);
-            setfirst_name(first_name);
-            setlast_name(last_name);
-            setcontact_number(contact_number);
-            setUserID(userId);
-            setlinkId(linkId);
-            setDesignatedzone(Designatedzone);
-            setTheme(theme);
-            setIsUpdatedInfo(isUpdatedInfo);
+                // ✅ Update state
+                setAuthToken(token);
+                setRole(role);
+                setEmail(serverEmail);
+                setfirst_name(first_name);
+                setlast_name(last_name);
+                setcontact_number(contact_number);
+                setUserID(userId);
+                setlinkId(linkId);
+                setDesignatedzone(Designatedzone);
+                setTheme(theme);
+                setIsUpdatedInfo(isUpdatedInfo);
 
-            setIsApprover(isApprover || false);
-            setApproverStatus(approverStatus || "Available");
-            setIsHr(isHr || false);
-            setHrStatus(hrStatus || "Available");
-            setIsSupervisor(isSupervisor || false);
-            setSupervisorStatus(supervisorStatus || "Available");
+                setIsApprover(isApprover || false);
+                setApproverStatus(approverStatus || "Available");
+                setIsHr(isHr || false);
+                setHrStatus(hrStatus || "Available");
+                setIsSupervisor(isSupervisor || false);
+                setSupervisorStatus(supervisorStatus || "Available");
 
-            if (selectedJob && typeof selectedJob === "object") {
-                setJobToApply(selectedJob);
-            } else if (typeof selectedJob === "string") {
-                try {
-                    setJobToApply(JSON.parse(selectedJob));
-                } catch {
+                if (selectedJob && typeof selectedJob === "object") {
+                    setJobToApply(selectedJob);
+                } else if (typeof selectedJob === "string") {
+                    try {
+                        setJobToApply(JSON.parse(selectedJob));
+                    } catch {
+                        setJobToApply(null);
+                    }
+                } else {
                     setJobToApply(null);
                 }
-            } else {
-                setJobToApply(null);
+
+                axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+                return {
+                    success: true,
+                    message: res.data.message || "Login successful",
+                    role,
+                    userId,
+                    requiresUpdate: !isUpdatedInfo,
+                };
             }
 
-            axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-            // ===== Return with message for consistency =====
             return {
-                success: true,
-                message: res.data.message || "Login successful",
-                role,
-                userId,
-                requiresUpdate: !isUpdatedInfo,
+                success: false,
+                message: res.data?.message || "Login failed",
             };
+
+        } catch (error) {
+            console.error("Login error:", error);
+            const message =
+                error?.response?.data?.message ||
+                error?.message ||
+                "Login failed. Please try again.";
+            return { success: false, message };
         }
-
-        // ===== Handle API-level failure (status !== "Success") =====
-        return {
-            success: false,
-            message: res.data?.message || "Login failed",
-        };
-
-    } catch (error) {
-        console.error("Login error:", error);
-
-        // ===== Handle axios errors (400, 401, 500, etc.) =====
-        const message =
-            error?.response?.data?.message ||   // backend message
-            error?.message ||                    // JS error
-            "Login failed. Please try again.";   // fallback
-
-        return {
-            success: false,
-            message,
-        };
-    }
-};
+    };
 
     // Fetch profile data
     const fetchProfile = async () => {
@@ -269,7 +285,7 @@ const login = async (inputEmail, password, selectedJob) => {
                 }
             );
 
-            console.log("response",response)
+            console.log("response", response)
 
             if (response.data.success === true) {
 

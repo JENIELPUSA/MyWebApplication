@@ -4,7 +4,7 @@ const Lab = require('../Models/Laboratory');
 const Apifeatures = require('./../Utils/ApiFeatures');
 const mongoose = require('mongoose');
 const PDFDocument = require('pdfkit');
-const path=require('path');
+const path = require('path');
 const fs = require('fs');
 require('pdfkit-table');
 
@@ -67,227 +67,283 @@ exports.createLaboratory = AsyncErrorHandler(async (req, res, next) => {
   if (!mongoose.Types.ObjectId.isValid(req.body.department)) {
     return res.status(400).send("Invalid department ID");
   }
-  
+
   if (!mongoose.Types.ObjectId.isValid(req.body.Encharge)) {
     return res.status(400).send("Invalid Encharge ID");
   }
   const newLab = await Lab.create(req.body);
 
-    const newLaboratory = await Lab.aggregate([
-        {
-                $match: { _id: newLab._id } // Match only the filtered Lab
-            
-          },
-        {
-            $lookup:{
-                from:"users",
-                localField:"Encharge",
-                foreignField:"_id",
-                as:"EnchargeInfo"
-            }
-        },
-        {
-            $unwind:{
-                path:"$EnchargeInfo"
-            }
-        },
-        {
-            $lookup:{
-                from: 'departments', // The department collection
-                localField: 'department', // Field in encharge collection
-                foreignField: '_id', // Field in departments collection
-                as: 'DepartmentInfo' // The alias to store the joined data
-            }
-        },
-        {
-            $unwind:{
-                path:"$DepartmentInfo",
-                
-            }
-        },
-        {
-          $project:{
-            id:1,
-            RefNo:1,
-            LaboratoryName:1,
-            EnchargeName: {
-                $concat: [
-                    '$EnchargeInfo.FirstName', 
-                    ' ',  // Space between names
-                    { $ifNull: ['$EnchargeInfo.Middle', ''] }, 
-                    ' ',  // Space before Last Name
-                    '$EnchargeInfo.LastName'
-                ]
-            },
-            department: { $ifNull: ['$DepartmentInfo.DepartmentName', ''] }
-            
-          }
-            
-        }
+  const newLaboratory = await Lab.aggregate([
+    {
+      $match: { _id: newLab._id } // Match only the filtered Lab
 
-    ])
-    res.status(200).json({
-        status:'success',
-        totalLaboratory:newLaboratory.length,
-        data:newLaboratory
-     });
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "Encharge",
+        foreignField: "_id",
+        as: "EnchargeInfo"
+      }
+    },
+    {
+      $unwind: {
+        path: "$EnchargeInfo"
+      }
+    },
+    {
+      $lookup: {
+        from: 'departments', // The department collection
+        localField: 'department', // Field in encharge collection
+        foreignField: '_id', // Field in departments collection
+        as: 'DepartmentInfo' // The alias to store the joined data
+      }
+    },
+    {
+      $unwind: {
+        path: "$DepartmentInfo",
+
+      }
+    },
+    {
+      $project: {
+        id: 1,
+        RefNo: 1,
+        LaboratoryName: 1,
+        EnchargeName: {
+          $concat: [
+            '$EnchargeInfo.FirstName',
+            ' ',  // Space between names
+            { $ifNull: ['$EnchargeInfo.Middle', ''] },
+            ' ',  // Space before Last Name
+            '$EnchargeInfo.LastName'
+          ]
+        },
+        department: { $ifNull: ['$DepartmentInfo.DepartmentName', ''] }
+
+      }
+
+    }
+
+  ])
+  res.status(200).json({
+    status: 'success',
+    totalLaboratory: newLaboratory.length,
+    data: newLaboratory
+  });
 });
 
 
-
 exports.DisplayLaboratory = AsyncErrorHandler(async (req, res) => {
-    const features = new Apifeatures(Lab.find(), req.query)
-      .filter()
-      .sort()
-      .limitFields()
-      .paginate();
-  
-    const filteredLab = await features.query;
-  
-    const laboratory = await Lab.aggregate([
-      {
-        $match: {
-          _id: { $in: filteredLab.map((lab) => lab._id) }, // Match only the filtered labs
-        },
+  const {
+    search = "",
+    page = 1,
+    limit = 10,
+    sortBy = "createdAt",
+    sortOrder = "desc",
+    department, // filter by department ID (optional)
+  } = req.query;
+
+  // ─── Pagination setup ────────────────────────────────────────────
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+  const skip = (pageNum - 1) * limitNum;
+
+  // ─── Build $match (search + filters) ─────────────────────────────
+  const matchStage = {};
+
+  // Search across multiple fields
+  if (search.trim()) {
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    matchStage.$or = [
+      { LaboratoryName: { $regex: escaped, $options: "i" } },
+      { RefNo: { $regex: escaped, $options: "i" } },
+    ];
+  }
+
+  // Filter by department (kung provided)
+  if (department && mongoose.Types.ObjectId.isValid(department)) {
+    matchStage.department = new mongoose.Types.ObjectId(department);
+  }
+
+  // ─── Build $sort (whitelist) ─────────────────────────────────────
+  const allowedSortFields = [
+    "createdAt",
+    "LaboratoryName",
+    "RefNo",
+  ];
+  const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+  const sortDir = sortOrder === "asc" ? 1 : -1;
+
+  // ─── Shared pipeline (pre-pagination) ────────────────────────────
+  const basePipeline = [
+    { $match: matchStage },
+
+    // ---------------- ENCHARGE ----------------
+    {
+      $lookup: {
+        from: "users",
+        localField: "Encharge",
+        foreignField: "_id",
+        as: "EnchargeInfo",
       },
-      {
-        $lookup: {
-          from: "users",//collection
-          localField: "Encharge",//gi declare na foreignkey sa model or ang match
-          foreignField: "_id",
-          as: "EnchargeInfo",
-        },
+    },
+    {
+      $unwind: {
+        path: "$EnchargeInfo",
+        preserveNullAndEmptyArrays: true,
       },
-      {
-        $unwind: {
-          path: "$EnchargeInfo",
-          preserveNullAndEmptyArrays: true, // Prevents dropping documents without a match
-        },
+    },
+
+    // ---------------- DEPARTMENT ----------------
+    {
+      $lookup: {
+        from: "departments",
+        localField: "department",
+        foreignField: "_id",
+        as: "DepartmentInfo",
       },
-      {
-        $lookup: {
-          from: "departments", // The department collection
-          localField: "department", // Field in the laboratory collection
-          foreignField: "_id", // Field in departments collection
-          as: "DepartmentInfo", // The alias to store the joined data
-        },
+    },
+    {
+      $unwind: {
+        path: "$DepartmentInfo",
+        preserveNullAndEmptyArrays: true,
       },
-      {
-        $unwind: {
-          path: "$DepartmentInfo",
-          preserveNullAndEmptyArrays: true, // Prevents dropping documents without a match
-        },
-      },
+    },
+  ];
+
+  // ─── Execute in parallel (data + count) ──────────────────────────
+  const [dataResult, countResult] = await Promise.all([
+    // Data pipeline
+    Lab.aggregate([
+      ...basePipeline,
+      { $sort: { [sortField]: sortDir } },
+      { $skip: skip },
+      { $limit: limitNum },
       {
         $project: {
-          id: 1,
           RefNo: 1,
           LaboratoryName: 1,
           EnchargeName: {
             $trim: {
               input: {
                 $concat: [
-                  { $ifNull: ["$EnchargeInfo.FirstName", "N/A"] },
-                  " ", // Space between names
+                  { $ifNull: ["$EnchargeInfo.FirstName", ""] },
+                  " ",
                   { $ifNull: ["$EnchargeInfo.Middle", ""] },
-                  " ", // Space before Last Name
+                  " ",
                   { $ifNull: ["$EnchargeInfo.LastName", ""] },
                 ],
               },
             },
           },
-          EnchargeId: '$EnchargeInfo._id',
+          EnchargeId: "$EnchargeInfo._id",
           department: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
-          DepartmentId: '$DepartmentInfo._id', // Include the Category ID from the joined data
-          _id: 1
+          DepartmentId: "$DepartmentInfo._id",
+          createdAt: 1,
+          _id: 1,
         },
       },
-    ]);
-  
-    res.status(200).json({
-      status: "success",
-      totalLaboratory: laboratory.length,
-      data: laboratory,
-    });
+    ]),
+    // Count pipeline
+    Lab.aggregate([
+      ...basePipeline,
+      { $count: "total" },
+    ]),
+  ]);
+
+  const totalRecords = countResult[0]?.total || 0;
+
+  // ─── Response ────────────────────────────────────────────────────
+  res.status(200).json({
+    status: "success",
+    totalRecords,
+    totalLaboratory: totalRecords, // backwards compat sa lumang frontend
+    currentPage: pageNum,
+    totalPages: Math.ceil(totalRecords / limitNum),
+    limit: limitNum,
+    count: dataResult.length,
+    data: dataResult,
   });
+});
 
 
-  exports.UpdateLab = AsyncErrorHandler(async (req, res, next) => {
-    if (!mongoose.Types.ObjectId.isValid(req.body.department)) {
-      return res.status(400).send("Invalid department ID");
-    }
-    
-    if (!mongoose.Types.ObjectId.isValid(req.body.Encharge)) {
-      return res.status(400).send("Invalid Encharge ID");
-    }
-    // Update the laboratory
-    const updatelab = await Lab.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        { new: true, runValidators: true }
-    );
+exports.UpdateLab = AsyncErrorHandler(async (req, res, next) => {
+  if (!mongoose.Types.ObjectId.isValid(req.body.department)) {
+    return res.status(400).send("Invalid department ID");
+  }
 
-    if (!updatelab) {
-        return res.status(404).json({
-            status: 'fail',
-            message: 'Laboratory not found'
-        });
-    }
+  if (!mongoose.Types.ObjectId.isValid(req.body.Encharge)) {
+    return res.status(400).send("Invalid Encharge ID");
+  }
+  // Update the laboratory
+  const updatelab = await Lab.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true, runValidators: true }
+  );
 
-    // Fetch updated laboratory with populated data
-    const toolWithLaboratory = await Lab.aggregate([
-        {
-            $match: { _id: new mongoose.Types.ObjectId(req.params.id) }
-        },
-        {
-            $lookup: {
-                from: "users",
-                localField: "Encharge",
-                foreignField: "_id",
-                as: "EnchargeInfo"
-            }
-        },
-        { $unwind: { path: "$EnchargeInfo" } },
-        {
-            $lookup: {
-                from: 'departments',
-                localField: 'department',
-                foreignField: '_id',
-                as: 'DepartmentInfo'
-            }
-        },
-        { $unwind: { path: "$DepartmentInfo" } },
-        {
-            $project: {
-                id: 1,
-                RefNo: 1,
-                LaboratoryName: 1,
-                EnchargeName: {
-                    $concat: [
-                        '$EnchargeInfo.FirstName',
-                        ' ',
-                        { $ifNull: ['$EnchargeInfo.Middle', ''] },
-                        ' ',
-                        '$EnchargeInfo.LastName'
-                    ]
-                },
-                department: { $ifNull: ['$DepartmentInfo.DepartmentName', 'N/A'] }
-            }
-        }
-    ]);
-
-    if (!toolWithLaboratory.length) {
-        return res.status(404).json({
-            status: 'fail',
-            message: 'Laboratory not found after update.'
-        });
-    }
-
-    res.status(200).json({
-        status: 'success',
-        totalLaboratory: toolWithLaboratory.length,
-        data: toolWithLaboratory[0]
+  if (!updatelab) {
+    return res.status(404).json({
+      status: 'fail',
+      message: 'Laboratory not found'
     });
+  }
+
+  // Fetch updated laboratory with populated data
+  const toolWithLaboratory = await Lab.aggregate([
+    {
+      $match: { _id: new mongoose.Types.ObjectId(req.params.id) }
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "Encharge",
+        foreignField: "_id",
+        as: "EnchargeInfo"
+      }
+    },
+    { $unwind: { path: "$EnchargeInfo" } },
+    {
+      $lookup: {
+        from: 'departments',
+        localField: 'department',
+        foreignField: '_id',
+        as: 'DepartmentInfo'
+      }
+    },
+    { $unwind: { path: "$DepartmentInfo" } },
+    {
+      $project: {
+        id: 1,
+        RefNo: 1,
+        LaboratoryName: 1,
+        EnchargeName: {
+          $concat: [
+            '$EnchargeInfo.FirstName',
+            ' ',
+            { $ifNull: ['$EnchargeInfo.Middle', ''] },
+            ' ',
+            '$EnchargeInfo.LastName'
+          ]
+        },
+        department: { $ifNull: ['$DepartmentInfo.DepartmentName', 'N/A'] }
+      }
+    }
+  ]);
+
+  if (!toolWithLaboratory.length) {
+    return res.status(404).json({
+      status: 'fail',
+      message: 'Laboratory not found after update.'
+    });
+  }
+
+  res.status(200).json({
+    status: 'success',
+    totalLaboratory: toolWithLaboratory.length,
+    data: toolWithLaboratory[0]
+  });
 });
 
 
@@ -412,8 +468,8 @@ exports.getSpecificDepartment = AsyncErrorHandler(async (req, res, next) => {
   doc.moveDown(2.5);
 
   // Table headers
-  const tableHeaders = ['In-Charge Id','In-charge','Laboratory Name', 'Department'];
-  const columnWidths = [200, 170, 160,180];
+  const tableHeaders = ['In-Charge Id', 'In-charge', 'Laboratory Name', 'Department'];
+  const columnWidths = [200, 170, 160, 180];
   const tableWidth = columnWidths.reduce((a, b) => a + b, 0);
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const startXTable = doc.page.margins.left + (pageWidth - tableWidth) / 2;
@@ -456,7 +512,7 @@ exports.getSpecificDepartment = AsyncErrorHandler(async (req, res, next) => {
     }
 
     const rowData = [
-      lab.EnchargeId|| 'N/A',
+      lab.EnchargeId || 'N/A',
       lab.EnchargeName || 'N/A',
       lab.LaboratoryName || 'N/A',
       lab.department || 'N/A'
@@ -478,97 +534,97 @@ exports.getSpecificDepartment = AsyncErrorHandler(async (req, res, next) => {
   doc.moveDown(1);
   const footerText = 'Generated by EPDO';
   const footerX = doc.page.margins.left;
-  
+
   // Only show footer text, no page number
   doc.fontSize(10).text(footerText, footerX, currentY + 10, { align: 'left' });
   doc.end();
 });
 
 exports.GetLaboratoriesByDepartment = AsyncErrorHandler(async (req, res, next) => {
-    // 1. Kunin ang ID mula sa query
-    const { departmentId } = req.query;
+  // 1. Kunin ang ID mula sa query
+  const { departmentId } = req.query;
 
-    // Double check kung valid ang ID format para hindi mag-crash ang MongoDB
-    if (!mongoose.Types.ObjectId.isValid(departmentId)) {
-        return res.status(400).json({
-            status: "fail",
-            message: "Invalid Department ID format."
-        });
-    }
-
-    // 2. Aggregation Pipeline
-    const laboratories = await Lab.aggregate([
-        {
-            $match: {
-                // I-convert ang string ID to MongoDB ObjectId
-                department: new mongoose.Types.ObjectId(departmentId)
-            }
-        },
-        {
-            $lookup: {
-                from: "users",
-                localField: "Encharge",
-                foreignField: "_id",
-                as: "EnchargeInfo",
-            },
-        },
-        {
-            $unwind: {
-                path: "$EnchargeInfo",
-                preserveNullAndEmptyArrays: true,
-            },
-        },
-        {
-            $lookup: {
-                from: "departments",
-                localField: "department",
-                foreignField: "_id",
-                as: "DepartmentInfo",
-            },
-        },
-        {
-            $unwind: {
-                path: "$DepartmentInfo",
-                preserveNullAndEmptyArrays: true,
-            },
-        },
-        {
-            $project: {
-                _id: 1, // ID ng Laboratory/Room
-                LaboratoryName: 1,
-                RefNo: 1,
-
-                // Department info
-                DepartmentName: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
-                DepartmentId: "$DepartmentInfo._id", // 👈 added
-
-                // Encharge info
-                EnchargeName: {
-                    $trim: {
-                        input: {
-                            $concat: [
-                                { $ifNull: ["$EnchargeInfo.FirstName", "N/A"] },
-                                " ",
-                                { $ifNull: ["$EnchargeInfo.Middle", ""] },
-                                " ",
-                                { $ifNull: ["$EnchargeInfo.LastName", ""] },
-                            ],
-                        },
-                    },
-                },
-                EnchargeId: "$EnchargeInfo._id", // 👈 added (optional)
-            },
-        },
-        {
-            $sort: { LaboratoryName: 1 }
-        }
-    ]);
-
-    // 3. Final Response
-    res.status(200).json({
-        status: "success",
-        totalLaboratories: laboratories.length,
-        data: laboratories
+  // Double check kung valid ang ID format para hindi mag-crash ang MongoDB
+  if (!mongoose.Types.ObjectId.isValid(departmentId)) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Invalid Department ID format."
     });
+  }
+
+  // 2. Aggregation Pipeline
+  const laboratories = await Lab.aggregate([
+    {
+      $match: {
+        // I-convert ang string ID to MongoDB ObjectId
+        department: new mongoose.Types.ObjectId(departmentId)
+      }
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "Encharge",
+        foreignField: "_id",
+        as: "EnchargeInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$EnchargeInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "department",
+        foreignField: "_id",
+        as: "DepartmentInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$DepartmentInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        _id: 1, // ID ng Laboratory/Room
+        LaboratoryName: 1,
+        RefNo: 1,
+
+        // Department info
+        DepartmentName: { $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"] },
+        DepartmentId: "$DepartmentInfo._id", // 👈 added
+
+        // Encharge info
+        EnchargeName: {
+          $trim: {
+            input: {
+              $concat: [
+                { $ifNull: ["$EnchargeInfo.FirstName", "N/A"] },
+                " ",
+                { $ifNull: ["$EnchargeInfo.Middle", ""] },
+                " ",
+                { $ifNull: ["$EnchargeInfo.LastName", ""] },
+              ],
+            },
+          },
+        },
+        EnchargeId: "$EnchargeInfo._id", // 👈 added (optional)
+      },
+    },
+    {
+      $sort: { LaboratoryName: 1 }
+    }
+  ]);
+
+  // 3. Final Response
+  res.status(200).json({
+    status: "success",
+    totalLaboratories: laboratories.length,
+    data: laboratories
+  });
 });
 

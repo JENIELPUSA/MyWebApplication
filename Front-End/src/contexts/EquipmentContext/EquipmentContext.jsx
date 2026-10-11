@@ -5,6 +5,7 @@ import React, {
     useEffect,
     useContext,
     useMemo,
+    useCallback,
 } from "react";
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../components/ReusableComponent/SuccessandFailedModal";
@@ -13,7 +14,6 @@ import axiosInstance from "../../components/ReusableComponent/axiosInstance";
 export const EquipmentDataContext = createContext();
 
 export const EquipmentProvider = ({ children }) => {
-    // Fixed: Changed from [""] to [] (empty array)
     const [equipment, setEquipment] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -21,20 +21,23 @@ export const EquipmentProvider = ({ children }) => {
     const [TotalAvailableEquipments, setTotalAvailableEquipments] = useState(0);
     const { authToken } = useContext(AuthContext);
     const [currentPage, setCurrentPage] = useState(1);
-    const [equipmentsPerPage, setequipmentsPerPage] = useState(6);
+    const [equipmentsPerPage, setequipmentsPerPage] = useState(10);
+    const [totalPages, setTotalPages] = useState(0);
     const [showModal, setShowModal] = useState(false);
     const [modalStatus, setModalStatus] = useState("success");
     const [customError, setCustomError] = useState("");
     const [PmsRecord, setPmsRecord] = useState([]);
 
-    // 🔹 BAGONG STATE — selected equipment, search, filter, single fetch
+    // 🔹 Search, filter, single fetch
     const [selectedEquipment, setSelectedEquipment] = useState(null);
     const [equipmentById, setEquipmentById] = useState(null);
-    const [equipmentByCode, setEquipmentByCode] = useState(null); // 🔹 BAGO
+    const [equipmentByCode, setEquipmentByCode] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
-    const [statusFilter, setStatusFilter] = useState("All");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("");
+    const [categoryFilter, setCategoryFilter] = useState(""); // ✅ NEW
 
-    // BAGO — laboratory info ng naka-login na user (FindByEquipment)
+    // Laboratory info ng naka-login na user (FindByEquipment)
     const [myLaboratory, setMyLaboratory] = useState(null);
 
     useEffect(() => {
@@ -46,44 +49,109 @@ export const EquipmentProvider = ({ children }) => {
         }
     }, [customError]);
 
-    const fetchEquipmentData = async () => {
-        if (!authToken) return;
-        setLoading(true);
-        try {
-            const res = await axiosInstance.get(
-                `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment`,
-                {
-                    withCredentials: true,
-                    headers: { Authorization: `Bearer ${authToken}` },
-                }
-            );
+    // ============================================================
+    // DEBOUNCE SEARCH — 400ms delay
+    // ============================================================
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+            setCurrentPage(1); // ✅ Reset sa page 1 kapag nag-search
+        }, 400);
 
-            const equipmentData = res.data.data || [];
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
-            const pmsrecords = res.data.pmsRecord || [];
+    // ✅ Reset sa page 1 kapag nag-change ang status filter
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [statusFilter]);
 
-            // Count equipment with status "Available"
-            const availableEquipmentCount =
-                equipmentData?.filter(
-                    (item) => item.status === "Available"
-                ).length || 0;
+    // ✅ Reset sa page 1 kapag nag-change ang category filter
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [categoryFilter]);
 
+    // ============================================================
+    // FETCH EQUIPMENT DATA (may pagination + filters)
+    // ============================================================
+    const fetchEquipmentData = useCallback(
+        async (signal) => {
+            if (!authToken) return;
 
-            setPmsRecord(pmsrecords)
+            try {
+                setLoading(true);
 
-            setTotalAvailableEquipments(availableEquipmentCount);
-            setTotalEquipments(equipmentData.length);
-            setEquipment(equipmentData);
-            setError(null);
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            setError("Failed to fetch data");
-        } finally {
-            setLoading(false);
-        }
-    };
+                const response = await axiosInstance.get(
+                    `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment`,
+                    {
+                        params: {
+                            page: currentPage,
+                            limit: equipmentsPerPage,
+                            search: debouncedSearch,
+                            // ✅ Status filter (server-side)
+                            ...(statusFilter && { status: statusFilter }),
+                            // ✅ Category filter (server-side, ObjectId)
+                            ...(categoryFilter && { category: categoryFilter }),
+                        },
+                        withCredentials: true,
+                        headers: {
+                            Authorization: `Bearer ${authToken}`,
+                            "Cache-Control": "no-cache",
+                        },
+                        signal,
+                    }
+                );
 
-    // 🔹 BAGONG FUNCTION — fetch single equipment by ID
+                // Support both new (totalRecords) at old (totalEquipment) keys
+                const total =
+                    response.data.totalRecords ??
+                    response.data.totalEquipment ??
+                    0;
+                const pages =
+                    response.data.totalPages ??
+                    Math.ceil(total / equipmentsPerPage);
+
+                const equipmentData = response.data.data || [];
+
+                // Count equipment with status "Available" sa current page
+                const availableEquipmentCount =
+                    equipmentData.filter(
+                        (item) => item.status === "Available"
+                    ).length || 0;
+
+                setPmsRecord(response.data.pmsRecord || []);
+                setTotalAvailableEquipments(availableEquipmentCount);
+                setTotalEquipments(total);
+                setTotalPages(pages);
+                setEquipment(equipmentData);
+                setError(null);
+            } catch (error) {
+                if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+                console.error("Error fetching data:", error);
+                setError("Failed to fetch data");
+            } finally {
+                setLoading(false);
+            }
+        },
+        [
+            authToken,
+            currentPage,
+            equipmentsPerPage,
+            debouncedSearch,
+            statusFilter,
+            categoryFilter, // ✅ NEW dependency
+        ]
+    );
+
+    // Auto-fetch kapag nag-change ang dependencies
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchEquipmentData(controller.signal);
+
+        return () => controller.abort();
+    }, [fetchEquipmentData]);
+
+    // 🔹 Fetch single equipment by ID
     const fetchEquipmentById = async (equipmentID) => {
         if (!authToken || !equipmentID) return null;
         try {
@@ -104,7 +172,7 @@ export const EquipmentProvider = ({ children }) => {
         }
     };
 
-    // 🔹 BAGONG FUNCTION — fetch equipment by CODE (FindByCode endpoint)
+    // 🔹 Fetch equipment by CODE
     const fetchEquipmentByCode = async (code) => {
         if (!authToken || !code) return null;
         try {
@@ -151,16 +219,13 @@ export const EquipmentProvider = ({ children }) => {
         }
     };
 
-
     // ============================================================
     // FETCH MY LABORATORY
-    // GET /api/v1/equipment/FindByEquipment?from=&to=&all=
     // ============================================================
     const fetchMyLaboratory = async (filters = {}) => {
         if (!authToken) return null;
         setLoading(true);
         try {
-            // ✅ Buuin ang query params
             const params = {};
 
             if (filters.all) {
@@ -173,19 +238,17 @@ export const EquipmentProvider = ({ children }) => {
             const res = await axiosInstance.get(
                 `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/FindByEquipment`,
                 {
-                    params, // ✅ axios automatic mag-a-append sa URL
+                    params,
                     withCredentials: true,
                     headers: { Authorization: `Bearer ${authToken}` },
                 }
             );
 
             if (res?.data?.status === "success") {
-                // Laboratory info
                 const labData = Array.isArray(res.data.data)
                     ? res.data.data[0]
                     : res.data.data || null;
 
-                // PMS records (top-level array sa response mo)
                 const pmsRecords = Array.isArray(res.data.pmsRecord)
                     ? res.data.pmsRecord
                     : [];
@@ -240,6 +303,7 @@ export const EquipmentProvider = ({ children }) => {
             setLoading(false);
         }
     };
+
     const sendaddEquipment = async (values) => {
         try {
             const response = await axiosInstance.post(
@@ -262,7 +326,7 @@ export const EquipmentProvider = ({ children }) => {
             if (response?.data.status === "success") {
                 setModalStatus("success");
                 setShowModal(true);
-                await fetchEquipmentData(); //  Refresh data after adding
+                await fetchEquipmentData();
                 return { success: true, data: response?.data.data };
             } else {
                 setModalStatus("failed");
@@ -310,13 +374,12 @@ export const EquipmentProvider = ({ children }) => {
                 }
             );
 
-
-            console.log("response",response)
+            console.log("response", response)
 
             if (response.data && response.data.status === "success") {
                 setModalStatus("success");
                 setShowModal(true);
-                await fetchEquipmentData(); //  Refresh data after editing
+                await fetchEquipmentData();
                 return { success: true, data: response.data.data };
             } else {
                 setModalStatus("failed");
@@ -357,7 +420,7 @@ export const EquipmentProvider = ({ children }) => {
             if (response.data && response.data.status === "success") {
                 setModalStatus("success");
                 setShowModal(true);
-                await fetchEquipmentData(); //  Refresh data after deletion
+                await fetchEquipmentData();
                 return { success: true, data: response.data.data };
             } else {
                 setModalStatus("failed");
@@ -373,18 +436,38 @@ export const EquipmentProvider = ({ children }) => {
         }
     };
 
-    // 🔹 Helper — reset error state
+    // 🔹 Helpers
     const resetError = () => setError(null);
-
-    // 🔹 Helper — clear selected equipment
     const clearSelection = () => setSelectedEquipment(null);
 
-    // 🔹 Derived — filtered equipment base sa searchQuery + statusFilter
+    // ✅ Reset all filters helper
+    const resetFilters = useCallback(() => {
+        setSearchQuery("");
+        setDebouncedSearch("");
+        setStatusFilter("");
+        setCategoryFilter("");
+        setCurrentPage(1);
+    }, []);
+
+    // 🔹 Derived — filtered equipment (client-side fallback filter)
+    // NOTE: Since server-side filters are now active, this is mostly for
+    // instant UI feedback / belt-and-suspenders. Safe pa rin gamitin.
     const filteredEquipment = useMemo(() => {
         let list = equipment || [];
 
         if (statusFilter && statusFilter !== "All") {
             list = list.filter((item) => item.status === statusFilter);
+        }
+
+        // ✅ Category filter (client-side, matches by Category ObjectId)
+        if (categoryFilter && categoryFilter !== "All") {
+            if (categoryFilter === "null" || categoryFilter === "unassigned") {
+                list = list.filter((item) => !item.Category);
+            } else {
+                list = list.filter(
+                    (item) => String(item.Category) === String(categoryFilter)
+                );
+            }
         }
 
         if (searchQuery && searchQuery.trim() !== "") {
@@ -401,7 +484,66 @@ export const EquipmentProvider = ({ children }) => {
         }
 
         return list;
-    }, [equipment, statusFilter, searchQuery]);
+    }, [equipment, statusFilter, categoryFilter, searchQuery]);
+
+    const UpdateStatus = async (equipmentID, status) => {
+        if (!authToken || !equipmentID) {
+            return { success: false, error: "Missing required parameters." };
+        }
+
+        console.log("status", status)
+
+        try {
+            const response = await axiosInstance.patch(
+                `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/UpdateStatus/${equipmentID}`,
+                { status },
+                {
+                    withCredentials: true,
+                    headers: { Authorization: `Bearer ${authToken}` },
+                }
+            );
+
+            if (response?.data?.status === "success") {
+                const updated = response.data.data;
+
+                setEquipment((prev) =>
+                    prev.map((eq) =>
+                        eq._id === equipmentID ? { ...eq, ...updated } : eq
+                    )
+                );
+
+                return { success: true, data: updated };
+            } else {
+                return {
+                    success: false,
+                    error:
+                        response?.data?.message ||
+                        "Unexpected response from server.",
+                };
+            }
+        } catch (error) {
+            let message = "Failed to update status.";
+
+            if (error.response && error.response.data) {
+                const errorData = error.response.data;
+                message =
+                    typeof errorData === "string"
+                        ? errorData
+                        : errorData?.message ||
+                        errorData.error ||
+                        "Failed to update status.";
+                setCustomError(message);
+            } else if (error.request) {
+                message = "No response from the server.";
+                setCustomError(message);
+            } else {
+                message = error.message || "Unexpected error occurred.";
+                setCustomError(message);
+            }
+
+            return { success: false, error: message };
+        }
+    };
 
     return (
         <EquipmentDataContext.Provider
@@ -416,6 +558,7 @@ export const EquipmentProvider = ({ children }) => {
                 setequipmentsPerPage,
                 setCurrentPage,
                 currentPage,
+                totalPages,
                 TotalAvailableEquipments,
                 totalEquipments,
                 equipment,
@@ -434,16 +577,24 @@ export const EquipmentProvider = ({ children }) => {
                 fetchEquipmentByCode,
                 searchQuery,
                 setSearchQuery,
+                debouncedSearch,
                 statusFilter,
                 setStatusFilter,
+                categoryFilter,      // ✅ NEW
+                setCategoryFilter,   // ✅ NEW
                 filteredEquipment,
                 resetError,
                 clearSelection,
+                resetFilters,        // ✅ NEW helper
                 setError,
                 setLoading,
                 myLaboratory,
                 setMyLaboratory,
-                fetchMyLaboratory, PmsRecord
+                fetchMyLaboratory,
+                PmsRecord,
+
+                // UpdateStatus
+                UpdateStatus,
             }}
         >
             {children}
@@ -457,5 +608,4 @@ export const EquipmentProvider = ({ children }) => {
     );
 };
 
-//  Add default export
 export default EquipmentProvider;
