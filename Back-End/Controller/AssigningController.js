@@ -7,55 +7,16 @@ const mongoose = require("mongoose");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
-const Equipment = require('./../Models/Equipment')
+const Laboratory = require("../Models/Laboratory")
 
 exports.AssignEquipment = AsyncErrorHandler(async (req, res) => {
-  const Assign = await assign.create(req.body);
-  // ==========================================
-  //  UPDATE EQUIPMENT STATUS TO "Not Available"
-  // ==========================================
-  const updatedEquipment = await Equipment.findByIdAndUpdate(
-    Assign.Equipments,                     //  ObjectId ng equipment
-    { status: "Not Available" },           //  bagong status
-    { new: true }                          //  ibalik ang updated doc
-  );
+  // Create the AssignEquipment document
+  const Assign = await assign.create(req.body); // Use 'Assign' model with the pre-save hook
 
-  if (!updatedEquipment) {
-    console.warn(`⚠️ Equipment not found for ID: ${Assign.Equipments}`);
-  } else {
-    console.log(` Equipment ${updatedEquipment.code || updatedEquipment._id} status → Not Available`);
-  }
-
-  // ==========================================
-  //  Socket.IO emit — Assign created
-  // ==========================================
-  const io = req.app.get("io");
-  if (io) {
-    io.emit("assignEquipment:created", {
-      status: "success",
-      action: "created",
-      data: Assign,
-      timestamp: new Date(),
-    });
-
-    //  Optional: emit din ang equipment update para real-time sa UI
-    if (updatedEquipment) {
-      io.emit("equipment:updated", {
-        status: "success",
-        action: "updated",
-        data: updatedEquipment,
-        timestamp: new Date(),
-      });
-      console.log(`📡 [Socket] Broadcasted 'equipment:updated'`);
-    }
-
-    console.log(`📡 [Socket] Broadcasted 'assignEquipment:created'`);
-  }
-
+  // Send a success response after the document is created and saved
   res.status(201).json({
     status: "success",
     data: Assign,
-    equipment: updatedEquipment,   //  isama sa response (optional)
   });
 });
 

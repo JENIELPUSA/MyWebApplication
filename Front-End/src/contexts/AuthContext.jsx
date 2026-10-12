@@ -131,16 +131,27 @@ export const AuthProvider = ({ children }) => {
             console.log("🔥 Full login response:", res.data);
 
             if (res.data.status === "Success") {
-                // ✅ Handle nested data (res.data.data) o direct (res.data)
-                const userData = res.data.data || res.data;
+                // ✅ Flat response — walang data wrapper
+                const userData = res.data;
+                console.log("👤 userData:", userData);
 
-                // ✅ Safe localStorage — iwasan ang "undefined" string
+                // ✅ Flexible picker — subukan lahat ng variants
+                const pickField = (obj, ...keys) => {
+                    for (const key of keys) {
+                        if (obj?.[key] !== undefined && obj?.[key] !== null) {
+                            return obj[key];
+                        }
+                    }
+                    return "";
+                };
+
+                // ✅ Safe localStorage — i-save kahit empty string
                 const safeSetItem = (key, value) => {
-                    if (value === undefined || value === null || value === "") {
+                    if (value === undefined || value === null) {
                         localStorage.removeItem(key);
-                        console.warn(`⚠️ Skipped localStorage for "${key}"`);
+                        console.warn(`⚠️ Skipped localStorage "${key}"`);
                     } else {
-                        localStorage.setItem(key, value);
+                        localStorage.setItem(key, String(value));
                     }
                 };
 
@@ -160,13 +171,12 @@ export const AuthProvider = ({ children }) => {
                     supervisorStatus,
                 } = userData;
 
-                // ✅ MAP BACKEND → FRONTEND
-                // Schema: FirstName, Middle, LastName, username
-                const serverEmail = userData.email || userData.username || inputEmail;
-                const first_name = userData.FirstName || "";
-                const last_name = userData.LastName || "";
-                const middle_name = userData.Middle || ""; // extra, kung kailangan
-                const contact_number = userData.contact_number || "";
+                // ✅ MAP BACKEND → FRONTEND (camelCase ang backend mo)
+                const serverEmail = pickField(userData, "username", "email", "Email") || inputEmail;
+                const first_name = pickField(userData, "firstName", "FirstName", "first_name");
+                const last_name = pickField(userData, "lastName", "LastName", "last_name");
+                const middle_name = pickField(userData, "middle", "Middle", "middle_name");
+                const contact_number = pickField(userData, "contact_number", "contactNumber", "ContactNumber");
 
                 console.log("📦 Mapped values:", {
                     token, role, serverEmail, first_name, last_name, middle_name,

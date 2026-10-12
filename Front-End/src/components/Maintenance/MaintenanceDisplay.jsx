@@ -1,229 +1,244 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import MaintenanceDisplayModal from "../MaintenanceRequest/MaintenanceModalDisplay";
 import TypesofMaintenceForm from "../TypesOfMaintenance/TypesofMaintenceForm";
 import MaintenanceRecord from "../PMSForm/MaintenanceRecord";
-import EquipmentReportModal from "./EquipmentReportModal"; //  BAGO
+import EquipmentReportModal from "./EquipmentReportModal";
 import { motion } from "framer-motion";
 import { TypeofMaintenanceContext } from "../../contexts/TypesofMainten/TypeofMaintenanceContext";
+import { AddAssignContext } from "../../contexts/AssignContext/AddAssignContext";
 import { AuthContext } from "../../contexts/AuthContext";
-import { AssignLabContext } from "../../contexts/AssignLabContext/AssignLabContext";
 import { LaboratoryContext } from "../../contexts/LaboratoryContext/LaboratoryContext";
 
 // Lucide React Icons
 import {
-  ClipboardList,
+  AlertCircle,
   Eye,
   RefreshCw,
   Calendar,
-  AlertCircle,
+  FileText,
   Search,
-  ChevronLeft,
-  ChevronRight,
-  FlaskConical,
-  Hash,
-  Barcode,
-  FileText, //  BAGO
+  X,
+  Loader2,
 } from "lucide-react";
 
 function MaintenanceDisplay() {
-  const {
-    // Data
-    filteredAssigns,
-    Assignlaboratories,
-    loading: assignsLoading,
-
-    // Pagination
-    currentPage,
-    setCurrentPage,
-    assignPerPage,
-    setAssignPerPage,
-    totalPages,
-    totalAssigns,
-
-    // Search & Filter (server-side)
-    searchQuery,
-    setSearchQuery,
-    laboratoryFilter,
-    setLaboratoryFilter,
-    statusFilter,
-    setStatusFilter,
-    brandFilter,
-    setBrandFilter,
-
-    // Sorting
-    sortBy,
-    setSortBy,
-    sortOrder,
-    setSortOrder,
-
-    // Helpers
-    clearFilters,
-    refreshAssigns,
-  } = useContext(AssignLabContext);
-
-  //  Laboratory list mula sa LaboratoryContext
-  const {
-    laboratories,
-    fetchLaboratoryData,
-  } = useContext(LaboratoryContext);
+  // ============================================================
+  // ✅ SEARCH & PAGINATION STATE (server-driven)
+  // ============================================================
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [equipmentsPerPage, setEquipmentsPerPage] = useState(6);
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
 
   const [isOpenMaintenanceModal, setOpenMaintenanceModal] = useState(false);
   const [isTypesofMaintenanceModal, setTypesofMaintenanceModal] = useState(false);
   const [isMaintenanceRecordModal, setMaintenanceRecordModal] = useState(false);
-  const [isReportModalOpen, setReportModalOpen] = useState(false); //  BAGO
+  const [isReportModalOpen, setReportModalOpen] = useState(false);
+
+  // ============================================================
+  // ✅ CONTEXT
+  // ============================================================
   const { role, user } = useContext(AuthContext);
+  const {
+    assigns,
+    displayAssign,
+    pagination,
+    loading: assignLoading,
+  } = useContext(AddAssignContext);
+  const { displayData, DeleteType } = useContext(TypeofMaintenanceContext);
+  const { laboratories, fetchLaboratoryData } = useContext(LaboratoryContext);
 
   const canEdit = role !== "Supply";
-
-  //  Hide Generate Report para sa "user" o "User"
   const canGenerateReport = role !== "user" && role !== "User";
 
-  // PMS Modal State
-  const [isPMSModalOpen, setPMSModalOpen] = useState(false);
   const [SendDataLab, setSendDataLab] = useState(null);
   const [SendDataEquip, setSendDataEquip] = useState(null);
+
   const location = useLocation();
-  const { displayData, DeleteType } = useContext(TypeofMaintenanceContext);
   const laboratoryData = location.state?.selectedAssignEquipment;
 
-  const [laboratory, setlaboartory] = useState(laboratoryData || "");
+  const isFirstRender = useRef(true);
 
-  // ==========================================
-  // HELPERS
-  // ==========================================
+  const [assignEquipments, setAssignEquipments] = useState(() => {
+    const saved = localStorage.getItem("assignedEquipments");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [laboratory, setlaboartory] = useState(() => {
+    const saved = localStorage.getItem("selectedLabsData");
+    return saved ? JSON.parse(saved) : laboratoryData || "";
+  });
+
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     const options = { year: "numeric", month: "short", day: "numeric" };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
-  //  Helper — hanapin ang laboratory name mula sa ObjectId
-  const getLaboratoryName = (laboratoryId) => {
-    if (!laboratoryId || !laboratories) return "";
-    const lab = laboratories.find((l) => l._id === laboratoryId);
-    return lab?.LaboratoryName || "";
-  };
+  // ============================================================
+  // ✅ DEBOUNCED SEARCH (500ms)
+  // ============================================================
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
+    }, 500);
 
-  // ==========================================
-  // EFFECTS
-  // ==========================================
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // ============================================================
+  // ✅ SERVER-SIDE FETCH
+  // ============================================================
+  useEffect(() => {
+    if (isFirstRender.current && laboratoryData) {
+      isFirstRender.current = false;
+      return;
+    }
+    isFirstRender.current = false;
+
+    const labId =
+      laboratory?._id ||
+      laboratory?.laboratoryId ||
+      laboratoryData?._id ||
+      laboratoryData?.laboratoryId;
+
+    const queryParams = {
+      page: currentPage,
+      limit: equipmentsPerPage,
+      search: searchTerm.trim(),
+      sortBy,
+      sortOrder,
+    };
+
+    if (labId) {
+      queryParams.laboratory = labId;
+    }
+
+    if (typeof displayAssign === "function") {
+      displayAssign(queryParams);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, equipmentsPerPage, searchTerm, sortBy, sortOrder, laboratory?._id]);
+
+  // ============================================================
+  // Save laboratoryData to localStorage
+  // ============================================================
   useEffect(() => {
     if (laboratoryData) {
       localStorage.setItem("selectedLabsData", JSON.stringify(laboratoryData));
       setlaboartory(laboratoryData);
-    } else {
-      localStorage.removeItem("selectedLabsData");
-      setlaboartory("");
     }
   }, [laboratoryData]);
 
+  // ============================================================
+  // Save equipments to localStorage
+  // ============================================================
   useEffect(() => {
-    if (!user) {
-      localStorage.removeItem("assignedEquipments");
-      localStorage.removeItem("selectedLabsData");
-      setlaboartory("");
+    const equipments = location.state?.selectedAssignEquipment?.equipments;
+    if (equipments && equipments.length > 0) {
+      localStorage.setItem("assignedEquipments", JSON.stringify(equipments));
+      setAssignEquipments(equipments);
     }
-  }, [user]);
+  }, [location.state]);
 
-  //  Fetch laboratories kung wala pa sa context
+  // ============================================================
+  // ✅ SYNC
+  // ============================================================
+  useEffect(() => {
+    if (assigns && assigns.length > 0) {
+      const allEquipments = assigns.flatMap((lab) => lab.equipments || []);
+      if (allEquipments.length > 0) {
+        setAssignEquipments(allEquipments);
+        localStorage.setItem("assignedEquipments", JSON.stringify(allEquipments));
+      }
+    }
+  }, [assigns]);
+
+  // ============================================================
+  // Fetch laboratories
+  // ============================================================
   useEffect(() => {
     if (laboratories?.length === 0 && typeof fetchLaboratoryData === "function") {
       fetchLaboratoryData();
     }
   }, [laboratories, fetchLaboratoryData]);
 
-  // ==========================================
+  // ============================================================
   // HANDLERS
-  // ==========================================
-  const handleSelectEquipment = (equipment, lab) => {
-    setSendDataEquip(equipment);
-    setSendDataLab(lab);
-    setOpenMaintenanceModal(true);
-  };
-
-  const handleMaintenanceRecord = (equipment, lab) => {
-    setSendDataEquip(equipment);
-    setSendDataLab(lab);
-    setMaintenanceRecordModal(true);
-  };
-
-  const handleSendData = (equipment, lab) => {
-    setTypesofMaintenanceModal(true);
-    setSendDataEquip(equipment);
-    setSendDataLab(lab);
-  };
-
-  const handlePMSClick = (equipment, lab) => {
-    setSendDataEquip(equipment);
-    setSendDataLab(lab);
-    setPMSModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
+  // ============================================================
+  const handleCloseModal = useCallback(() => {
     setOpenMaintenanceModal(false);
     setTypesofMaintenanceModal(false);
     setMaintenanceRecordModal(false);
-    setPMSModalOpen(false);
-    setReportModalOpen(false); //  BAGO
-  };
+    setReportModalOpen(false);
+  }, []);
 
-  const handleRetrieve = (equipment) => {
+  const handleSelectEquipment = useCallback((equipment) => {
+    setSendDataEquip(equipment);
+    setSendDataLab(laboratory);
+    setOpenMaintenanceModal(true);
+  }, [laboratory]);
+
+  const handleSendData = useCallback((equipment) => {
+    setSendDataEquip(equipment);
+    setSendDataLab(laboratory);
+    setTypesofMaintenanceModal(true);
+  }, [laboratory]);
+
+  const handleMaintenanceRecord = useCallback((equipment) => {
+    setSendDataEquip(equipment);
+    setSendDataLab(laboratory);
+    setMaintenanceRecordModal(true);
+  }, [laboratory]);
+
+  const handleRetrieve = useCallback((equipment) => {
     DeleteType(equipment);
-  };
+  }, [DeleteType]);
 
-  const paginate = (pageNumber) => {
-    if (pageNumber >= 1 && pageNumber <= (totalPages || 1)) {
-      setCurrentPage(pageNumber);
-    }
-  };
+  const handleClearSearch = useCallback(() => {
+    setSearchInput("");
+    setSearchTerm("");
+    setCurrentPage(1);
+  }, []);
 
-  const handleRefresh = () => {
-    refreshAssigns();
-  };
-
-  // ==========================================
-  // DERIVED DATA
-  // ==========================================
-  const allEquipments =
-    filteredAssigns?.flatMap((lab) =>
-      (lab.equipments || []).map((equip) => ({
-        ...equip,
-        laboratoryName: lab.laboratoryName,
-        laboratoryId: lab.laboratoryId,
-        departmentName: lab.departmentName,
-        encharge: lab.encharge,
-        enchargeId: lab.enchargeId,
-        labData: lab,
-      }))
-    ) || [];
-
-  const uniqueEquipments = Array.from(
-    new Map(allEquipments.map((equip) => [equip._id, equip])).values()
-  );
-
-  const equipmentTypes = [
-    ...new Set(displayData?.map((item) => item.equipmentType)),
-  ];
+  const goToPage = useCallback((page) => {
+    const safePage = Math.max(1, Math.min(page, pagination.totalPages || 1));
+    setCurrentPage(safePage);
+  }, [pagination.totalPages]);
 
   const pageVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
   };
 
-  const hasActiveFilters =
-    searchQuery ||
-    laboratoryFilter ||
-    statusFilter ||
-    brandFilter;
+  // ============================================================
+  // ✅ DERIVED DATA
+  // ============================================================
+  const uniqueEquipments = useMemo(() => {
+    return Array.from(
+      new Map(assignEquipments.map((equip) => [equip._id, equip])).values()
+    );
+  }, [assignEquipments]);
 
-  // ==========================================
-  // RENDER — Maintenance Record Modal
-  // ==========================================
+  const equipmentTypes = useMemo(
+    () => displayData?.map((item) => item.equipment) || [],
+    [displayData]
+  );
+
+  const totalPages = pagination.totalPages || 1;
+  const totalRecords = pagination.totalRecords || 0;
+
+  // ============================================================
+  // HIDE EVERYTHING ELSE WHEN MAINTENANCE RECORD IS OPEN
+  // ============================================================
   if (isMaintenanceRecordModal && canEdit) {
     return (
       <motion.div
-        className="w-full"
+        className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors"
         initial="hidden"
         animate="visible"
         variants={pageVariants}
@@ -240,244 +255,135 @@ function MaintenanceDisplay() {
     );
   }
 
-  // ==========================================
-  // RENDER — Main
-  // ==========================================
   return (
     <motion.div
-      className="space-y-4"
+      className="space-y-4 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors min-h-screen p-1"
       initial="hidden"
       animate="visible"
       variants={pageVariants}
     >
-      {/* View Only Banner */}
+      {/* View Only Banner for Supply Role */}
       {!canEdit && (
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 flex items-center justify-between">
+        <div className="bg-blue-50 dark:bg-blue-950 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center justify-between transition-colors">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">View Only Mode</span>
+            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+              View Only Mode
+            </span>
           </div>
-          <span className="text-xs font-bold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
+          <span className="text-xs font-bold text-blue-600 dark:text-blue-300 bg-blue-100 dark:bg-blue-900 px-3 py-1 rounded-full">
             {role || "Supply"} Role
           </span>
         </div>
       )}
 
-      <div className="border rounded-lg p-6 shadow-sm bg-white w-full">
+      <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm bg-white dark:bg-gray-800 w-full transition-colors">
         {/* HEADER */}
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl md:text-2xl font-black text-blue-900">
+          <h2 className="text-xl md:text-2xl font-black text-blue-900 dark:text-blue-300">
             Equipment Inventory
           </h2>
-          <div className="flex items-center gap-2">
-            {/*  GENERATE REPORT BUTTON — hidden kapag role ay user/User */}
-            {canGenerateReport && (
-              <button
-                onClick={() => setReportModalOpen(true)}
-                className="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700
-                  transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
-                title="Generate Report"
-              >
-                <FileText className="w-4 h-4" />
-                <span className="hidden sm:inline">Generate Report</span>
-              </button>
-            )}
 
+          {canGenerateReport && (
             <button
-              onClick={handleRefresh}
-              disabled={assignsLoading}
-              className="p-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors disabled:opacity-50"
-              title="Refresh equipment list"
+              onClick={() => setReportModalOpen(true)}
+              className="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700
+                dark:bg-emerald-500 dark:hover:bg-emerald-600
+                transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
+              title="Generate Report"
             >
-              <RefreshCw
-                className={`w-4 h-4 ${assignsLoading ? "animate-spin" : ""}`}
-              />
-            </button>
-            <span className="text-xs text-gray-500 font-medium">
-              Total:{" "}
-              <span className="font-bold text-blue-700">
-                {totalAssigns || 0}
-              </span>
-            </span>
-          </div>
-        </div>
-
-        {/* SEARCH & FILTER BAR */}
-        <div className="mb-4 flex flex-col lg:flex-row gap-2 flex-wrap">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={16}
-            />
-            <input
-              type="text"
-              placeholder="Search code, serial, brand..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 p-3 border border-gray-300 rounded-xl text-sm
-                focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-            />
-          </div>
-
-          {/*  Laboratory Filter */}
-          <div className="relative min-w-[200px]">
-            <FlaskConical
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              size={14}
-            />
-            <select
-              value={laboratoryFilter}
-              onChange={(e) => setLaboratoryFilter(e.target.value)}
-              className="w-full pl-9 pr-8 py-3 border border-gray-300 rounded-xl text-sm
-                focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white"
-            >
-              <option value="">All Laboratories</option>
-              {laboratories?.map((lab) => (
-                <option key={lab._id} value={lab._id}>
-                  {lab.LaboratoryName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-3 border border-gray-300 rounded-xl text-sm
-              focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-          >
-            <option value="">All Status</option>
-            <option value="Available">Available</option>
-            <option value="Not Available">Not Available</option>
-            <option value="Defective">Defective</option>
-            <option value="Missing">Missing</option>
-            <option value="Fixed">Fixed</option>
-            <option value="Found">Found</option>
-          </select>
-
-          {/* Sort */}
-          <select
-            value={`${sortBy}|${sortOrder}`}
-            onChange={(e) => {
-              const [field, order] = e.target.value.split("|");
-              setSortBy(field);
-              setSortOrder(order);
-            }}
-            className="px-3 py-3 border border-gray-300 rounded-xl text-sm
-              focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-          >
-            <option value="createdAt|desc">Newest First</option>
-            <option value="createdAt|asc">Oldest First</option>
-            <option value="Laboratory|asc">Laboratory (A-Z)</option>
-            <option value="Laboratory|desc">Laboratory (Z-A)</option>
-          </select>
-
-          {/* Clear Filters */}
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="px-4 py-3 text-sm bg-gray-200 hover:bg-gray-300
-                text-gray-700 rounded-xl transition-colors whitespace-nowrap"
-            >
-              Clear
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">Generate Report</span>
             </button>
           )}
         </div>
 
-        {/*  Active Filter Chips */}
-        {hasActiveFilters && (
-          <div className="mb-3 flex flex-wrap gap-2 items-center">
-            {searchQuery && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
-                Search: "{searchQuery}"
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="ml-1 hover:text-blue-900 font-bold"
-                >
-                  ×
-                </button>
-              </span>
+        {/* ============================================================ */}
+        {/* ✅ SEARCH BAR                                                 */}
+        {/* ============================================================ */}
+        <div className="mb-4 flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+            <input
+              type="text"
+              placeholder="Search by Serial Number, Brand, Code, Specification..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-10 pr-10 p-3 border border-gray-300 dark:border-gray-600 rounded-xl text-sm
+                bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100
+                placeholder-gray-400 dark:placeholder-gray-500
+                focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all"
+            />
+            {searchInput && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
             )}
-            {laboratoryFilter && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 text-xs bg-cyan-100 text-cyan-700 rounded-full">
-                Lab: {getLaboratoryName(laboratoryFilter)}
-                <button
-                  onClick={() => setLaboratoryFilter("")}
-                  className="ml-1 hover:text-cyan-900 font-bold"
-                >
-                  ×
-                </button>
-              </span>
+            {assignLoading && (
+              <Loader2 className="absolute right-9 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500 dark:text-blue-400 animate-spin" />
             )}
-            {statusFilter && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full">
-                Status: {statusFilter}
-                <button
-                  onClick={() => setStatusFilter("")}
-                  className="ml-1 hover:text-green-900 font-bold"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            <span className="text-xs text-gray-500 ml-1">
-              {uniqueEquipments.length} result
-              {uniqueEquipments.length !== 1 ? "s" : ""}
-            </span>
+          </div>
+
+          <select
+            value={equipmentsPerPage}
+            onChange={(e) => {
+              setEquipmentsPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="p-3 border border-gray-300 dark:border-gray-600 rounded-xl text-sm
+              bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100
+              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-colors"
+          >
+            <option value={6}>6 per page</option>
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+          </select>
+        </div>
+
+        {/* ✅ SEARCH RESULT INFO */}
+        {searchTerm && (
+          <div className="mb-3 text-sm text-gray-600 dark:text-gray-400">
+            Showing results for:{" "}
+            <span className="font-semibold text-blue-700 dark:text-blue-300">
+              "{searchTerm}"
+            </span>{" "}
+            ({totalRecords} found)
           </div>
         )}
 
         {/* TABLE */}
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left table-auto border-collapse border border-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full text-left table-auto border-collapse border border-gray-200 dark:border-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
-                <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Hash size={12} />
-                    Code
-                  </div>
-                </th>
-                <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Barcode size={12} />
-                    Serial#
-                  </div>
-                </th>
-                <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">
-                  Brand
-                </th>
-                <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">
-                  Category
-                </th>
-                <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">
-                  Laboratory
-                </th>
-                <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">
-                  Last Maint.
-                </th>
-                <th className="p-4 border-b text-xs font-bold uppercase text-gray-600">
-                  Next Maint.
-                </th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-700 text-xs font-bold uppercase text-gray-600 dark:text-gray-300">Code</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-700 text-xs font-bold uppercase text-gray-600 dark:text-gray-300">Serial#</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-700 text-xs font-bold uppercase text-gray-600 dark:text-gray-300">Brand</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-700 text-xs font-bold uppercase text-gray-600 dark:text-gray-300">Category</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-700 text-xs font-bold uppercase text-gray-600 dark:text-gray-300">Specification</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-700 text-xs font-bold uppercase text-gray-600 dark:text-gray-300">Last Maint.</th>
+                <th className="p-4 border-b border-gray-200 dark:border-gray-700 text-xs font-bold uppercase text-gray-600 dark:text-gray-300">Next Maint.</th>
                 {canEdit && (
-                  <th className="p-4 border-b text-xs font-bold uppercase text-gray-600 text-center">
+                  <th className="p-4 border-b border-gray-200 dark:border-gray-700 text-xs font-bold uppercase text-gray-600 dark:text-gray-300 text-center">
                     Actions
                   </th>
                 )}
               </tr>
             </thead>
             <tbody>
-              {assignsLoading ? (
+              {assignLoading ? (
                 <tr>
-                  <td
-                    colSpan={canEdit ? 8 : 7}
-                    className="p-10 text-center text-gray-500"
-                  >
-                    <div className="flex justify-center items-center gap-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
-                      <span>Loading equipment...</span>
+                  <td colSpan={canEdit ? 8 : 7} className="p-10 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="w-6 h-6 text-blue-500 dark:text-blue-400 animate-spin" />
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        Loading equipment...
+                      </span>
                     </div>
                   </td>
                 </tr>
@@ -485,10 +391,10 @@ function MaintenanceDisplay() {
                 <tr>
                   <td
                     colSpan={canEdit ? 8 : 7}
-                    className="p-10 text-center text-gray-400 italic"
+                    className="p-10 text-center text-gray-400 dark:text-gray-500 italic"
                   >
-                    {hasActiveFilters
-                      ? "No matching equipment found."
+                    {searchTerm
+                      ? `No equipment found for "${searchTerm}".`
                       : "No equipment found."}
                   </td>
                 </tr>
@@ -496,29 +402,16 @@ function MaintenanceDisplay() {
                 uniqueEquipments.map((equipment) => (
                   <tr
                     key={equipment._id}
-                    className="hover:bg-blue-50/50 transition-colors border-b"
+                    className="hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-200 dark:border-gray-700"
                   >
-                    <td className="p-4 text-sm">
-                      <span className="font-mono text-xs font-semibold text-blue-700
-                        bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
-                        {equipment.code || "N/A"}
-                      </span>
+                    <td className="p-4 text-sm font-medium">{equipment.code || "N/A"}</td>
+                    <td className="p-4 text-sm font-medium">{equipment.SerialNumber || "N/A"}</td>
+                    <td className="p-4 text-sm text-gray-600 dark:text-gray-300">{equipment.Brand || "N/A"}</td>
+                    <td className="p-4 text-sm text-gray-600 dark:text-gray-300">{equipment.categoryName || "N/A"}</td>
+                    <td className="p-4 text-sm text-gray-600 dark:text-gray-300 max-w-xs truncate">
+                      {equipment.Specification || "N/A"}
                     </td>
-                    <td className="p-4 text-sm font-medium font-mono">
-                      {equipment.SerialNumber || "N/A"}
-                    </td>
-                    <td className="p-4 text-sm text-gray-600">
-                      {equipment.Brand || "N/A"}
-                    </td>
-                    <td className="p-4 text-sm text-gray-600">
-                      <span className="px-2 py-0.5 text-xs bg-blue-50 text-blue-700 rounded-full">
-                        {equipment.categoryName || "N/A"}
-                      </span>
-                    </td>
-                    <td className="p-4 text-sm text-gray-600">
-                      {equipment.laboratoryName || "N/A"}
-                    </td>
-                    <td className="p-4 text-sm text-gray-600">
+                    <td className="p-4 text-sm text-gray-600 dark:text-gray-300">
                       {formatDate(equipment.lastMaintenanceDate)}
                     </td>
                     <td className="p-4 text-sm font-semibold">
@@ -526,55 +419,45 @@ function MaintenanceDisplay() {
                         {formatDate(equipment.nextMaintenanceDate)}
                         {equipment.hasMaintenance && (
                           <AlertCircle
-                            className="w-4 h-4 text-red-500 animate-pulse"
+                            className="w-4 h-4 text-red-500 dark:text-red-400 animate-pulse"
                             title="Maintenance Scheduled!"
                           />
                         )}
                       </div>
                     </td>
+
                     {canEdit && (
-                      <td className="p-4 flex space-x-2 justify-center items-center flex-wrap gap-1">
-                        {equipment.hasMaintenance && (
+                      <td className="p-4">
+                        <div className="flex space-x-2 justify-center items-center flex-wrap gap-1">
                           <button
-                            onClick={() =>
-                              handlePMSClick(equipment, equipment.labData)
-                            }
-                            className="px-2.5 py-1 text-white bg-red-600 rounded hover:bg-red-700 transition-colors flex items-center justify-center"
-                            title="Planned Maintenance System"
+                            onClick={() => handleSelectEquipment(equipment)}
+                            className="p-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700
+                              dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
+                            title="View Details"
                           >
-                            <span className="text-[10px] font-bold">PMS</span>
+                            <Eye className="w-4 h-4" />
                           </button>
-                        )}
 
-                        <button
-                          onClick={() =>
-                            handleSelectEquipment(equipment, equipment.labData)
-                          }
-                          className="p-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-
-                        {equipmentTypes.includes(equipment._id) ? (
-                          <button
-                            onClick={() => handleRetrieve(equipment)}
-                            className="p-2 text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
-                            title="Retrieve"
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() =>
-                              handleSendData(equipment, equipment.labData)
-                            }
-                            className="p-2 text-white bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors"
-                            title="Schedule Maintenance"
-                          >
-                            <Calendar className="w-4 h-4" />
-                          </button>
-                        )}
+                          {equipmentTypes.includes(equipment._id) ? (
+                            <button
+                              onClick={() => handleRetrieve(equipment)}
+                              className="p-2 text-white bg-orange-500 rounded-lg hover:bg-orange-600
+                                dark:bg-orange-400 dark:hover:bg-orange-500 transition-colors"
+                              title="Retrieve"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleSendData(equipment)}
+                              className="p-2 text-white bg-indigo-500 rounded-lg hover:bg-indigo-600
+                                dark:bg-indigo-400 dark:hover:bg-indigo-500 transition-colors"
+                              title="Schedule Maintenance"
+                            >
+                              <Calendar className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -584,63 +467,62 @@ function MaintenanceDisplay() {
           </table>
         </div>
 
-        {/* PAGINATION */}
+        {/* ============================================================ */}
+        {/* ✅ PAGINATION                                                 */}
+        {/* ============================================================ */}
         <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-3">
-          <div className="text-xs text-gray-500">
-            Showing{" "}
-            <span className="font-medium text-gray-700">
-              {uniqueEquipments.length === 0
-                ? 0
-                : Math.min(
-                    uniqueEquipments.length,
-                    (currentPage - 1) * assignPerPage + 1
-                  )}
-            </span>{" "}
-            to{" "}
-            <span className="font-medium text-gray-700">
-              {Math.min(currentPage * assignPerPage, uniqueEquipments.length)}
-            </span>{" "}
-            of{" "}
-            <span className="font-medium text-gray-700">
-              {uniqueEquipments.length}
-            </span>{" "}
-            entries
-          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Page {pagination.currentPage || 1} of {totalPages} •{" "}
+            {totalRecords} total record{totalRecords !== 1 ? "s" : ""}
+            {searchTerm && ` (filtered)`}
+          </p>
 
-          <div className="flex items-center gap-2">
-            <select
-              value={assignPerPage}
-              onChange={(e) => setAssignPerPage(Number(e.target.value))}
-              className="px-2 py-1 text-xs border border-gray-300 rounded bg-white text-gray-700"
-            >
-              {[6, 10, 25, 50, 100].map((n) => (
-                <option key={n} value={n}>
-                  {n} / page
-                </option>
-              ))}
-            </select>
-
+          <div className="flex gap-1 items-center flex-wrap justify-center">
             <button
-              onClick={() => paginate(currentPage - 1)}
-              disabled={currentPage === 1 || uniqueEquipments.length === 0}
-              className="p-2 bg-gray-100 text-sm font-bold rounded-lg disabled:opacity-30 hover:bg-gray-200 transition-colors"
+              onClick={() => goToPage(pagination.currentPage - 1)}
+              disabled={pagination.currentPage <= 1 || assignLoading}
+              className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                text-sm font-bold rounded-lg disabled:opacity-30
+                hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
-              <ChevronLeft size={14} />
+              Prev
             </button>
 
-            <span className="px-3 py-1 text-xs font-medium text-gray-700">
-              Page {currentPage} of {totalPages || 1}
-            </span>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => {
+                return (
+                  p === 1 ||
+                  p === totalPages ||
+                  Math.abs(p - pagination.currentPage) <= 1
+                );
+              })
+              .map((page, idx, arr) => (
+                <React.Fragment key={page}>
+                  {idx > 0 && page - arr[idx - 1] > 1 && (
+                    <span className="px-1 text-gray-400 dark:text-gray-500">...</span>
+                  )}
+                  <button
+                    onClick={() => goToPage(page)}
+                    disabled={assignLoading}
+                    className={`px-3 py-2 text-sm font-bold rounded-lg transition-colors ${
+                      pagination.currentPage === page
+                        ? "bg-blue-600 text-white dark:bg-blue-500"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                </React.Fragment>
+              ))}
 
             <button
-              onClick={() => paginate(currentPage + 1)}
-              disabled={
-                currentPage === (totalPages || 1) ||
-                uniqueEquipments.length === 0
-              }
-              className="p-2 bg-gray-100 text-sm font-bold rounded-lg disabled:opacity-30 hover:bg-gray-200 transition-colors"
+              onClick={() => goToPage(pagination.currentPage + 1)}
+              disabled={pagination.currentPage >= totalPages || assignLoading}
+              className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                text-sm font-bold rounded-lg disabled:opacity-30
+                hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
-              <ChevronRight size={14} />
+              Next
             </button>
           </div>
         </div>
@@ -654,6 +536,7 @@ function MaintenanceDisplay() {
             onClose={handleCloseModal}
           />
         )}
+
         {isTypesofMaintenanceModal && canEdit && (
           <TypesofMaintenceForm
             isOpen={isTypesofMaintenanceModal}
@@ -662,17 +545,7 @@ function MaintenanceDisplay() {
             onClose={handleCloseModal}
           />
         )}
-        {isPMSModalOpen && canEdit && (
-          <TypeMaintenanceModal
-            isOpen={isPMSModalOpen}
-            onClose={handleCloseModal}
-            equipmentId={SendDataEquip?._id}
-            equipment={SendDataEquip}
-            laboratory={SendDataLab}
-          />
-        )}
 
-        {/*  REPORT MODAL — lalabas lang kung allowed */}
         {canGenerateReport && (
           <EquipmentReportModal
             isOpen={isReportModalOpen}

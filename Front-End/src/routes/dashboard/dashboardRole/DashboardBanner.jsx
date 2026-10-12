@@ -1,7 +1,44 @@
 import { FaFlask, FaChartLine, FaTools, FaWrench, FaTerminal, FaBoxes, FaClipboardList, FaUserCog } from "react-icons/fa";
+import { createContext, useContext, useState, useEffect } from "react";
 import logobanner from "../../../assets/bannerbipsu.jpg";
+import { AuthContext } from "../../../contexts/AuthContext";
 
 const DashboardBanner = ({ role, laboratory }) => {
+    // ✅ Kunin ang first_name, last_name, at email mula sa AuthContext
+    const { first_name, last_name, email, Profile } = useContext(AuthContext);
+
+    // ✅ Greeting logic based sa oras
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return "Good Morning";
+        if (hour < 18) return "Good Afternoon";
+        return "Good Evening";
+    };
+
+    // ✅ Greeting emoji based sa oras
+    const getGreetingEmoji = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return "🌅";
+        if (hour < 18) return "☀️";
+        return "🌙";
+    };
+
+    // ✅ Buong pangalan — priority: AuthContext → Profile → fallback
+    const getFullName = () => {
+        const fn =
+            first_name ||
+            Profile?.FirstName ||
+            Profile?.firstName ||
+            "";
+        const ln =
+            last_name ||
+            Profile?.LastName ||
+            Profile?.lastName ||
+            "";
+        const full = `${fn} ${ln}`.trim();
+        return full || email || "User";
+    };
+
     const getTitle = () => {
         if (laboratory) return "Laboratory Focus";
         return getDashboardTitle(role);
@@ -86,19 +123,33 @@ const DashboardBanner = ({ role, laboratory }) => {
                 }} />
             </div>
 
-            {/* Dark Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/30 to-black/10 z-0" />
+            {/* ✅ Darker Overlay para readable ang text */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/55 to-black/30 z-0" />
 
             {/* Main Content */}
             <div className="relative z-10 p-6 md:p-8 lg:p-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex items-center gap-4 md:gap-6">
-                        <div className={`p-3 md:p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-lg border ${getIconBgColor()}`}>
+                        {/* ✅ Inalis ang backdrop-blur-sm dito */}
+                        <div className={`p-3 md:p-4 bg-white/20 rounded-2xl shadow-lg border ${getIconBgColor()}`}>
                             <span className="text-2xl md:text-3xl text-yellow-400">
                                 {getIcon()}
                             </span>
                         </div>
                         <div>
+                            {/* ============================================================ */}
+                            {/* ✅ GREETING — WALANG BLUR                                      */}
+                            {/* ============================================================ */}
+                            <div className="mb-2 inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/15 border border-yellow-400/40 shadow-lg">
+                                <span className="text-2xl md:text-3xl">{getGreetingEmoji()}</span>
+                                <p className="text-base md:text-lg lg:text-xl font-semibold text-yellow-300 tracking-wide drop-shadow-md">
+                                    {getGreeting()},{" "}
+                                    <span className="font-black text-white drop-shadow-lg">
+                                        {getFullName()}
+                                    </span>
+                                </p>
+                            </div>
+
                             <div className="flex items-center gap-3 flex-wrap">
                                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-black uppercase tracking-tighter text-white drop-shadow-lg">
                                     {getTitle()}
