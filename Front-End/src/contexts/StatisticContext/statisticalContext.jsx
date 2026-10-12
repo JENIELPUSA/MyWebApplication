@@ -48,6 +48,11 @@ export const StatisticsProvider = ({ children }) => {
     const [technicianPieCharts, setTechnicianPieCharts] = useState(null);
     const [technicianLineGraphs, setTechnicianLineGraphs] = useState(null);
 
+    // ✨ BAGO: Incharge (Laboratory) Statistics States
+    const [inchargeStats, setInchargeStats] = useState(null);
+    const [inchargeLaboratories, setInchargeLaboratories] = useState(null);
+    const [inchargeCount, setInchargeCount] = useState(0);
+
     // UI States
     const [showModal, setShowModal] = useState(false);
     const [modalStatus, setModalStatus] = useState("success");
@@ -67,7 +72,7 @@ export const StatisticsProvider = ({ children }) => {
     const shouldFetch = useCallback(() => {
         const now = Date.now();
         const timeSinceLastFetch = now - lastFetchTimeRef.current;
-        
+
         if (isFetchingRef.current) {
             console.log("⏳ Fetch already in progress, skipping...");
             return false;
@@ -285,6 +290,70 @@ export const StatisticsProvider = ({ children }) => {
     }, [authToken, shouldFetch]);
 
     // ======================================================
+    // ✨ BAGO: FETCH INCHARGE STATISTICS (Laboratory Statistics)
+    // ======================================================
+    const fetchInchargeStatistics = useCallback(async () => {
+        if (!shouldFetch()) return;
+
+        if (!authToken) {
+            setError("Authentication required");
+            setLoading(false);
+            return;
+        }
+
+        isFetchingRef.current = true;
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosInstance.get(
+                `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/statistical/incharge_statistical`,
+                {
+                    headers: {
+                        withCredentials: true,
+                        Authorization: `Bearer ${authToken}`,
+                    },
+                }
+            );
+
+            if (response.data && response.data.success === true) {
+                const data = response.data;
+
+                console.log("📊 Incharge Statistics Data:", data);
+
+                setInchargeStats({
+                    count: data.count,
+                    statistics: data.statistics,
+                });
+                setInchargeLaboratories(data.statistics || []);
+                setInchargeCount(data.count || 0);
+
+                lastFetchTimeRef.current = Date.now();
+
+                return { success: true, data: data };
+            } else {
+                throw new Error(response.data?.message || "Unexpected response from server");
+            }
+        } catch (error) {
+            const errorMessage =
+                error.response?.data?.message ||
+                error.message ||
+                "Failed to fetch incharge statistics";
+
+            setError(errorMessage);
+            setCustomError(errorMessage);
+            setModalStatus("failed");
+            setModalMessage(errorMessage);
+            setShowModal(true);
+
+            return { success: false, error: errorMessage };
+        } finally {
+            setLoading(false);
+            isFetchingRef.current = false;
+        }
+    }, [authToken, shouldFetch]);
+
+    // ======================================================
     // REFRESH DATA
     // ======================================================
     const refreshData = useCallback(async () => {
@@ -301,6 +370,12 @@ export const StatisticsProvider = ({ children }) => {
         lastFetchTimeRef.current = 0;
         await fetchTechnicianStatistics();
     }, [fetchTechnicianStatistics]);
+
+    // ✨ BAGO: Refresh Incharge
+    const refreshInchargeData = useCallback(async () => {
+        lastFetchTimeRef.current = 0;
+        await fetchInchargeStatistics();
+    }, [fetchInchargeStatistics]);
 
     // ======================================================
     // CLEAR ERROR
@@ -353,6 +428,11 @@ export const StatisticsProvider = ({ children }) => {
         technicianPieCharts,
         technicianLineGraphs,
 
+        // ✨ BAGO: State - Incharge Statistics
+        inchargeStats,
+        inchargeLaboratories,
+        inchargeCount,
+
         // UI States
         showModal,
         modalStatus,
@@ -370,6 +450,10 @@ export const StatisticsProvider = ({ children }) => {
         // Functions - Technician
         fetchTechnicianStatistics,
         refreshTechnicianData,
+
+        // ✨ BAGO: Functions - Incharge
+        fetchInchargeStatistics,
+        refreshInchargeData,
 
         // Modal Controls
         setShowModal,
@@ -396,6 +480,10 @@ export const StatisticsProvider = ({ children }) => {
         technicianEquipment,
         technicianPieCharts,
         technicianLineGraphs,
+        // ✨ BAGO: Incharge deps
+        inchargeStats,
+        inchargeLaboratories,
+        inchargeCount,
         showModal,
         modalStatus,
         modalMessage,
@@ -406,6 +494,9 @@ export const StatisticsProvider = ({ children }) => {
         refreshSupplyData,
         fetchTechnicianStatistics,
         refreshTechnicianData,
+        // ✨ BAGO: Incharge functions
+        fetchInchargeStatistics,
+        refreshInchargeData,
     ]);
 
     // ======================================================

@@ -1,41 +1,41 @@
 // src/components/DashboardCard.jsx
-import { 
-    MdPerson, 
-    MdBuild, 
-    MdScience, 
-    MdApartment, 
-    MdCheckCircle, 
-    MdHourglassEmpty, 
-    MdWarning, 
-    MdPending, 
-    MdCheck, 
-    MdClose, 
-    MdSmsFailed, 
-    MdDoneAll, 
-    MdSchedule, 
-    MdAssignment, 
-    MdDevices, 
-    MdInventory, 
-    MdErrorOutline, 
-    MdOutlineCheckCircle, 
-    MdOutlinePending, 
-    MdOutlineWarning, 
-    MdChevronLeft, 
-    MdChevronRight,
-    // Supply Dashboard Icons
-    MdInventory2,
-    MdCheckCircleOutline,
-    MdCancel,
-    MdReportProblem,
-    MdCategory,
-    MdBrandingWatermark,
-    MdShowChart,
-    MdCalendarToday,
-    MdDashboard,
-    MdOutlineInventory,
-    MdOutlineCheckCircle as MdOutlineCheck,
-    MdOutlineCancel,
-    MdOutlineWarning as MdOutlineAlert
+import {
+  MdPerson,
+  MdBuild,
+  MdScience,
+  MdApartment,
+  MdCheckCircle,
+  MdHourglassEmpty,
+  MdWarning,
+  MdPending,
+  MdCheck,
+  MdClose,
+  MdSmsFailed,
+  MdDoneAll,
+  MdSchedule,
+  MdAssignment,
+  MdDevices,
+  MdInventory,
+  MdErrorOutline,
+  MdOutlineCheckCircle,
+  MdOutlinePending,
+  MdOutlineWarning,
+  MdChevronLeft,
+  MdChevronRight,
+  // Supply Dashboard Icons
+  MdInventory2,
+  MdCheckCircleOutline,
+  MdCancel,
+  MdReportProblem,
+  MdCategory,
+  MdBrandingWatermark,
+  MdShowChart,
+  MdCalendarToday,
+  MdDashboard,
+  MdOutlineInventory,
+  MdOutlineCheckCircle as MdOutlineCheck,
+  MdOutlineCancel,
+  MdOutlineWarning as MdOutlineAlert
 } from "react-icons/md";
 
 import React, { useState, useContext, useEffect, useRef, useMemo, useCallback } from "react";
@@ -46,6 +46,7 @@ import { AuthContext } from "../../contexts/AuthContext.jsx";
 import { FilterSpecificAssignContext } from "../../contexts/FilterSpecificAssignContext/FilterSpecificAssignContext.jsx";
 import { MaintenanceRequestContext } from "../../contexts/MaintenanceRequestContext/MaintenanceRequestContext.jsx";
 import { motion, AnimatePresence } from "framer-motion";
+import { StatisticsContext } from "../../contexts/StatisticContext/statisticalContext.jsx";
 
 function DashboardCard({ statisticsData, technicianStats, supplyStatistics }) {
 
@@ -56,6 +57,17 @@ function DashboardCard({ statisticsData, technicianStats, supplyStatistics }) {
   const technicianCard = technicianStats?.dashboardCards || {};
   const supplyCard = supplyStatistics?.summary || {};
   const supplyCards = supplyStatistics?.cards || [];
+
+  // ✨ Incharge Statistics from Context
+  const {
+    inchargeStats,
+    inchargeLaboratories,
+    inchargeCount,
+    fetchInchargeStatistics,
+    refreshInchargeData
+  } = useContext(StatisticsContext)
+
+  console.log("inchargeStats", inchargeStats)
 
   const [piedataTechnician, setPiedatatoTechnician] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -90,6 +102,20 @@ function DashboardCard({ statisticsData, technicianStats, supplyStatistics }) {
   const [availables, setAvailables] = useState(0);
 
   const fullName = `${FirstName ?? ""} ${LastName ?? ""}`.trim();
+
+  // ======================================================
+  // EFFECT: Fetch Incharge Statistics when role is User
+  // ======================================================
+  useEffect(() => {
+    const inchargeRoles = ["User", "Encharge", "Laboratory Incharge"];
+
+    if (role && inchargeRoles.includes(role)) {
+      console.log("🔵 Fetching incharge statistics for role:", role);
+      refreshInchargeData();
+    }
+  }, [role, refreshInchargeData]);
+
+  console.log("role", role)
 
   // Responsive cards per page
   useEffect(() => {
@@ -126,10 +152,41 @@ function DashboardCard({ statisticsData, technicianStats, supplyStatistics }) {
         { icon: MdOutlinePending, label: "Requests without Feedback", value: summary.requestsWithoutFeedback || 0 },
       ];
     } else if (role === "User") {
+      // ✨ Kunin ang unang laboratory mula sa statistics array
+      const firstLab = inchargeStats?.statistics?.[0];
+
+      // ✨ Fallback sa laboratoryData kung walang incharge data
+      const departmentName = firstLab?.department?.DepartmentName
+        ?? laboratoryData?.departmentName
+        ?? "N/A";
+
+      const laboratoryName = firstLab?.LaboratoryName
+        ?? laboratoryData?.laboratoryName
+        ?? "N/A";
+
+      const equipmentsCount = firstLab?.totalAssignedEquipment
+        ?? laboratoryData?.equipmentsCount
+        ?? 0;
+
       return [
-        { icon: MdApartment, label: "Department", value: laboratoryData?.departmentName ?? "N/A" },
-        { icon: MdScience, label: "Laboratory", value: laboratoryData?.laboratoryName ?? "N/A" },
-        { icon: MdBuild, label: "Equipments", value: laboratoryData?.equipmentsCount ?? 0 },
+        {
+          icon: MdApartment,
+          label: "Department",
+          value: departmentName,
+          subtitle: "Your department"
+        },
+        {
+          icon: MdScience,
+          label: "Laboratory",
+          value: laboratoryName,
+          subtitle: "Your laboratory"
+        },
+        {
+          icon: MdBuild,
+          label: "Equipments",
+          value: equipmentsCount,
+          subtitle: "Assigned to your lab"
+        },
       ];
     } else if (role === "Technician") {
       return [
@@ -155,7 +212,7 @@ function DashboardCard({ statisticsData, technicianStats, supplyStatistics }) {
           'Not Available': MdCancel,
           'With Issues': MdReportProblem
         };
-        
+
         return supplyCards.map((card) => ({
           icon: iconMap[card.title] || MdInventory,
           label: card.title,
@@ -197,8 +254,47 @@ function DashboardCard({ statisticsData, technicianStats, supplyStatistics }) {
         },
       ];
     }
+    // ✨ BAGO: Incharge Role Cards
+    else if (role === "Incharge" || role === "Encharge") {
+      const stats = inchargeStats?.statistics || [];
+      const totalLabs = inchargeStats?.count || 0;
+
+      // Total assigned equipment sa lahat ng labs
+      const totalAssignedEquipment = stats.reduce(
+        (sum, lab) => sum + (lab.totalAssignedEquipment || 0),
+        0
+      );
+
+      // Bilang ng unique departments
+      const uniqueDepartments = new Set(
+        stats
+          .map(lab => lab.department?.DepartmentName)
+          .filter(Boolean)
+      ).size;
+
+      return [
+        {
+          icon: MdScience,
+          label: "Total Laboratories",
+          value: totalLabs,
+          subtitle: "Laboratories you manage"
+        },
+        {
+          icon: MdAssignment,
+          label: "Total Assigned Equipment",
+          value: totalAssignedEquipment,
+          subtitle: "Across all your laboratories"
+        },
+        {
+          icon: MdApartment,
+          label: "Departments",
+          value: uniqueDepartments,
+          subtitle: "Departments involved"
+        },
+      ];
+    }
     return [];
-  }, [role, summary, technicianCard, supplyCard, supplyCards]);
+  }, [role, summary, technicianCard, supplyCard, supplyCards, inchargeStats, laboratoryData]);
 
   // MEMOIZED cards to prevent recalculation on every render
   const cards = useMemo(() => getCardData(), [getCardData]);

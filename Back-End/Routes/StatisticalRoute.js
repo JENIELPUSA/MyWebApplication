@@ -13,5 +13,8 @@ router.route('/technician_statistics')
 router.route('/supply_statistical')
     .get(authController.protect, StatisticalController.getSupplyStatistical)
 
+router.route('/incharge_statistical')
+    .get(authController.protect, StatisticalController.getcardIncharge)
+
 
 module.exports = router

@@ -3,6 +3,71 @@ const Equipment = require("../Models/Equipment");
 const Assign = require("../Models/AssigningEquipment");
 const MaintenanceSchedule = require("../Models/TypesOfMaintenace");
 const RequestMaintenance = require("../Models/RequestMaintenance");
+const Laboratory = require("../Models/Laboratory")
+const mongoose = require("mongoose");
+
+const AssignEquipment = require("../Models/AssigningEquipment")
+
+exports.getcardIncharge = AsyncErrorHandler(async (req, res, next) => {
+    const userId = req.user._id;
+
+    const statistics = await Laboratory.aggregate([
+        // Match: Encharge === userId
+        {
+            $match: {
+                Encharge: new mongoose.Types.ObjectId(userId)
+            }
+        },
+
+        // Lookup: Department
+        {
+            $lookup: {
+                from: "departments",
+                localField: "department",
+                foreignField: "_id",
+                as: "departmentDetails"
+            }
+        },
+
+        //  Lookup: Assign — collection name ay "assigns"
+        {
+            $lookup: {
+                from: "assigns",                // ✅ PALITAN ITO
+                localField: "_id",              // 👈 Laboratory._id
+                foreignField: "Laboratory",     // 👈 Assign.Laboratory
+                as: "assignedEquipments"
+            }
+        },
+
+        // Unwind: department
+        {
+            $unwind: {
+                path: "$departmentDetails",
+                preserveNullAndEmptyArrays: true
+            }
+        },
+
+        // Project: Final output
+        {
+            $project: {
+                _id: 1,
+                LaboratoryName: 1,
+                Encharge: 1,
+                department: {
+                    _id: "$departmentDetails._id",
+                    DepartmentName: "$departmentDetails.DepartmentName"
+                },
+                totalAssignedEquipment: { $size: "$assignedEquipments" }
+            }
+        }
+    ]);
+
+    res.status(200).json({
+        success: true,
+        count: statistics.length,
+        statistics
+    });
+});
 
 exports.getEquipmentStatistics = AsyncErrorHandler(
     async (req, res, next) => {
@@ -1470,17 +1535,17 @@ exports.getSupplyStatistical = AsyncErrorHandler(
             // 2. PIE CHART - STATUS DISTRIBUTION
             // =============================================
             const statusPie = [
-                { 
-                    id: "Available", 
-                    label: "Available", 
-                    value: availableEquipment, 
-                    color: "#10B981" 
+                {
+                    id: "Available",
+                    label: "Available",
+                    value: availableEquipment,
+                    color: "#10B981"
                 },
-                { 
-                    id: "Not Available", 
-                    label: "Not Available", 
-                    value: notAvailableEquipment, 
-                    color: "#EF4444" 
+                {
+                    id: "Not Available",
+                    label: "Not Available",
+                    value: notAvailableEquipment,
+                    color: "#EF4444"
                 }
             ];
 
@@ -1528,7 +1593,7 @@ exports.getSupplyStatistical = AsyncErrorHandler(
             ]);
 
             const chartColors = ["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#6366F1", "#84CC16"];
-            
+
             const categoryPie = categoryData.map((item, index) => ({
                 id: item.name || "Uncategorized",
                 label: item.name || "Uncategorized",
@@ -1575,7 +1640,7 @@ exports.getSupplyStatistical = AsyncErrorHandler(
             ]);
 
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            
+
             const lineChart = {
                 labels: monthlyData.map(item => `${monthNames[item._id.month - 1]} ${item._id.year}`),
                 datasets: [
@@ -1632,7 +1697,7 @@ exports.getSupplyStatistical = AsyncErrorHandler(
             ]);
 
             const brandColors = ["#6366F1", "#EC4899", "#14B8A6", "#F97316", "#8B5CF6", "#06B6D4", "#D946EF", "#84CC16", "#F43F5E", "#0EA5E9"];
-            
+
             const brandPie = brandData.map((item, index) => ({
                 id: item._id || "Unknown",
                 label: item._id || "Unknown",
@@ -1718,11 +1783,11 @@ exports.getSupplyStatistical = AsyncErrorHandler(
                         notAvailableEquipment,
                         equipmentWithRemarks,
                         totalCategories: categoryPie.length,
-                        availablePercentage: totalEquipment > 0 
-                            ? ((availableEquipment / totalEquipment) * 100).toFixed(1) 
+                        availablePercentage: totalEquipment > 0
+                            ? ((availableEquipment / totalEquipment) * 100).toFixed(1)
                             : 0,
-                        notAvailablePercentage: totalEquipment > 0 
-                            ? ((notAvailableEquipment / totalEquipment) * 100).toFixed(1) 
+                        notAvailablePercentage: totalEquipment > 0
+                            ? ((notAvailableEquipment / totalEquipment) * 100).toFixed(1)
                             : 0
                     }
                 },
