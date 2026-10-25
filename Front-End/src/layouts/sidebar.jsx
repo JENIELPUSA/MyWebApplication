@@ -61,14 +61,14 @@ export const Sidebar = forwardRef(({ collapsed }, ref) => {
                 "/dashboard/report",
                 "/dashboard/assign",
                 "/dashboard/maintenance",
-                "/dashboard/problem","/dashboard/category"
+                "/dashboard/problem", "/dashboard/category", "/dashboard/updatepassword"
             ],
             Technician: [
                 "/dashboard",
                 "/dashboard/report",
                 "/dashboard/category",
                 "/dashboard/maintenance",
-                "/dashboard/assign"
+                "/dashboard/assign", "/dashboard/updatepassword"
             ],
             Supply: [
                 "/dashboard",
@@ -78,10 +78,10 @@ export const Sidebar = forwardRef(({ collapsed }, ref) => {
                 "/dashboard/RequestMaintenances",
                 "/dashboard/department",
                 "/dashboard/report",
-                "/dashboard/assign",
+                "/dashboard/assign", "/dashboard/updatepassword"
             ],
             User: [
-                "/dashboard"
+                "/dashboard", "/dashboard/updatepassword"
 
             ],
         }),

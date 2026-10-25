@@ -3,14 +3,34 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaTimes, FaUserPlus, FaUserEdit, FaEnvelope, FaLock, FaUserTag, FaIdCard, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { UserDataContext } from "../../contexts/UserContext/UserContext";
 
+// ============================================================
+// UI-ONLY CONVERSION
+// value (backend/DB)  ->  label (display sa UI)
+// Backend SAME PA RIN: "User"
+// UI lang ang nagpapakita ng "Encharge"
+// ============================================================
+const ROLE_DISPLAY_MAP = {
+  Admin: "Admin",
+  Technician: "Technician",
+  User: "Encharge",   // ← backend "User" → UI "Encharge"
+  Supply: "Supply",
+};
+
+// Dropdown options: label = ipapakita, value = ipapasa sa backend
+const ROLE_OPTIONS = [
+  { label: "Admin", value: "Admin" },
+  { label: "Technician", value: "Technician" },
+  { label: "Encharge", value: "User" },   // ← UI "Encharge", backend "User"
+  { label: "Supply", value: "Supply" },
+];
+
 function SignUpForm({ onClose, isOpen, user, onUpdate, onAddUser }) {
   const [animateExit, setAnimateExit] = useState(false);
   const [customError, setCustomError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { AddUser, UpdateUser } = useContext(UserDataContext);
-  const [selectedRole, setSelectedRole] = useState(user?.role || "Select Role");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  
+
   const [values, setValues] = useState({
     FirstName: "",
     Middle: "",
@@ -30,9 +50,8 @@ function SignUpForm({ onClose, isOpen, user, onUpdate, onAddUser }) {
         email: user?.email || "",
         password: "",
         confirmPassword: "",
-        role: user?.role || "",
+        role: user?.role || "",   // ← backend value pa rin ("User")
       });
-      setSelectedRole(user?.role || "Select Role");
     }
   }, [user, isOpen]);
 
@@ -49,17 +68,22 @@ function SignUpForm({ onClose, isOpen, user, onUpdate, onAddUser }) {
     setValues({ ...values, [name]: value });
   };
 
-  const handleRoleSelect = (role) => {
-    setSelectedRole(role);
-    setValues((prev) => ({ ...prev, role }));
+  // roleValue = backend value (e.g. "User") — ito ang ipapasa sa API
+  const handleRoleSelect = (roleValue) => {
+    setValues((prev) => ({ ...prev, role: roleValue }));
     setDropdownOpen(false);
+  };
+
+  // Helper: backend value -> display label
+  const getRoleLabel = (roleValue) => {
+    if (!roleValue) return "Select Role";
+    return ROLE_DISPLAY_MAP[roleValue] || roleValue;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setCustomError("");
-    
-    // Validation Logic
+
     if (!values.FirstName || !values.LastName || !values.email || !values.role) {
       setCustomError("Please fill in all required personnel fields.");
       return;
@@ -70,6 +94,8 @@ function SignUpForm({ onClose, isOpen, user, onUpdate, onAddUser }) {
     }
 
     setIsLoading(true);
+
+    // ✅ values.role = "User" (backend value) — hindi "Encharge"
     const result = user ? await UpdateUser(user._id, values) : await AddUser(values);
 
     if (result?.success) {
@@ -99,22 +125,22 @@ function SignUpForm({ onClose, isOpen, user, onUpdate, onAddUser }) {
         animate={animateExit ? { opacity: 0, y: 50, scale: 0.95 } : { opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       >
-        {/* Header - Industrial Deep Blue */}
+        {/* Header */}
         <div className="bg-[#1e3a8a] px-8 py-6 text-white relative">
           <button onClick={handleClose} className="absolute top-4 right-4 text-white/50 hover:text-yellow-400 transition-colors">
             <FaTimes size={20} />
           </button>
-          
+
           <div className="flex items-center gap-4">
-             <div className="p-3 bg-yellow-400 rounded-2xl text-[#1e3a8a]">
-                {user ? <FaUserEdit size={24} /> : <FaUserPlus size={24} />}
-             </div>
-             <div>
-                <h2 className="text-xl font-black uppercase tracking-tighter">
-                  {user ? "Update" : "Personnel"} <span className="text-yellow-400">Account</span>
-                </h2>
-                <p className="text-[10px] text-blue-200 font-bold uppercase tracking-widest">User Access Management Terminal</p>
-             </div>
+            <div className="p-3 bg-yellow-400 rounded-2xl text-[#1e3a8a]">
+              {user ? <FaUserEdit size={24} /> : <FaUserPlus size={24} />}
+            </div>
+            <div>
+              <h2 className="text-xl font-black uppercase tracking-tighter">
+                {user ? "Update" : "Personnel"} <span className="text-yellow-400">Account</span>
+              </h2>
+              <p className="text-[10px] text-blue-200 font-bold uppercase tracking-widest">User Access Management Terminal</p>
+            </div>
           </div>
         </div>
 
@@ -161,19 +187,26 @@ function SignUpForm({ onClose, isOpen, user, onUpdate, onAddUser }) {
               </div>
               <div className="space-y-1 relative">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Access Level</label>
-                <div onClick={() => setDropdownOpen(!dropdownOpen)} 
+                <div onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center cursor-pointer hover:border-blue-400 transition-all">
-                  <span className={`text-sm font-bold ${values.role ? "text-slate-700" : "text-slate-400"}`}>{selectedRole}</span>
+                  {/* ✅ UI lang: ipapakita ang "Encharge" kung "User" ang value */}
+                  <span className={`text-sm font-bold ${values.role ? "text-slate-700" : "text-slate-400"}`}>
+                    {getRoleLabel(values.role)}
+                  </span>
                   {dropdownOpen ? <FaChevronUp className="text-blue-600 shadow-sm" /> : <FaChevronDown className="text-slate-300" />}
                 </div>
                 <AnimatePresence>
                   {dropdownOpen && (
                     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                       className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden border-t-4 border-t-yellow-400">
-                      {["Admin", "Technician", "User","Supply"].map((role) => (
-                        <div key={role} onClick={() => handleRoleSelect(role)}
-                          className="px-4 py-3 text-sm font-bold text-slate-600 hover:bg-blue-50 hover:text-[#1e3a8a] cursor-pointer transition-colors border-b border-slate-50 last:border-0">
-                          {role}
+                      {ROLE_OPTIONS.map((role) => (
+                        <div
+                          key={role.value}
+                          onClick={() => handleRoleSelect(role.value)}
+                          className="px-4 py-3 text-sm font-bold text-slate-600 hover:bg-blue-50 hover:text-[#1e3a8a] cursor-pointer transition-colors border-b border-slate-50 last:border-0"
+                        >
+                          {/* ✅ Display "Encharge" pero value na ipapasa ay "User" */}
+                          {role.label}
                         </div>
                       ))}
                     </motion.div>
@@ -182,7 +215,7 @@ function SignUpForm({ onClose, isOpen, user, onUpdate, onAddUser }) {
               </div>
             </div>
 
-            {/* Password Fields - Hidden during Edit if not needed */}
+            {/* Password Fields */}
             {!user && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <div className="space-y-1">
@@ -209,7 +242,6 @@ function SignUpForm({ onClose, isOpen, user, onUpdate, onAddUser }) {
           </form>
         </div>
 
-        {/* Footer Accent */}
         <div className="bg-yellow-400 py-2 text-center">
           <p className="text-[9px] font-black text-blue-900 uppercase tracking-[0.3em]">Authorized Information Entry</p>
         </div>

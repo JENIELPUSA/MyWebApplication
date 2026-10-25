@@ -16,7 +16,15 @@ import {
     Wrench,
     History,
     FileBarChart,
-    Microscope
+    Microscope,
+    Tags,
+    MonitorCog,
+    FlaskRound,
+    ListChecks,
+    ClipboardList,
+    Hammer,
+    AlertTriangle,
+    KeyRound,
 } from "lucide-react";
 
 export const navbarLinks = [
@@ -35,7 +43,7 @@ export const navbarLinks = [
             },
             {
                 label: "Category",
-                icon: History,
+                icon: Tags,
                 path: "/dashboard/category",
             },
             {
@@ -55,25 +63,29 @@ export const navbarLinks = [
             },
             {
                 label: "Laboratory Items",
-                icon: ClipboardCheck,
+                icon: ListChecks,
                 path: "/dashboard/assign",
             },
             {
                 label: "PMS Form",
-                icon: FileText,
+                icon: ClipboardList,
                 path: "/dashboard/pms",
             },
             {
                 label: "Maintenance History",
-                icon: History,
+                icon: Wrench,
                 path: "/dashboard/maintenance",
             },
             {
                 label: "Equipment Issues",
-                icon: History,
+                icon: AlertTriangle,
                 path: "/dashboard/problem",
             },
-
+            {
+                label: "Update Password",
+                icon: KeyRound,
+                path: "/dashboard/updatepassword",
+            },
         ],
-    }
+    },
 ];

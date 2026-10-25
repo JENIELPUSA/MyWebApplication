@@ -24,6 +24,7 @@ import Pms004 from "./components/PMSForm/Pms004"
 import Pms005 from "./components/PMSForm/Pms005"
 import Pms006 from "./components/PMSForm/Pms006"
 import Category from "./components/Category/CategoryTable";
+import UpdatePassword from "./components/AuthenticationComponents/UpdatePassword";
 
 
 function App() {
@@ -64,7 +65,7 @@ function App() {
                         { path: "pms005", element: <Pms005 /> },
                         { path: "pms006", element: <Pms006 /> },
                         { path: "category", element: <Category /> },
-
+                        { path: "updatepassword", element: <UpdatePassword /> },
                     ],
                 },
             ],

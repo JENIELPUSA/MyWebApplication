@@ -10,13 +10,26 @@ import axiosInstance from "../../components/ReusableComponent/axiosInstance";
 
 export const AddAssignContext = createContext();
 
+// ✅ Default filters constant para consistent
+const DEFAULT_FILTERS = {
+  search: "",
+  page: 1,
+  limit: 10,
+  sortBy: "createdAt",
+  sortOrder: "desc",
+  laboratory: "",
+  category: "",
+  brand: "",
+  status: "",
+};
+
 export const AddAssignProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [assigns, setAssigns] = useState([]);
   const [error, setError] = useState(null);
   const [confirm, setConfirm] = useState(null);
 
-  // ✅ BAGO: Pagination state
+  // ✅ Pagination state
   const [pagination, setPagination] = useState({
     totalRecords: 0,
     totalLaboratories: 0,
@@ -26,18 +39,8 @@ export const AddAssignProvider = ({ children }) => {
     count: 0,
   });
 
-  // ✅ BAGO: Search & filter state (para persistent sa UI)
-  const [filters, setFilters] = useState({
-    search: "",
-    page: 1,
-    limit: 10,
-    sortBy: "createdAt",
-    sortOrder: "desc",
-    laboratory: "",
-    category: "",
-    brand: "",
-    status: "",
-  });
+  // ✅ Search & filter state
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
   // ✅ Kunin ang token mula sa localStorage
   const getAuthToken = () => {
@@ -50,9 +53,7 @@ export const AddAssignProvider = ({ children }) => {
 
   const [token, setToken] = useState(() => getAuthToken());
 
-  // ============================================================
-  // ✅ I-watch ang localStorage changes
-  // ============================================================
+  // ✅ Watch localStorage changes
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === "token" || e.key === "authToken") {
@@ -124,7 +125,7 @@ export const AddAssignProvider = ({ children }) => {
   };
 
   // ============================================================
-  // ✅ DISPLAY ASSIGN (may Pagination + Search)
+  // ✅ DISPLAY ASSIGN — FIXED: i-reset ang filters kapag walang params
   // ============================================================
   const displayAssign = useCallback(
     async (queryParams = {}) => {
@@ -139,8 +140,16 @@ export const AddAssignProvider = ({ children }) => {
       setError(null);
 
       try {
-        // ✅ Pagsamahin ang filters state at bagong params
-        const mergedParams = { ...filters, ...queryParams };
+        // ✅ DETECT kung "reset" ang request (walang params OR explicit reset)
+        const isResetRequest =
+          !queryParams ||
+          Object.keys(queryParams).length === 0;
+
+        // ✅ Kung reset, gamitin ang DEFAULT_FILTERS
+        // Kung hindi, i-merge ang filters + queryParams
+        const baseFilters = isResetRequest ? DEFAULT_FILTERS : filters;
+        const mergedParams = { ...baseFilters, ...queryParams };
+
         const cleanedParams = cleanQueryParams(mergedParams);
         const queryString = new URLSearchParams(cleanedParams).toString();
 
@@ -149,6 +158,8 @@ export const AddAssignProvider = ({ children }) => {
         }`;
 
         console.log("🌐 Fetching:", url);
+        console.log("🧹 isResetRequest:", isResetRequest);
+        console.log("📋 mergedParams:", mergedParams);
 
         const response = await axiosInstance.get(url, {
           headers: { Authorization: `Bearer ${authToken}` },
@@ -170,8 +181,13 @@ export const AddAssignProvider = ({ children }) => {
             count: response.data.count || 0,
           });
 
-          // ✅ I-save ang filters (para consistent ang UI state)
-          setFilters((prev) => ({ ...prev, ...queryParams }));
+          // ✅ FIX: Kung reset request, i-reset ang filters sa DEFAULT
+          // Kung hindi, i-merge lang ang queryParams
+          if (isResetRequest) {
+            setFilters(DEFAULT_FILTERS);
+          } else {
+            setFilters((prev) => ({ ...prev, ...queryParams }));
+          }
 
           return {
             data: response.data.data,
@@ -205,7 +221,7 @@ export const AddAssignProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [filters], // ✅ depende sa filters
+    [filters],
   );
 
   // ============================================================
@@ -243,7 +259,6 @@ export const AddAssignProvider = ({ children }) => {
   // ============================================================
   const handleSearch = useCallback(
     (searchTerm) => {
-      // ✅ I-reset ang page sa 1 kapag nag-search
       return displayAssign({ ...filters, search: searchTerm, page: 1 });
     },
     [displayAssign, filters],
@@ -251,7 +266,6 @@ export const AddAssignProvider = ({ children }) => {
 
   const handleFilterChange = useCallback(
     (filterKey, value) => {
-      // ✅ I-reset ang page sa 1 kapag nag-filter
       return displayAssign({ ...filters, [filterKey]: value, page: 1 });
     },
     [displayAssign, filters],
@@ -264,19 +278,14 @@ export const AddAssignProvider = ({ children }) => {
     [displayAssign, filters],
   );
 
+  // ============================================================
+  // ✅ RESET FILTERS — explicit reset
+  // ============================================================
   const resetFilters = useCallback(() => {
-    const defaultFilters = {
-      search: "",
-      page: 1,
-      limit: 10,
-      sortBy: "createdAt",
-      sortOrder: "desc",
-      laboratory: "",
-      category: "",
-      brand: "",
-      status: "",
-    };
-    return displayAssign(defaultFilters);
+    // ✅ I-reset ang filters state
+    setFilters(DEFAULT_FILTERS);
+    // ✅ Tawagin ang displayAssign na walang params (mag-trigger ng reset logic)
+    return displayAssign();
   }, [displayAssign]);
 
   // ============================================================
@@ -304,7 +313,7 @@ export const AddAssignProvider = ({ children }) => {
       isMounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]); // ✅ Mag-re-run lang kapag nagbago ang token (iwas infinite loop)
+  }, [token]);
 
   // ============================================================
   // ✅ RE-FETCH KAPAG NAG-LOGIN
@@ -379,7 +388,7 @@ export const AddAssignProvider = ({ children }) => {
         confirm,
         downloadPMSEquipmentHistory,
         token,
-        // ✅ BAGO: Pagination & filter helpers
+        // Pagination & filter helpers
         pagination,
         filters,
         goToPage,

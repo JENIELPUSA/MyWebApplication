@@ -39,12 +39,12 @@ const EquipmentForm = () => {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
 
-  // ✅ DELETE CONFIRMATION STATES
+  //  DELETE CONFIRMATION STATES
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [equipmentToDelete, setEquipmentToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // ✅ LOCAL CATEGORY LIST
+  //  LOCAL CATEGORY LIST
   const [availableCategories, setAvailableCategories] = useState([]);
 
   // ==========================================
@@ -397,16 +397,22 @@ const EquipmentForm = () => {
                       {item.SerialNumber || 'N/A'}
                     </td>
 
+                    {/*  BRAND & SPECS — NOW UPPERCASE */}
                     <td className="px-4 py-4">
-                      <div className="font-medium text-gray-900 dark:text-white">{item.Brand || 'N/A'}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[150px]" title={item.Specification}>
+                      <div className="font-medium text-gray-900 dark:text-white uppercase">
+                        {item.Brand || 'N/A'}
+                      </div>
+                      <div
+                        className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[150px] uppercase"
+                        title={item.Specification}
+                      >
                         {item.Specification || 'N/A'}
                       </div>
                       {item.CategoryName && (
                         <span className="inline-block mt-1 text-[10px] font-semibold
                           bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400
                           border border-amber-200 dark:border-amber-800
-                          px-1.5 py-0.5 rounded">
+                          px-1.5 py-0.5 rounded uppercase">
                           {item.CategoryName}
                         </span>
                       )}
@@ -568,7 +574,7 @@ const EquipmentForm = () => {
         {isAssignModalOpen && <PopupModal isOpen={isAssignModalOpen} onClose={handleCloseSubModals} equipment={selectedEquipment} />}
       </div>
 
-      {/* ✅ REUSABLE DELETE CONFIRMATION MODAL */}
+      {/*  REUSABLE DELETE CONFIRMATION MODAL */}
       <ConfirmDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={handleCancelDelete}

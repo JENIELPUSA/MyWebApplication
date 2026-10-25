@@ -120,14 +120,33 @@ export const LaboratoryProvider = ({ children }) => {
         setTotalPages(pages);
         setError(null);
       } catch (error) {
-        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        // Ignore canceled requests
+        if (
+          error.name === "CanceledError" ||
+          error.code === "ERR_CANCELED"
+        )
+          return;
 
-        if (error.response?.status === 401) {
-          setCustomError("Unauthorized: Please log in again.");
+        console.error("Fetch laboratory error:", error);
+
+        // ✅ ONLY show error if the SERVER responded with an error.
+        // Hide network errors (no response) from the UI.
+        if (error.response) {
+          // Server responded (e.g., 400, 401, 500)
+          if (error.response.status === 401) {
+            setCustomError("Unauthorized: Please log in again.");
+          } else {
+            setCustomError(
+              error.response.data?.message ||
+                "Failed to fetch data. Please try again later."
+            );
+          }
+          setError("Failed to fetch data");
         } else {
-          setCustomError("Failed to fetch data. Please try again later.");
+          // Network error, timeout, or no response — DON'T show to user
+          setError(null);
+          setCustomError(null);
         }
-        setError("Failed to fetch data");
       } finally {
         setLoading(false);
       }
@@ -212,10 +231,17 @@ export const LaboratoryProvider = ({ children }) => {
       setLabDropdown(res.data.data || []);
       return { success: true, data: res.data.data };
     } catch (error) {
-      const errorMsg =
-        error.response?.data?.message || "Server connection error";
-      setCustomError(errorMsg);
-      return { success: false, error: errorMsg };
+      // ✅ Only show error if server responded
+      if (error.response) {
+        const errorMsg =
+          error.response.data?.message || "Server connection error";
+        setCustomError(errorMsg);
+        return { success: false, error: errorMsg };
+      } else {
+        // Network error — silent fail
+        console.error("Fetch laboratory dropdown network error:", error);
+        return { success: false, error: null };
+      }
     } finally {
       setLoading(false);
     }
@@ -250,15 +276,21 @@ export const LaboratoryProvider = ({ children }) => {
         return { success: false, error: "Unexpected response from server." };
       }
     } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        "Something went wrong.";
-      setCustomError(message);
-      setModalStatus("failed");
-      setShowModal(true);
-      return { success: false, error: message };
+      // ✅ Only show error if server responded
+      if (error.response) {
+        const message =
+          error.response.data?.message ||
+          error.response.data?.error ||
+          "Something went wrong.";
+        setCustomError(message);
+        setModalStatus("failed");
+        setShowModal(true);
+        return { success: false, error: message };
+      } else {
+        // Network error — silent fail
+        console.error("Add laboratory network error:", error);
+        return { success: false, error: null };
+      }
     }
   };
 
@@ -291,15 +323,21 @@ export const LaboratoryProvider = ({ children }) => {
         return { success: false, error: "Unexpected response from server." };
       }
     } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        "Operation failed. Please try again.";
-      setCustomError(message);
-      setModalStatus("failed");
-      setShowModal(true);
-      return { success: false, error: message };
+      // ✅ Only show error if server responded
+      if (error.response) {
+        const message =
+          error.response.data?.message ||
+          error.response.data?.error ||
+          "Operation failed. Please try again.";
+        setCustomError(message);
+        setModalStatus("failed");
+        setShowModal(true);
+        return { success: false, error: message };
+      } else {
+        // Network error — silent fail
+        console.error("Update laboratory network error:", error);
+        return { success: false, error: null };
+      }
     }
   };
 
@@ -327,11 +365,18 @@ export const LaboratoryProvider = ({ children }) => {
         return { success: false, error: "Unexpected response from server." };
       }
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message || "Failed to delete Laboratory.";
-      setModalStatus("failed");
-      setShowModal(true);
-      return { success: false, error: errorMessage };
+      // ✅ Only show error if server responded
+      if (error.response) {
+        const errorMessage =
+          error.response.data?.message || "Failed to delete Laboratory.";
+        setModalStatus("failed");
+        setShowModal(true);
+        return { success: false, error: errorMessage };
+      } else {
+        // Network error — silent fail
+        console.error("Delete laboratory network error:", error);
+        return { success: false, error: null };
+      }
     }
   };
 

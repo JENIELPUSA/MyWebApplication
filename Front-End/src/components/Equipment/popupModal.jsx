@@ -21,6 +21,7 @@ const PopupModal = ({
 }) => {
   const [laboratories, setLaboratories] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [filteredDepartments, setFilteredDepartments] = useState([]);
   const [filteredLaboratories, setFilteredLaboratories] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
@@ -57,6 +58,18 @@ const PopupModal = ({
       });
     }
   }, [equipment]);
+
+  // Filter departments that have at least one laboratory
+  useEffect(() => {
+    if (laboratories.length > 0 && departments.length > 0) {
+      const departmentsWithLabs = departments.filter((dept) =>
+        laboratories.some((lab) => lab.department === dept.DepartmentName)
+      );
+      setFilteredDepartments(departmentsWithLabs);
+    } else {
+      setFilteredDepartments([]);
+    }
+  }, [laboratories, departments]);
 
   // Fetch department and laboratory data
   const fetchInitialData = async () => {
@@ -331,23 +344,29 @@ const PopupModal = ({
                       >
                         Select Department
                       </li>
-                      {departments.map((department) => (
-                        <li
-                          key={department._id}
-                          className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-700 transition-colors"
-                          onClick={() => {
-                            handleDepartmentChange({
-                              target: {
-                                name: "department",
-                                value: department.DepartmentName,
-                              },
-                            });
-                            setDepartmentDropdownOpen(false);
-                          }}
-                        >
-                          {department.DepartmentName}
+                      {filteredDepartments.length > 0 ? (
+                        filteredDepartments.map((department) => (
+                          <li
+                            key={department._id}
+                            className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-700 transition-colors"
+                            onClick={() => {
+                              handleDepartmentChange({
+                                target: {
+                                  name: "department",
+                                  value: department.DepartmentName,
+                                },
+                              });
+                              setDepartmentDropdownOpen(false);
+                            }}
+                          >
+                            {department.DepartmentName}
+                          </li>
+                        ))
+                      ) : (
+                        <li className="px-3 py-2 text-sm text-gray-400 text-center italic">
+                          No departments with available laboratories
                         </li>
-                      ))}
+                      )}
                     </ul>
                   )}
                 </div>

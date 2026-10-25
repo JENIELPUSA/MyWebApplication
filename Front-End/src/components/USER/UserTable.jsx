@@ -8,6 +8,18 @@ import {
 import UserFormModal from "./SignUpForm";
 import ConfirmDeleteModal from "../../components/ReusableComponent/ConfirmationDeleteModal";
 
+// ============================================================
+// UI-ONLY ROLE CONVERSION
+// Backend value SAME PA RIN: "User"
+// UI lang ang nagpapakita ng "Encharge"
+// ============================================================
+const ROLE_DISPLAY_MAP = {
+  Admin: "Admin",
+  Technician: "Technician",
+  User: "Encharge",   // ← backend "User" → UI "Encharge"
+  Supply: "Supply",
+};
+
 const UserTable = () => {
   const {
     users,
@@ -32,7 +44,6 @@ const UserTable = () => {
     setSortOrder,
   } = useContext(UserDataContext);
 
-
   const [selectedUser, setSelectedUser] = useState(null);
   const [isFormModalOpen, setFormModalOpen] = useState(false);
 
@@ -45,6 +56,11 @@ const UserTable = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [usersPerPage, setCurrentPage]);
+
+  // ✅ FIX: Guard laban sa undefined/null items sa array
+  const safeFilteredUsers = Array.isArray(filteredUsers)
+    ? filteredUsers.filter(Boolean)
+    : [];
 
   // ==========================================
   // PAGINATION
@@ -73,20 +89,17 @@ const UserTable = () => {
     setSelectedUser(null);
   };
 
-  //  Buksan ang delete modal
   const handleDeleteClick = (user) => {
     setUserToDelete(user);
     setIsDeleteModalOpen(true);
   };
 
-  //  Isara ang delete modal
   const handleCancelDelete = () => {
     if (isDeleting) return;
     setIsDeleteModalOpen(false);
     setUserToDelete(null);
   };
 
-  //  Actual delete (tatawagin ng ConfirmDeleteModal)
   const handleConfirmDelete = async () => {
     if (!userToDelete || isDeleting) return;
     setIsDeleting(true);
@@ -108,6 +121,13 @@ const UserTable = () => {
   // ==========================================
   // HELPERS
   // ==========================================
+
+  // ✅ UI-only: backend "User" → display "Encharge"
+  const getRoleLabel = (roleValue) => {
+    if (!roleValue) return "N/A";
+    return ROLE_DISPLAY_MAP[roleValue] || roleValue;
+  };
+
   const getRoleStyle = (role) => {
     switch (role?.toLowerCase()) {
       case "admin":
@@ -117,7 +137,9 @@ const UserTable = () => {
       case "encharge":
         return "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 border-cyan-300 dark:border-cyan-700";
       case "user":
-        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700";
+        return "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 border-cyan-300 dark:border-cyan-700";
+      case "supply":
+        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700";
       default:
         return "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600";
     }
@@ -125,8 +147,8 @@ const UserTable = () => {
 
   const getInitials = (user) => {
     if (!user) return "N/A";
-    const first = user.FirstName?.charAt(0) || "";
-    const last = user.LastName?.charAt(0) || "";
+    const first = user?.FirstName?.charAt(0) || "";
+    const last = user?.LastName?.charAt(0) || "";
     const initials = (first + last).toUpperCase();
     return initials || "N/A";
   };
@@ -144,7 +166,7 @@ const UserTable = () => {
 
   const getFullName = (user) => {
     if (!user) return "N/A";
-    return `${user.FirstName || ""} ${user.Middle ? user.Middle + " " : ""}${user.LastName || ""}`.trim() || "N/A";
+    return `${user?.FirstName || ""} ${user?.Middle ? user.Middle + " " : ""}${user?.LastName || ""}`.trim() || "N/A";
   };
 
   return (
@@ -204,7 +226,7 @@ const UserTable = () => {
             />
           </div>
 
-          {/* Role Filter */}
+          {/* Role Filter — ✅ UI "Encharge" pero value "User" (backend) */}
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
@@ -215,8 +237,8 @@ const UserTable = () => {
             <option value="">All Roles</option>
             <option value="Admin">Admin</option>
             <option value="Technician">Technician</option>
-            <option value="Encharge">Encharge</option>
-            <option value="User">User</option>
+            <option value="User">Encharge</option>
+            <option value="Supply">Supply</option>
           </select>
 
           {/* Sort */}
@@ -284,46 +306,46 @@ const UserTable = () => {
                     </div>
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : safeFilteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="py-12 text-center text-gray-400 dark:text-gray-500 italic">
                     {searchQuery ? 'No matching users found.' : 'No users found. Click "Add User" to get started.'}
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user, index) => (
+                safeFilteredUsers.map((user, index) => (
                   <tr
-                    key={`${user._id}-${index}`}
+                    key={`${user?._id || index}-${index}`}
                     className="hover:bg-blue-50/50 dark:hover:bg-slate-800 transition-colors"
                   >
                     {/* FULL NAME — with avatar */}
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-full ${getAvatarColor(user.FirstName)} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+                        <div className={`w-9 h-9 rounded-full ${getAvatarColor(user?.FirstName)} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
                           {getInitials(user)}
                         </div>
                         <div className="min-w-0">
                           <div className="font-medium text-gray-900 dark:text-white truncate max-w-[180px]">
                             {getFullName(user)}
                           </div>
-                          <div className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate max-w-[150px]" title={user._id}>
-                            {user._id}
+                          <div className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate max-w-[150px]" title={user?._id}>
+                            {user?._id}
                           </div>
                         </div>
                       </div>
                     </td>
 
-                    {/* EMAIL */}
+                    {/* ✅ EMAIL — user.username (dito naka-save ang email sa DB mo) */}
                     <td className="px-4 py-4">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-[200px] inline-block" title={user.email}>
-                        {user.username || "N/A"}
+                      <span className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-[200px] inline-block" title={user?.username}>
+                        {user?.username || "N/A"}
                       </span>
                     </td>
 
-                    {/* ROLE */}
+                    {/* ✅ ROLE — UI "Encharge" kung backend "User" */}
                     <td className="px-4 py-4 text-center">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase border ${getRoleStyle(user.role)}`}>
-                        {user.role || "N/A"}
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase border ${getRoleStyle(user?.role)}`}>
+                        {getRoleLabel(user?.role)}
                       </span>
                     </td>
 
@@ -369,7 +391,6 @@ const UserTable = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Per Page */}
             <select
               value={usersPerPage}
               onChange={(e) => setusersPerPage(Number(e.target.value))}
@@ -381,7 +402,6 @@ const UserTable = () => {
               ))}
             </select>
 
-            {/* Prev */}
             <button
               onClick={() => paginate(currentPage - 1)}
               disabled={currentPage === 1 || totalUsers === 0}
@@ -398,7 +418,6 @@ const UserTable = () => {
               Page {currentPage} of {totalPages || 1}
             </span>
 
-            {/* Next */}
             <button
               onClick={() => paginate(currentPage + 1)}
               disabled={currentPage === (totalPages || 1) || totalUsers === 0}
@@ -420,20 +439,20 @@ const UserTable = () => {
             onClose={handleCloseSubModals}
             user={selectedUser}
             onAddUser={(newUser) => {
+              if (!newUser) return;
               setUsers((prev) => [...prev, newUser]);
               handleCloseSubModals();
             }}
             onUpdate={(updated) => {
-              setUsers((prev) => prev.map((u) => (u._id === updated._id ? updated : u)));
+              if (!updated) return;
+              setUsers((prev) => prev.map((u) => (u?._id === updated._id ? updated : u)));
               handleCloseSubModals();
             }}
           />
         )}
       </div>
 
-      {/* ============================================================
-           REUSABLE DELETE CONFIRMATION MODAL
-          ============================================================ */}
+      {/* REUSABLE DELETE CONFIRMATION MODAL */}
       <ConfirmDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={handleCancelDelete}
@@ -448,8 +467,8 @@ const UserTable = () => {
             ? {
                 code: userToDelete._id,
                 brand: getFullName(userToDelete),
-                specification: userToDelete.email,
-                serialNumber: userToDelete.role,
+                specification: userToDelete.username,
+                serialNumber: getRoleLabel(userToDelete.role), // ✅ UI "Encharge"
               }
             : null
         }

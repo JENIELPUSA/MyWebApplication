@@ -36,65 +36,70 @@ import { MaintenanceRecordProvider } from './contexts/PMSMaintenanceRecord/PMSMa
 import PMS004Provider from './contexts/PMS/pmsContext004.jsx'
 import PMS005Provider from './contexts/PMS/pmsContext005.jsx'
 import { CategoryProvider } from './contexts/CategoryContext/categoryContext.jsx'
+import { UpdateDisplayProvider } from './contexts/UpdateContext/updateContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <CategoryProvider>
-        <PMS006Provider>
-          <PMS005Provider>
-            <PMS004Provider>
-              <PMS003Provider>
-                <PMS002Provider>
-                  <PMSProvider>
-                    <MaintenanceRecordProvider>
-                      <HistoryProvider>
-                        <ProblemProvider>
-                          <StatisticsProvider>
-                            <MessagePostProvider>
-                              <MaintenanceRequestProvider>
-                                <IncomingDisplayProvider>
-                                  <DepartmentDisplayProvider>
-                                    <TypeofMaintenanceProvider>
-                                      <AssignProvider>
-                                        <UserProvider>
-                                          <FilterSpecificAssignProvider>
-                                            <LaboratorytProvider>
-                                              <LaboratoryProvider>
-                                                {/*  Wrap EquipmentProvider with EquipmentDataProvider */}
-                                                <EquipmentProvider>
+      <UpdateDisplayProvider>
+        <CategoryProvider>
+          <PMS006Provider>
+            <PMS005Provider>
+              <PMS004Provider>
+                <PMS003Provider>
+                  <PMS002Provider>
+                    <PMSProvider>
+                      <MaintenanceRecordProvider>
+                        <HistoryProvider>
+                          <ProblemProvider>
+                            <StatisticsProvider>
+                              <MessagePostProvider>
+                                <MaintenanceRequestProvider>
+                                  <IncomingDisplayProvider>
+                                    <DepartmentDisplayProvider>
+                                      <TypeofMaintenanceProvider>
+                                        <AssignProvider>
+                                          <UserProvider>
+                                            <FilterSpecificAssignProvider>
+                                              <LaboratorytProvider>
+                                                <LaboratoryProvider>
+                                                  {/*  Wrap EquipmentProvider with EquipmentDataProvider */}
                                                   <EquipmentProvider>
-                                                    <AddAssignProvider>
-                                                      <DeleteAssignProvider>
-                                                        <AssignLabProvider>
-                                                          <App />
-                                                          <SocketListener />
-                                                        </AssignLabProvider>
-                                                      </DeleteAssignProvider>
-                                                    </AddAssignProvider>
+                                                    <EquipmentProvider>
+                                                      <AddAssignProvider>
+                                                        <DeleteAssignProvider>
+                                                          <AssignLabProvider>
+                                                            <App />
+                                                            <SocketListener />
+                                                          </AssignLabProvider>
+                                                        </DeleteAssignProvider>
+                                                      </AddAssignProvider>
+                                                    </EquipmentProvider>
                                                   </EquipmentProvider>
-                                                </EquipmentProvider>
-                                              </LaboratoryProvider>
-                                            </LaboratorytProvider>
-                                          </FilterSpecificAssignProvider>
-                                        </UserProvider>
-                                      </AssignProvider>
-                                    </TypeofMaintenanceProvider>
-                                  </DepartmentDisplayProvider>
-                                </IncomingDisplayProvider>
-                              </MaintenanceRequestProvider>
-                            </MessagePostProvider>
-                          </StatisticsProvider>
-                        </ProblemProvider>
-                      </HistoryProvider>
-                    </MaintenanceRecordProvider>
-                  </PMSProvider>
-                </PMS002Provider>
-              </PMS003Provider>
-            </PMS004Provider>
-          </PMS005Provider>
-        </PMS006Provider>
-      </CategoryProvider>
+                                                </LaboratoryProvider>
+                                              </LaboratorytProvider>
+                                            </FilterSpecificAssignProvider>
+                                          </UserProvider>
+                                        </AssignProvider>
+                                      </TypeofMaintenanceProvider>
+                                    </DepartmentDisplayProvider>
+                                  </IncomingDisplayProvider>
+                                </MaintenanceRequestProvider>
+                              </MessagePostProvider>
+                            </StatisticsProvider>
+                          </ProblemProvider>
+                        </HistoryProvider>
+                      </MaintenanceRecordProvider>
+                    </PMSProvider>
+                  </PMS002Provider>
+                </PMS003Provider>
+              </PMS004Provider>
+            </PMS005Provider>
+          </PMS006Provider>
+        </CategoryProvider>
+
+      </UpdateDisplayProvider>
+
     </AuthProvider>
   </StrictMode>,
 )

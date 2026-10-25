@@ -6,7 +6,6 @@ import { FaFlask } from 'react-icons/fa';
 function LaboratoryContent() {
     const [laboratories, setLaboratories] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const token = localStorage.getItem('token');
     const [currentPage, setCurrentPage] = useState(1);
@@ -17,7 +16,6 @@ function LaboratoryContent() {
     // Fetch data from API
     const fetchData = async (url) => {
         setLoading(true);
-        setError(null);
 
         try {
             const res = await axios.get(url, {
@@ -28,36 +26,46 @@ function LaboratoryContent() {
             setLaboratories(res.data.data);
             setTotalLaboratories(res.data.total);
         } catch (error) {
-            console.error('Error fetching data:', error.response ? error.response.data : error.message);
-            setError(error);
+            console.error(
+                'Error fetching data:',
+                error.response ? error.response.data : error.message
+            );
+            // Silent fail — walang UI error display
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchData(`http://127.0.0.1:3000/api/v1/laboratory?page=${currentPage}&limit=${laboratoryPerPage}`);
+        fetchData(
+            `http://127.0.0.1:3000/api/v1/laboratory?page=${currentPage}&limit=${laboratoryPerPage}`
+        );
     }, [token, currentPage, laboratoryPerPage]);
 
     // Filter laboratories based on search
-    const filteredLaboratories = laboratories.filter((lab) =>
-        lab.LaboratoryName && 
-        lab.LaboratoryName.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredLaboratories = laboratories.filter(
+        (lab) =>
+            lab.LaboratoryName &&
+            lab.LaboratoryName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const handleDeleteLab = async (laboratoryId) => {
         if (!laboratoryId) return;
 
-        if (window.confirm("Are you sure you want to delete this laboratory?")) {
+        if (window.confirm('Are you sure you want to delete this laboratory?')) {
             try {
-                await axios.delete(`http://127.0.0.1:3000/api/v1/laboratory/${laboratoryId}`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
+                await axios.delete(
+                    `http://127.0.0.1:3000/api/v1/laboratory/${laboratoryId}`,
+                    {
+                        headers: { Authorization: `Bearer ${token}` },
+                    }
+                );
                 setLaboratories((prevLabs) =>
                     prevLabs.filter((laboratory) => laboratory._id !== laboratoryId)
                 );
             } catch (error) {
                 console.error('Error deleting laboratory:', error);
+                // Silent fail — walang UI error display
             }
         }
     };
@@ -102,13 +110,6 @@ function LaboratoryContent() {
                     setSelectedLab={setSelectedLab}
                 />
             </div>
-
-            {/* Error Display */}
-            {error && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-                    <strong>Error:</strong> {error.response?.data?.message || error.message}
-                </div>
-            )}
         </div>
     );
 }

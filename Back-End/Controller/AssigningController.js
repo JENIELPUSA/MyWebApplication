@@ -34,31 +34,46 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
       limit = 10,
       sortBy = "createdAt",
       sortOrder = "desc",
-      laboratory,   // filter by Laboratory ID (optional)
-      category,     // filter by Category ID (optional)
-      brand,        // filter by Brand (string, partial match, optional)
-      status,       // filter by equipment status (optional)
+      laboratory,
+      category,
+      brand,
+      status,
     } = req.query;
+
+    console.log("🔍 RAW QUERY:", req.query);
+    console.log(
+      "🔍 category value:",
+      category,
+      "| valid ObjectId?:",
+      category ? mongoose.Types.ObjectId.isValid(category) : "n/a"
+    );
 
     // ─── Pagination setup ────────────────────────────────────────────
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
     const skip = (pageNum - 1) * limitNum;
 
-    // ─── Build $match for Assign collection (pre-lookup) ─────────────
+    // ─── Assign-level match ─────────────────────────────────────────
     const assignMatchStage = {};
 
-    // Filter by Laboratory (kung provided)
     if (laboratory && mongoose.Types.ObjectId.isValid(laboratory)) {
       assignMatchStage.Laboratory = new mongoose.Types.ObjectId(laboratory);
     }
 
-    // ─── Build equipment-level $match (post-lookup) ──────────────────
+    // ─── Equipment-level match ──────────────────────────────────────
     const equipmentMatchStage = {};
+    let categoryNameFilter = null;
 
-    if (category && mongoose.Types.ObjectId.isValid(category)) {
-      equipmentMatchStage["EquipmentsInfo.Category"] =
-        new mongoose.Types.ObjectId(category);
+    if (category && category.trim()) {
+      const trimmed = category.trim();
+      if (mongoose.Types.ObjectId.isValid(trimmed)) {
+        equipmentMatchStage["EquipmentsInfo.Category"] =
+          new mongoose.Types.ObjectId(trimmed);
+        console.log("✅ Category filter: ObjectId →", trimmed);
+      } else {
+        categoryNameFilter = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        console.warn("⚠️ category fallback to name match:", trimmed);
+      }
     }
 
     if (brand && brand.trim()) {
@@ -73,7 +88,7 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
       equipmentMatchStage["EquipmentsInfo.status"] = status;
     }
 
-    // ─── Build search stage (across equipment + lab + category) ──────
+    // ─── Search stage ───────────────────────────────────────────────
     const searchStage = {};
     if (search.trim()) {
       const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -87,21 +102,20 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
       ];
     }
 
-    // ─── Build $sort (whitelist) ─────────────────────────────────────
-    const allowedSortFields = [
-      "createdAt",
-      "Laboratory",
-      "Equipments",
-    ];
+    // ─── Sort ───────────────────────────────────────────────────────
+    const allowedSortFields = ["createdAt", "Laboratory", "Equipments"];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
     const sortDir = sortOrder === "asc" ? 1 : -1;
 
-    // ─── Base pipeline (shared sa data + count) ──────────────────────
+    // ─── Detecting kung may active equipment-level filter ───────────
+    const hasEquipmentFilter =
+      Object.keys(equipmentMatchStage).length > 0 || !!categoryNameFilter;
+
+    // ─── Base pipeline ──────────────────────────────────────────────
     const basePipeline = [
-      // ---------------- Match (assign-level filters) ----------------
       { $match: assignMatchStage },
 
-      // ---------------- Join Laboratories ----------------
+      // Join Laboratories
       {
         $lookup: {
           from: "laboratories",
@@ -117,7 +131,7 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
         },
       },
 
-      // ---------------- Join Encharge Users ----------------
+      // Join Encharge
       {
         $lookup: {
           from: "users",
@@ -133,12 +147,12 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
         },
       },
 
-      // Role-based filter: kung "user", i-match ang EnchargeInfo._id sa userId
+      // Role-based filter
       ...(role === "user" || role === "User"
         ? [{ $match: { "EnchargeInfo._id": userId } }]
         : []),
 
-      // ---------------- Join Departments ----------------
+      // Join Departments
       {
         $lookup: {
           from: "departments",
@@ -154,7 +168,7 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
         },
       },
 
-      // ---------------- Join Equipments ----------------
+      // Join Equipments
       {
         $lookup: {
           from: "equipment",
@@ -170,7 +184,7 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
         },
       },
 
-      // ---------------- Join Categories ----------------
+      // Join Categories
       {
         $lookup: {
           from: "categories",
@@ -186,17 +200,37 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
         },
       },
 
-      // ---------------- Apply equipment-level filters ----------------
+      // Apply equipment-level filters
       ...(Object.keys(equipmentMatchStage).length > 0
         ? [{ $match: equipmentMatchStage }]
         : []),
 
-      // ---------------- Apply search ----------------
+      // Fallback: category name match
+      ...(categoryNameFilter
+        ? [
+            {
+              $match: {
+                "CategoryInfo.CategoryName": {
+                  $regex: `^${categoryNameFilter}$`,
+                  $options: "i",
+                },
+              },
+            },
+          ]
+        : []),
+
+      // Apply search
       ...(Object.keys(searchStage).length > 0
         ? [{ $match: searchStage }]
         : []),
 
-      // ---------------- Join Maintenance Schedule ----------------
+      // ✅✅✅ CRITICAL FIX: Kung may equipment filter, alisin ang null rows
+      // Para kapag walang match → walang lumabas (empty array)
+      ...(hasEquipmentFilter
+        ? [{ $match: { "EquipmentsInfo._id": { $exists: true, $ne: null } } }]
+        : []),
+
+      // Join Maintenance Schedule
       {
         $lookup: {
           from: "maintenanceschedules",
@@ -230,13 +264,12 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
       },
     ];
 
-    // ─── Execute in parallel (data + count) ──────────────────────────
+    // ─── Execute in parallel ────────────────────────────────────────
     const [dataResult, countResult] = await Promise.all([
-      // Data pipeline — with grouping + pagination
       assign.aggregate([
         ...basePipeline,
 
-        // ---------------- Group by Laboratory ----------------
+        // Group by Laboratory
         {
           $group: {
             _id: "$LaboratoryInfo.LaboratoryName",
@@ -260,18 +293,18 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
           },
         },
 
-        // ---------------- Sort ----------------
+        // Sort
         {
           $sort: {
             [sortField === "Laboratory" ? "_id" : "createdAt"]: sortDir,
           },
         },
 
-        // ---------------- Pagination ----------------
+        // Pagination
         { $skip: skip },
         { $limit: limitNum },
 
-        // ---------------- Project ----------------
+        // Project
         {
           $project: {
             _id: 1,
@@ -302,7 +335,7 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
         },
       ]),
 
-      // Count pipeline — bilang ng GROUPS (laboratories)
+      // Count pipeline
       assign.aggregate([
         ...basePipeline,
         { $group: { _id: "$LaboratoryInfo.LaboratoryName" } },
@@ -312,18 +345,18 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
 
     const totalRecords = countResult[0]?.total || 0;
 
-    console.log("assigns", dataResult.length, "of", totalRecords);
+    console.log("📊 assigns:", dataResult.length, "of", totalRecords);
 
-    // ─── Response ────────────────────────────────────────────────────
+    // ✅ Kapag walang match, empty array ang data (hindi lahat)
     res.status(200).json({
       status: "success",
       totalRecords,
-      totalLaboratories: totalRecords, // backwards compat
+      totalLaboratories: totalRecords,
       currentPage: pageNum,
-      totalPages: Math.ceil(totalRecords / limitNum),
+      totalPages: Math.ceil(totalRecords / limitNum) || 0,
       limit: limitNum,
       count: dataResult.length,
-      data: dataResult,
+      data: dataResult, // ✅ empty [] kapag walang nahanap
     });
   } catch (error) {
     console.error("❌ Error in displayAssign:", error);
