@@ -1,8 +1,10 @@
-// src/components/Reports/EquipmentReportModal.jsx
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useContext } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import bispulogo from "../../assets/bipsulogo.png";
+import { DepartmentDisplayContext } from "../../contexts/DepartmentContext/DepartmentContext";
+import { LaboratoryContext } from "../../contexts/LaboratoryContext/LaboratoryContext";
+import { AddAssignContext } from "../../contexts/AssignContext/AddAssignContext";
 
 import {
     FileText,
@@ -12,10 +14,57 @@ import {
     Printer,
     ArrowLeft,
     Eye,
+    CheckCircle2,
+    AlertCircle,
 } from "lucide-react";
 
 // ============================================================
-// ✅ CONSTANTS — PORTRAIT & LANDSCAPE
+//  TOAST COMPONENT (inline, no extra library)
+// ============================================================
+function Toast({ toast, onClose }) {
+    useEffect(() => {
+        if (!toast) return;
+        const timer = setTimeout(onClose, 3500);
+        return () => clearTimeout(timer);
+    }, [toast, onClose]);
+
+    if (!toast) return null;
+
+    const isSuccess = toast.type === "success";
+    const Icon = isSuccess ? CheckCircle2 : AlertCircle;
+
+    return (
+        <div
+            className={`fixed top-4 right-4 z-[10000] flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg border
+                ${isSuccess
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                    : "bg-red-50 border-red-200 text-red-900"
+                } animate-in fade-in slide-in-from-top-2 duration-300`}
+            style={{ maxWidth: "380px" }}
+        >
+            <Icon
+                className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isSuccess ? "text-emerald-600" : "text-red-600"}`}
+            />
+            <div className="flex-1 text-sm">
+                {toast.title && (
+                    <div className="font-bold mb-0.5">{toast.title}</div>
+                )}
+                <div className={`${isSuccess ? "text-emerald-700" : "text-red-700"} text-xs whitespace-pre-line`}>
+                    {toast.message}
+                </div>
+            </div>
+            <button
+                onClick={onClose}
+                className={`p-0.5 rounded hover:bg-black/5 ${isSuccess ? "text-emerald-500" : "text-red-500"}`}
+            >
+                <X className="w-4 h-4" />
+            </button>
+        </div>
+    );
+}
+
+// ============================================================
+//  CONSTANTS
 // ============================================================
 const PORTRAIT_WIDTH_PX = 794;
 const PORTRAIT_HEIGHT_PX = 1123;
@@ -30,11 +79,10 @@ const LANDSCAPE_HEIGHT_MM = 210;
 const ROWS_PER_PAGE_PORTRAIT = 20;
 const ROWS_PER_PAGE_LANDSCAPE = 15;
 
-// ✅ Threshold — 6 columns max para sa portrait
 const PORTRAIT_MAX_COLUMNS = 6;
 
 // ============================================================
-// HELPER — Chunk items into pages
+// HELPERS
 // ============================================================
 const chunkItemsIntoPages = (items, rowsPerPage) => {
     if (!Array.isArray(items) || items.length === 0) return [[]];
@@ -45,9 +93,33 @@ const chunkItemsIntoPages = (items, rowsPerPage) => {
     return pages;
 };
 
-// ============================================================
-// ✅ DYNAMIC COLUMNS BUILDER (WALANG PMS)
-// ============================================================
+const toIdStr = (val) => {
+    if (!val) return "";
+    if (typeof val === "string") return val.trim();
+    if (typeof val === "object" && val._id) return String(val._id).trim();
+    return String(val).trim();
+};
+
+const flattenAssignments = (assigns) => {
+    if (!Array.isArray(assigns)) return [];
+    const flat = [];
+    assigns.forEach((group) => {
+        const equipments = group.equipments || [];
+        equipments.forEach((eq) => {
+            if (!eq || !eq._id) return;
+            flat.push({
+                ...eq,
+                laboratoryId: group.laboratoryId || eq.laboratoryId,
+                laboratoryName: group.laboratoryName || eq.laboratoryName,
+                departmentId: group.departmentId || eq.departmentId,
+                departmentName: group.departmentName || eq.departmentName,
+                categoryName: eq.categoryName || "",
+            });
+        });
+    });
+    return flat;
+};
+
 const buildColumns = (formData, rowsPerPage = ROWS_PER_PAGE_PORTRAIT) => {
     const cols = [
         {
@@ -105,7 +177,16 @@ const buildColumns = (formData, rowsPerPage = ROWS_PER_PAGE_PORTRAIT) => {
         });
     }
 
-    // Status — always included
+    if (formData.includeDepartment) {
+        cols.push({
+            key: "departmentName",
+            label: "Department",
+            width: 13,
+            align: "center",
+            render: (e) => e.departmentName || "N/A",
+        });
+    }
+
     cols.push({
         key: "status",
         label: "Status",
@@ -151,7 +232,7 @@ const buildColumns = (formData, rowsPerPage = ROWS_PER_PAGE_PORTRAIT) => {
 };
 
 // ============================================================
-// ✅ STATIC PDF PAGE — DYNAMIC ORIENTATION
+//  STATIC PDF PAGE
 // ============================================================
 function EquipmentReportPdfPage({
     pageItems,
@@ -160,7 +241,7 @@ function EquipmentReportPdfPage({
     formData,
     labName,
     emptyRowCount = 0,
-    orientation = "portrait", // ✅ "portrait" | "landscape"
+    orientation = "portrait",
 }) {
     const isLandscape = orientation === "landscape";
 
@@ -193,14 +274,12 @@ function EquipmentReportPdfPage({
                 flexDirection: "column",
             }}
         >
-            {/* HEADER — REPUBLIC OF THE PHILIPPINES */}
             <header className="border border-black shrink-0">
                 <div
                     className={`grid grid-cols-12 ${
                         isLandscape ? "min-h-[90px]" : "min-h-[110px]"
                     }`}
                 >
-                    {/* LEFT: LOGO */}
                     <div className="col-span-3 border-r border-black flex flex-col items-center justify-center text-center px-2 py-2">
                         <img
                             src={bispulogo}
@@ -214,26 +293,22 @@ function EquipmentReportPdfPage({
                         />
                     </div>
 
-                    {/* CENTER: REPUBLIC INFO */}
                     <div className="col-span-6 border-r border-black flex flex-col">
                         <div className="flex-1 border-b border-black px-2 py-1 flex flex-col justify-center">
                             <div className="text-center text-[11px] font-bold leading-tight">
                                 Republic of the Philippines
                             </div>
                         </div>
-
                         <div className="flex-1 border-b border-black px-2 py-1 flex flex-col justify-center">
                             <div className="text-center text-[10px] font-bold leading-tight">
                                 Biliran Province
                             </div>
                         </div>
-
                         <div className="flex-1 border-b border-black px-2 py-1 flex flex-col justify-center">
                             <div className="text-center text-[10px] font-bold leading-tight">
                                 Naval, Biliran
                             </div>
                         </div>
-
                         <div className="flex-1 px-2 py-1 flex flex-col justify-center">
                             <div className="text-center text-[11px] font-bold leading-tight break-words uppercase">
                                 {formData.title || "EQUIPMENT INVENTORY REPORT"}
@@ -241,12 +316,9 @@ function EquipmentReportPdfPage({
                         </div>
                     </div>
 
-                    {/* RIGHT: META */}
                     <div className="col-span-3 flex flex-col text-[9px]">
                         <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
-                            <span className="leading-tight">
-                                Report Type:
-                            </span>
+                            <span className="leading-tight">Report Type:</span>
                             <span className="block text-center font-bold text-[10px] leading-tight break-words uppercase">
                                 {formData.reportType}
                             </span>
@@ -272,7 +344,6 @@ function EquipmentReportPdfPage({
                     </div>
                 </div>
 
-                {/* SUB-HEADER — Laboratory */}
                 <div className="border-t border-black px-2 py-2 flex items-center justify-center gap-2 bg-slate-50">
                     <span className="text-[11px] font-bold">
                         SCHOOL/OFFICE OF
@@ -290,7 +361,6 @@ function EquipmentReportPdfPage({
                 </div>
             </header>
 
-            {/* META INFO */}
             <div className="mt-3 mb-2 grid grid-cols-3 gap-2 text-[9px] bg-slate-100 p-2 rounded shrink-0">
                 <div>
                     <strong>Status:</strong> {formData.status || "All"}
@@ -313,7 +383,6 @@ function EquipmentReportPdfPage({
                 </div>
             </div>
 
-            {/* MAIN TABLE */}
             <table
                 className="w-full border-collapse border border-black table-fixed"
                 style={{ tableLayout: "fixed", width: "100%" }}
@@ -382,7 +451,6 @@ function EquipmentReportPdfPage({
                 </div>
             )}
 
-            {/* SIGNATURES */}
             <div className="mt-auto pt-4 grid grid-cols-2 gap-12 text-[10px] shrink-0">
                 <div>
                     <div className="mb-6 font-medium">Prepared By:</div>
@@ -413,23 +481,36 @@ export default function EquipmentReportModal({
     onClose,
     equipmentData = [],
     laboratories = [],
+    departments = [],
     defaultPreparedBy = "",
 }) {
+    const { departmentDropdown, dropdownLoading } =
+        useContext(DepartmentDisplayContext);
+
+    const {
+        GetLaboratoryByDepartment,
+        laboratoriesByDepartment,
+        loadingByDepartment,
+    } = useContext(LaboratoryContext);
+
+    const { displayAssign } = useContext(AddAssignContext);
+
     // ==========================================
     // STATE
     // ==========================================
     const [reportForm, setReportForm] = useState({
         title: "Equipment Inventory Report",
         reportType: "inventory",
+        department: "",
         laboratory: "",
         status: "",
-        brand: "",
         dateFrom: "",
         dateTo: "",
         includeSerialNumber: true,
         includeBrand: true,
         includeCategory: true,
         includeLaboratory: true,
+        includeDepartment: false,
         includeDates: true,
         preparedBy: defaultPreparedBy,
         remarks: "",
@@ -441,6 +522,19 @@ export default function EquipmentReportModal({
     const [previewBlobUrl, setPreviewBlobUrl] = useState(null);
     const pdfContainerRef = useRef(null);
 
+    const [fetchedEquipment, setFetchedEquipment] = useState([]);
+    const [fetchingEquipment, setFetchingEquipment] = useState(false);
+
+    // 🆕 Toast state
+    const [toast, setToast] = useState(null);
+
+    const showToast = (type, title, message) => {
+        setToast({ type, title, message });
+    };
+
+    // ==========================================
+    // EFFECTS
+    // ==========================================
     useEffect(() => {
         if (defaultPreparedBy) {
             setReportForm((prev) => ({
@@ -468,6 +562,83 @@ export default function EquipmentReportModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
+    useEffect(() => {
+        if (!reportForm.department) return;
+        GetLaboratoryByDepartment(reportForm.department, { silent: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reportForm.department]);
+
+    // 🆕 AUTO-FETCH EQUIPMENT — with dateFrom/dateTo (server-side)
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const hasAnyFilter =
+            !!reportForm.department ||
+            !!reportForm.laboratory ||
+            !!reportForm.dateFrom ||
+            !!reportForm.dateTo;
+
+        if (!hasAnyFilter) {
+            setFetchedEquipment([]);
+            return;
+        }
+
+        let cancelled = false;
+
+        const fetchEquipment = async () => {
+            setFetchingEquipment(true);
+            try {
+                console.log("📤 Fetching equipment with filters:", {
+                    department: reportForm.department || "(none)",
+                    laboratory: reportForm.laboratory || "(none)",
+                    dateFrom: reportForm.dateFrom || "(none)",
+                    dateTo: reportForm.dateTo || "(none)",
+                });
+
+                const result = await displayAssign({
+                    department: reportForm.department,
+                    laboratory: reportForm.laboratory,
+                    dateFrom: reportForm.dateFrom,
+                    dateTo: reportForm.dateTo,
+                    page: 1,
+                    limit: 1000,
+                });
+
+                if (cancelled) return;
+
+                if (result?.data) {
+                    const flat = flattenAssignments(result.data);
+                    console.log(
+                        "📦 Fetched & flattened:",
+                        flat.length,
+                        "equipment items"
+                    );
+                    setFetchedEquipment(flat);
+                } else {
+                    setFetchedEquipment([]);
+                }
+            } catch (err) {
+                console.error("❌ Failed to fetch equipment:", err);
+                if (!cancelled) setFetchedEquipment([]);
+            } finally {
+                if (!cancelled) setFetchingEquipment(false);
+            }
+        };
+
+        fetchEquipment();
+
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        isOpen,
+        reportForm.department,
+        reportForm.laboratory,
+        reportForm.dateFrom,
+        reportForm.dateTo,
+    ]);
+
     // ==========================================
     // HELPERS
     // ==========================================
@@ -475,60 +646,157 @@ export default function EquipmentReportModal({
         setReportForm((prev) => ({ ...prev, [field]: value }));
     };
 
-    const getFilteredData = useCallback(() => {
-        let filtered = [...equipmentData];
+    const handleDepartmentChange = (value) => {
+        setReportForm((prev) => ({
+            ...prev,
+            department: value,
+            laboratory: "",
+        }));
+    };
 
-        if (reportForm.laboratory) {
-            filtered = filtered.filter(
-                (e) => e.laboratoryId === reportForm.laboratory
-            );
+    const laboratoryList = useCallback(() => {
+        if (reportForm.department) {
+            return laboratoriesByDepartment || [];
         }
+        return laboratories || [];
+    }, [reportForm.department, laboratoriesByDepartment, laboratories]);
+
+    const getEquipmentSource = useCallback(() => {
+        const hasFilter =
+            reportForm.department ||
+            reportForm.laboratory ||
+            reportForm.dateFrom ||
+            reportForm.dateTo;
+
+        if (hasFilter && fetchedEquipment.length > 0) {
+            return fetchedEquipment;
+        }
+        return equipmentData || [];
+    }, [
+        reportForm.department,
+        reportForm.laboratory,
+        reportForm.dateFrom,
+        reportForm.dateTo,
+        fetchedEquipment,
+        equipmentData,
+    ]);
+
+    // ==========================================
+    // FILTER LOGIC
+    // ==========================================
+    const getFilteredData = useCallback(() => {
+        const source = getEquipmentSource();
+
+        if (!Array.isArray(source)) {
+            console.warn("⚠️ Source is not an array:", source);
+            return [];
+        }
+
+        let filtered = [...source];
+
+        const hasDepartment = Boolean(reportForm.department);
+        const hasLaboratory = Boolean(reportForm.laboratory);
+
+        const matchesDepartment = (e) => {
+            const target = toIdStr(reportForm.department);
+            return (
+                toIdStr(e.departmentId) === target ||
+                toIdStr(e.department_id) === target ||
+                toIdStr(e.deptId) === target ||
+                toIdStr(e.department) === target ||
+                toIdStr(e.department?._id) === target
+            );
+        };
+
+        const matchesLaboratory = (e) => {
+            const target = toIdStr(reportForm.laboratory);
+            return (
+                toIdStr(e.laboratoryId) === target ||
+                toIdStr(e.laboratory_id) === target ||
+                toIdStr(e.labId) === target ||
+                toIdStr(e.laboratory) === target ||
+                toIdStr(e.laboratory?._id) === target
+            );
+        };
+
+        if (hasDepartment && hasLaboratory) {
+            filtered = filtered.filter(
+                (e) => matchesDepartment(e) && matchesLaboratory(e)
+            );
+        } else if (hasDepartment) {
+            filtered = filtered.filter(matchesDepartment);
+        } else if (hasLaboratory) {
+            filtered = filtered.filter(matchesLaboratory);
+        }
+
+        // Status
         if (reportForm.status) {
-            filtered = filtered.filter((e) => e.status === reportForm.status);
-        }
-        if (reportForm.brand) {
+            const statusTarget = reportForm.status.trim().toLowerCase();
             filtered = filtered.filter(
-                (e) =>
-                    (e.Brand || e.name || "").toLowerCase() ===
-                    reportForm.brand.toLowerCase()
+                (e) => (e.status || "").trim().toLowerCase() === statusTarget
             );
         }
-        if (reportForm.dateFrom) {
+
+        // ⚠️ Brand filter — REMOVED ❌
+
+        // Date filters — fallback only
+        if (reportForm.dateFrom && fetchedEquipment.length === 0) {
             const from = new Date(reportForm.dateFrom);
+            from.setHours(0, 0, 0, 0);
             filtered = filtered.filter((e) => {
-                const d = e.lastMaintenanceDate
-                    ? new Date(e.lastMaintenanceDate)
-                    : null;
-                return d && d >= from;
+                if (!e.lastMaintenanceDate) return false;
+                const d = new Date(e.lastMaintenanceDate);
+                return !isNaN(d.getTime()) && d >= from;
             });
         }
-        if (reportForm.dateTo) {
+
+        if (reportForm.dateTo && fetchedEquipment.length === 0) {
             const to = new Date(reportForm.dateTo);
             to.setHours(23, 59, 59, 999);
             filtered = filtered.filter((e) => {
-                const d = e.lastMaintenanceDate
-                    ? new Date(e.lastMaintenanceDate)
-                    : null;
-                return d && d <= to;
+                if (!e.lastMaintenanceDate) return false;
+                const d = new Date(e.lastMaintenanceDate);
+                return !isNaN(d.getTime()) && d <= to;
             });
         }
 
+        // Defective
         if (reportForm.reportType === "defective") {
+            const defectiveStatuses = [
+                "defective",
+                "missing",
+                "not available",
+            ];
             filtered = filtered.filter((e) =>
-                ["Defective", "Missing", "Not Available"].includes(e.status)
+                defectiveStatuses.includes(
+                    (e.status || "").trim().toLowerCase()
+                )
             );
         }
 
+        console.log("🔍 getFilteredData:", {
+            source: source === fetchedEquipment ? "fetched (server-side)" : "prop (client-side)",
+            totalInput: source.length,
+            afterFilter: filtered.length,
+            filters: {
+                department: reportForm.department || "(none)",
+                laboratory: reportForm.laboratory || "(none)",
+                status: reportForm.status || "(none)",
+                dateFrom: reportForm.dateFrom || "(none)",
+                dateTo: reportForm.dateTo || "(none)",
+                reportType: reportForm.reportType,
+            },
+        });
+
         return filtered;
-    }, [equipmentData, reportForm]);
+    }, [getEquipmentSource, fetchedEquipment, reportForm]);
 
     // ==========================================
-    // ✅ COMPUTED — Orientation base sa columns
+    // COMPUTED
     // ==========================================
     const previewColumns = buildColumns(reportForm);
     const columnCount = previewColumns.length;
 
-    // ✅ Dynamic orientation
     const isLandscape = columnCount > PORTRAIT_MAX_COLUMNS;
     const orientation = isLandscape ? "landscape" : "portrait";
 
@@ -549,13 +817,26 @@ export default function EquipmentReportModal({
         : ROWS_PER_PAGE_PORTRAIT;
 
     // ==========================================
-    // ✅ PREVIEW PDF
+    // PREVIEW PDF
     // ==========================================
     const handlePreviewPDF = useCallback(async () => {
         const filtered = getFilteredData();
 
         if (filtered.length === 0) {
-            alert("⚠️ No data included in the report. Adjust the filters.");
+            const source = getEquipmentSource();
+            if (source.length === 0) {
+                showToast(
+                    "error",
+                    "No Data",
+                    "No equipment data available.\n\nPlease check your filters or try again."
+                );
+            } else {
+                showToast(
+                    "error",
+                    "No Matching Records",
+                    `Total available: ${source.length}\nPlease adjust your filters and try again.`
+                );
+            }
             return;
         }
 
@@ -620,14 +901,27 @@ export default function EquipmentReportModal({
 
             setPreviewBlobUrl(url);
             setShowPDFPreview(true);
+
+            // 🆕 Success toast
+            showToast(
+                "success",
+                "PDF Generated",
+                `${filtered.length} record${filtered.length !== 1 ? "s" : ""} • ${pageNodes.length} page${pageNodes.length !== 1 ? "s" : ""} • ${orientation.toUpperCase()}`
+            );
         } catch (err) {
             console.error("PDF preview error:", err);
-            alert("❌ Failed to generate PDF: " + err.message);
+            showToast(
+                "error",
+                "PDF Generation Failed",
+                err.message || "Something went wrong. Please try again."
+            );
         } finally {
             setIsGeneratingPDF(false);
         }
     }, [
         getFilteredData,
+        getEquipmentSource,
+        reportForm,
         previewBlobUrl,
         orientation,
         currentWidthPx,
@@ -637,7 +931,7 @@ export default function EquipmentReportModal({
     ]);
 
     // ==========================================
-    // ✅ DOWNLOAD
+    // DOWNLOAD
     // ==========================================
     const handleDownloadPDF = useCallback(() => {
         if (!previewBlobUrl) return;
@@ -650,10 +944,13 @@ export default function EquipmentReportModal({
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+
+        // 🆕 Success toast
+        showToast("success", "Downloaded", "PDF file has been downloaded successfully.");
     }, [previewBlobUrl, reportForm.title, orientation]);
 
     // ==========================================
-    // ✅ PRINT
+    // PRINT
     // ==========================================
     const handlePrintPDF = useCallback(() => {
         if (!previewBlobUrl) return;
@@ -691,10 +988,30 @@ export default function EquipmentReportModal({
     const pdfPages = chunkItemsIntoPages(pdfPreviewData, rowsPerPage);
     const totalPdfPages = pdfPages.length;
 
-    const labNameForReport = reportForm.laboratory
-        ? laboratories?.find((l) => l._id === reportForm.laboratory)
-              ?.LaboratoryName || "N/A"
-        : "All Laboratories";
+    const labNameForReport = (() => {
+        if (reportForm.laboratory) {
+            const fromContext = (laboratoriesByDepartment || []).find(
+                (l) => l._id === reportForm.laboratory
+            );
+            if (fromContext) return fromContext.LaboratoryName || "N/A";
+
+            const fromProp = (laboratories || []).find(
+                (l) => l._id === reportForm.laboratory
+            );
+            return fromProp?.LaboratoryName || "N/A";
+        }
+
+        if (reportForm.department) {
+            const dept = (departmentDropdown || departments || []).find(
+                (d) => d._id === reportForm.department
+            );
+            return dept?.DepartmentName
+                ? `All Laboratories in ${dept.DepartmentName}`
+                : "All Laboratories (in selected department)";
+        }
+
+        return "All Laboratories";
+    })();
 
     if (!isOpen) return null;
 
@@ -703,6 +1020,9 @@ export default function EquipmentReportModal({
     // ==========================================
     return (
         <>
+            {/* 🆕 TOAST */}
+            <Toast toast={toast} onClose={() => setToast(null)} />
+
             {/* HIDDEN PDF RENDER CONTAINER */}
             <div
                 ref={pdfContainerRef}
@@ -738,16 +1058,14 @@ export default function EquipmentReportModal({
                     })}
             </div>
 
-            {/* MODAL — ✅ z-[999] */}
+            {/* MODAL */}
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
                 <div
                     className={`bg-white rounded-2xl shadow-2xl w-full ${
                         showPDFPreview ? "max-w-6xl" : "max-w-2xl"
                     } max-h-[95vh] overflow-hidden flex flex-col`}
                 >
-                    {/* ============================================
-                        ✅ HEADER — BLUE (English Subtitle)
-                        ============================================ */}
+                    {/* HEADER */}
                     <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-2xl flex justify-between items-center flex-shrink-0">
                         <div className="flex items-center gap-3">
                             <FileText className="w-6 h-6" />
@@ -776,7 +1094,7 @@ export default function EquipmentReportModal({
                     {!showPDFPreview && (
                         <>
                             <div className="p-6 space-y-5 overflow-y-auto flex-1">
-                                {/* ✅ Orientation Info Banner */}
+                                {/* Orientation Banner */}
                                 <div
                                     className={`flex items-center gap-3 p-3 rounded-xl border-2 ${
                                         isLandscape
@@ -831,6 +1149,44 @@ export default function EquipmentReportModal({
                                     </span>
                                 </div>
 
+                                {/* Dynamic equipment count */}
+                                <div className="text-[11px] text-gray-500 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                                    📦{" "}
+                                    {fetchingEquipment ? (
+                                        <>
+                                            <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
+                                            Fetching equipment...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <strong>
+                                                {getEquipmentSource().length}
+                                            </strong>{" "}
+                                            equipment record
+                                            {getEquipmentSource().length !== 1
+                                                ? "s"
+                                                : ""}{" "}
+                                            {reportForm.department ||
+                                            reportForm.laboratory ||
+                                            reportForm.dateFrom ||
+                                            reportForm.dateTo
+                                                ? "(filtered)"
+                                                : "available"}
+                                            {(reportForm.dateFrom ||
+                                                reportForm.dateTo) && (
+                                                <span className="block mt-0.5 text-[10px] text-blue-600">
+                                                    📅{" "}
+                                                    {reportForm.dateFrom ||
+                                                        "any"}
+                                                    {" → "}
+                                                    {reportForm.dateTo ||
+                                                        "any"}
+                                                </span>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                                         Report Title
@@ -874,7 +1230,41 @@ export default function EquipmentReportModal({
                                     </select>
                                 </div>
 
+                                {/* Department + Laboratory */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                            Department
+                                        </label>
+                                        <select
+                                            value={reportForm.department}
+                                            onChange={(e) =>
+                                                handleDepartmentChange(
+                                                    e.target.value
+                                                )
+                                            }
+                                            disabled={dropdownLoading}
+                                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm
+                                                focus:ring-2 focus:ring-blue-500 outline-none bg-white
+                                                disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                        >
+                                            <option value="">
+                                                {dropdownLoading
+                                                    ? "Loading departments..."
+                                                    : "All Departments"}
+                                            </option>
+                                            {(departmentDropdown ||
+                                                departments ||
+                                                []).map((d, i) => (
+                                                    <option
+                                                        key={d._id || `dept-${i}`}
+                                                        value={d._id}
+                                                    >
+                                                        {d.DepartmentName}
+                                                    </option>
+                                                ))}
+                                        </select>
+                                    </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                                             Laboratory
@@ -887,13 +1277,25 @@ export default function EquipmentReportModal({
                                                     e.target.value
                                                 )
                                             }
+                                            disabled={
+                                                !reportForm.department ||
+                                                loadingByDepartment
+                                            }
                                             className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm
-                                                focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                                focus:ring-2 focus:ring-blue-500 outline-none bg-white
+                                                disabled:bg-gray-100 disabled:cursor-not-allowed"
                                         >
                                             <option value="">
-                                                All Laboratories
+                                                {!reportForm.department
+                                                    ? "Select department first"
+                                                    : loadingByDepartment
+                                                        ? "Loading laboratories..."
+                                                        : laboratoryList()
+                                                            .length === 0
+                                                            ? "No laboratories found"
+                                                            : "All Laboratories"}
                                             </option>
-                                            {laboratories?.map((lab) => (
+                                            {laboratoryList().map((lab) => (
                                                 <option
                                                     key={lab._id}
                                                     value={lab._id}
@@ -902,45 +1304,52 @@ export default function EquipmentReportModal({
                                                 </option>
                                             ))}
                                         </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                                            Status
-                                        </label>
-                                        <select
-                                            value={reportForm.status}
-                                            onChange={(e) =>
-                                                handleReportChange(
-                                                    "status",
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm
-                                                focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                                        >
-                                            <option value="">All Status</option>
-                                            <option value="Available">
-                                                Available
-                                            </option>
-                                            <option value="Not Available">
-                                                Not Available
-                                            </option>
-                                            <option value="Defective">
-                                                Defective
-                                            </option>
-                                            <option value="Missing">
-                                                Missing
-                                            </option>
-                                            <option value="Fixed">Fixed</option>
-                                            <option value="Found">Found</option>
-                                        </select>
+                                        {reportForm.department && (
+                                            <p className="mt-1 text-[11px] text-gray-500">
+                                                {loadingByDepartment
+                                                    ? "Fetching laboratories..."
+                                                    : `${laboratoryList().length} laborator${laboratoryList().length === 1 ? "y" : "ies"} found`}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
+                                {/* Status — Brand removed */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                                        Status
+                                    </label>
+                                    <select
+                                        value={reportForm.status}
+                                        onChange={(e) =>
+                                            handleReportChange(
+                                                "status",
+                                                e.target.value
+                                            )
+                                        }
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm
+                                            focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                    >
+                                        <option value="">All Status</option>
+                                        <option value="Available">Available</option>
+                                        <option value="Not Available">
+                                            Not Available
+                                        </option>
+                                        <option value="Defective">Defective</option>
+                                        <option value="Missing">Missing</option>
+                                        <option value="Fixed">Fixed</option>
+                                        <option value="Found">Found</option>
+                                    </select>
+                                </div>
+
+                                {/* Date Range */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                                            Date From
+                                            Date From{" "}
+                                            <span className="text-[10px] text-blue-600 font-normal">
+                                                (server-side)
+                                            </span>
                                         </label>
                                         <input
                                             type="date"
@@ -957,7 +1366,10 @@ export default function EquipmentReportModal({
                                     </div>
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                                            Date To
+                                            Date To{" "}
+                                            <span className="text-[10px] text-blue-600 font-normal">
+                                                (server-side)
+                                            </span>
                                         </label>
                                         <input
                                             type="date"
@@ -995,6 +1407,10 @@ export default function EquipmentReportModal({
                                             {
                                                 key: "includeLaboratory",
                                                 label: "Laboratory",
+                                            },
+                                            {
+                                                key: "includeDepartment",
+                                                label: "Department",
                                             },
                                             {
                                                 key: "includeDates",
@@ -1097,15 +1513,19 @@ export default function EquipmentReportModal({
                                 </button>
                                 <button
                                     onClick={handlePreviewPDF}
-                                    disabled={isGeneratingPDF}
+                                    disabled={
+                                        isGeneratingPDF || fetchingEquipment
+                                    }
                                     className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white
                                         bg-blue-600 hover:bg-blue-700 flex items-center gap-2
                                         shadow-md disabled:opacity-50"
                                 >
-                                    {isGeneratingPDF ? (
+                                    {isGeneratingPDF || fetchingEquipment ? (
                                         <>
                                             <Loader2 className="w-4 h-4 animate-spin" />
-                                            Generating...
+                                            {fetchingEquipment
+                                                ? "Fetching..."
+                                                : "Generating..."}
                                         </>
                                     ) : (
                                         <>

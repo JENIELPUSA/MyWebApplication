@@ -103,6 +103,45 @@ exports.Updatedepartment = AsyncErrorHandler(async (req, res, next) => {
     });
 })
 
+exports.DepartmentDropdown = AsyncErrorHandler(async (req, res, next) => {
+    const { search = "" } = req.query;
+
+    // Build search filter
+    const matchStage = {};
+
+    if (search.trim()) {
+        const escaped = search
+            .trim()
+            .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+        matchStage.DepartmentName = {
+            $regex: escaped,
+            $options: "i",
+        };
+    }
+
+    // Fetch departments for dropdown
+    const dataResult = await department.aggregate([
+        { $match: matchStage },
+        { $sort: { DepartmentName: 1 } },
+        {
+            $project: {
+                _id: 1,
+                DepartmentName: 1,
+            },
+        },
+    ]);
+
+
+    console.log("dataResult",dataResult)
+
+    res.status(200).json({
+        status: "success",
+        count: dataResult.length,
+        data: dataResult,
+    });
+});
+
 exports.deletedepartment = AsyncErrorHandler(async (req, res, next) => {
     await department.findByIdAndDelete(req.params.id)
 

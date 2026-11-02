@@ -1,18 +1,22 @@
 const mongoose = require('mongoose');
 const Equipment = require('./../Models/Equipment');
 
-// Define the category schema
-const categorySchema = new mongoose.Schema({
-    Laboratory: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Laboratory',  // Reference to the Laboratory model
-      },
-    Equipments: { // Tinanggal ang 's'
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Equipment',  // Reference to the Equipment model
-        required: true
+const categorySchema = new mongoose.Schema(
+    {
+        Laboratory: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Laboratory',
+        },
+        Equipments: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Equipment',
+            required: true
+        }
+    },
+    {
+        timestamps: true,
     }
-});
+);
 
 // Pre-hook for validating equipment availability before saving
 categorySchema.pre('save', async function (next) {

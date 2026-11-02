@@ -10,7 +10,9 @@ import axiosInstance from "../../components/ReusableComponent/axiosInstance";
 
 export const AddAssignContext = createContext();
 
-// ✅ Default filters constant para consistent
+// ============================================================
+// ✅ DEFAULT FILTERS
+// ============================================================
 const DEFAULT_FILTERS = {
   search: "",
   page: 1,
@@ -18,9 +20,46 @@ const DEFAULT_FILTERS = {
   sortBy: "createdAt",
   sortOrder: "desc",
   laboratory: "",
+  department: "",
   category: "",
   brand: "",
   status: "",
+  dateFrom: "", // 🆕
+  dateTo: "",   // 🆕
+};
+
+// ============================================================
+// ✅ HELPER — Normalize ID (string / ObjectId / object) → string
+// ============================================================
+const toIdStr = (val) => {
+  if (!val) return "";
+  if (typeof val === "string") return val.trim();
+  if (typeof val === "object" && val._id) return String(val._id).trim();
+  return String(val).trim();
+};
+
+// ============================================================
+// ✅ HELPER — Clean query params (remove empty values)
+// ============================================================
+const cleanQueryParams = (params) => {
+  const cleaned = {};
+  Object.entries(params).forEach(([key, value]) => {
+    if (
+      value !== "" &&
+      value !== null &&
+      value !== undefined &&
+      value !== "All"
+    ) {
+      // Normalize ID-like fields
+      if (["department", "laboratory", "category"].includes(key)) {
+        const normalized = toIdStr(value);
+        if (normalized) cleaned[key] = normalized;
+      } else {
+        cleaned[key] = value;
+      }
+    }
+  });
+  return cleaned;
 };
 
 export const AddAssignProvider = ({ children }) => {
@@ -107,25 +146,7 @@ export const AddAssignProvider = ({ children }) => {
   };
 
   // ============================================================
-  // ✅ CLEAN QUERY PARAMS (tanggalin ang empty values)
-  // ============================================================
-  const cleanQueryParams = (params) => {
-    const cleaned = {};
-    Object.entries(params).forEach(([key, value]) => {
-      if (
-        value !== "" &&
-        value !== null &&
-        value !== undefined &&
-        value !== "All"
-      ) {
-        cleaned[key] = value;
-      }
-    });
-    return cleaned;
-  };
-
-  // ============================================================
-  // ✅ DISPLAY ASSIGN — FIXED: i-reset ang filters kapag walang params
+  // ✅ DISPLAY ASSIGN — Robust param handling + logs
   // ============================================================
   const displayAssign = useCallback(
     async (queryParams = {}) => {
@@ -140,16 +161,15 @@ export const AddAssignProvider = ({ children }) => {
       setError(null);
 
       try {
-        // ✅ DETECT kung "reset" ang request (walang params OR explicit reset)
+        // ✅ DETECT kung "reset" ang request
         const isResetRequest =
-          !queryParams ||
-          Object.keys(queryParams).length === 0;
+          !queryParams || Object.keys(queryParams).length === 0;
 
-        // ✅ Kung reset, gamitin ang DEFAULT_FILTERS
-        // Kung hindi, i-merge ang filters + queryParams
+        // ✅ Merge filters + queryParams
         const baseFilters = isResetRequest ? DEFAULT_FILTERS : filters;
         const mergedParams = { ...baseFilters, ...queryParams };
 
+        // ✅ Clean & normalize
         const cleanedParams = cleanQueryParams(mergedParams);
         const queryString = new URLSearchParams(cleanedParams).toString();
 
@@ -157,15 +177,33 @@ export const AddAssignProvider = ({ children }) => {
           queryString ? `?${queryString}` : ""
         }`;
 
-        console.log("🌐 Fetching:", url);
-        console.log("🧹 isResetRequest:", isResetRequest);
-        console.log("📋 mergedParams:", mergedParams);
+        // ============ DEBUG LOGS ============
+        console.log("🌐 Fetching Assigns:");
+        console.log("  isResetRequest:", isResetRequest);
+        console.log("  Filters sent:", {
+          department: cleanedParams.department || "(none)",
+          laboratory: cleanedParams.laboratory || "(none)",
+          category: cleanedParams.category || "(none)",
+          brand: cleanedParams.brand || "(none)",
+          status: cleanedParams.status || "(none)",
+          search: cleanedParams.search || "(none)",
+          dateFrom: cleanedParams.dateFrom || "(none)", // 🆕
+          dateTo: cleanedParams.dateTo || "(none)",     // 🆕
+        });
+        console.log("  Full URL:", url);
+        // =====================================
 
         const response = await axiosInstance.get(url, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
 
-        console.log("📥 displayAssign response:", response.data);
+        console.log("📥 displayAssign response:", {
+          status: response.data.status,
+          totalRecords: response.data.totalRecords,
+          totalLaboratories: response.data.totalLaboratories,
+          count: response.data.count,
+          firstItem: response.data.data?.[0] || null,
+        });
 
         if (response.data.status === "success") {
           // ✅ I-save ang data
@@ -181,8 +219,7 @@ export const AddAssignProvider = ({ children }) => {
             count: response.data.count || 0,
           });
 
-          // ✅ FIX: Kung reset request, i-reset ang filters sa DEFAULT
-          // Kung hindi, i-merge lang ang queryParams
+          // ✅ Reset o merge ang filters
           if (isResetRequest) {
             setFilters(DEFAULT_FILTERS);
           } else {
@@ -193,6 +230,7 @@ export const AddAssignProvider = ({ children }) => {
             data: response.data.data,
             pagination: {
               totalRecords: response.data.totalRecords,
+              totalLaboratories: response.data.totalLaboratories,
               currentPage: response.data.currentPage,
               totalPages: response.data.totalPages,
               limit: response.data.limit,
@@ -201,7 +239,7 @@ export const AddAssignProvider = ({ children }) => {
           };
         }
       } catch (error) {
-        console.error("Error fetching assigns:", error);
+        console.error("❌ Error fetching assigns:", error);
 
         if (error.response?.status === 404) {
           setError(error.response.data.message || "No laboratory assigned.");
@@ -266,7 +304,23 @@ export const AddAssignProvider = ({ children }) => {
 
   const handleFilterChange = useCallback(
     (filterKey, value) => {
-      return displayAssign({ ...filters, [filterKey]: value, page: 1 });
+      // 🆕 Normalize ID-like filters automatically
+      const normalizedValue = ["department", "laboratory", "category"].includes(
+        filterKey,
+      )
+        ? toIdStr(value)
+        : value;
+
+      // 🆕 Debug pag date filter
+      if (filterKey === "dateFrom" || filterKey === "dateTo") {
+        console.log(`📅 ${filterKey} changed:`, normalizedValue || "(cleared)");
+      }
+
+      return displayAssign({
+        ...filters,
+        [filterKey]: normalizedValue,
+        page: 1,
+      });
     },
     [displayAssign, filters],
   );
@@ -279,17 +333,15 @@ export const AddAssignProvider = ({ children }) => {
   );
 
   // ============================================================
-  // ✅ RESET FILTERS — explicit reset
+  // ✅ RESET FILTERS
   // ============================================================
   const resetFilters = useCallback(() => {
-    // ✅ I-reset ang filters state
     setFilters(DEFAULT_FILTERS);
-    // ✅ Tawagin ang displayAssign na walang params (mag-trigger ng reset logic)
     return displayAssign();
   }, [displayAssign]);
 
   // ============================================================
-  // ✅ AUTO-FETCH ASSIGNS KAPAG MAY AUTHTOKEN
+  // ✅ AUTO-FETCH ASSIGNS
   // ============================================================
   useEffect(() => {
     const authToken = getAuthToken();

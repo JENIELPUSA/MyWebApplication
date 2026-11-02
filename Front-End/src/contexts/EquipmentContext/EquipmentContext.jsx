@@ -374,10 +374,10 @@ export const EquipmentProvider = ({ children }) => {
                 }
             );
 
-            console.log("response", response)
-
             if (response.data && response.data.status === "success") {
                 setModalStatus("success");
+
+                console.log("Trigger!!!")
                 setShowModal(true);
                 await fetchEquipmentData();
                 return { success: true, data: response.data.data };

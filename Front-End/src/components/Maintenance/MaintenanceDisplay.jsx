@@ -340,7 +340,8 @@ function MaintenanceDisplay() {
   const totalRecords = pagination.totalRecords || 0;
   const currentPageNum = pagination.currentPage || 1;
 
-  const tableColSpan = canEdit ? 9 : 8;
+  // 🆕 Adjusted colSpan — removed Next Maint. column
+  const tableColSpan = canEdit ? 8 : 7;
 
   // ============================================================
   // PAGE NUMBERS (with ellipsis)
@@ -628,7 +629,7 @@ function MaintenanceDisplay() {
               <th className="px-4 py-3">Specification</th>
               <th className="px-4 py-3">Dept / Lab / Encharge</th>
               <th className="px-4 py-3">Last Maint.</th>
-              <th className="px-4 py-3">Next Maint.</th>
+              {/* 🆕 REMOVED: Next Maint. column */}
               {canEdit && <th className="px-4 py-3 text-center">Actions</th>}
             </tr>
           </thead>
@@ -708,17 +709,7 @@ function MaintenanceDisplay() {
                     <td className="px-4 py-4 text-xs text-gray-600 dark:text-gray-300">
                       {formatDate(equipment.lastMaintenanceDate)}
                     </td>
-                    <td className="px-4 py-4 text-xs font-semibold text-gray-700 dark:text-gray-200">
-                      <div className="flex items-center gap-2">
-                        {formatDate(equipment.nextMaintenanceDate)}
-                        {equipment.hasMaintenance && (
-                          <AlertCircle
-                            className="w-4 h-4 text-red-500 dark:text-red-400 animate-pulse"
-                            title="Maintenance Scheduled!"
-                          />
-                        )}
-                      </div>
-                    </td>
+                    {/* 🆕 REMOVED: Next Maint. cell */}
 
                     {canEdit && (
                       <td className="px-4 py-4">

@@ -4,12 +4,16 @@ const departmentsController = require('./../Controller/departmentController')
 const authController = require('./../Controller/authController')
 
 router.route('/')
-    .post(authController.protect,departmentsController.createdepartment)
-    .get(authController.protect,departmentsController.DisplayDepartment)
+    .post(authController.protect, departmentsController.createdepartment)
+    .get(authController.protect, departmentsController.DisplayDepartment)
+
+
+router.route('/dropdown')
+    .get(authController.protect, departmentsController.DepartmentDropdown)
 
 router.route('/:id')
-    .patch(authController.protect,departmentsController.Updatedepartment)
-    .delete(authController.protect,departmentsController.deletedepartment)
-    .get(authController.protect,departmentsController.getDepartment)
+    .patch(authController.protect, departmentsController.Updatedepartment)
+    .delete(authController.protect, departmentsController.deletedepartment)
+    .get(authController.protect, departmentsController.getDepartment)
 
-module.exports=router
+module.exports = router

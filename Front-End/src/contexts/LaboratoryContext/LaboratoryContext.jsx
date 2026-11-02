@@ -38,6 +38,10 @@ export const LaboratoryProvider = ({ children }) => {
   // Dropdown (para sa filters)
   const [isLabDropdown, setLabDropdown] = useState([]);
 
+  // 🆕 Fetched laboratories by department (para sa report / other use cases)
+  const [laboratoriesByDepartment, setLaboratoriesByDepartment] = useState([]);
+  const [loadingByDepartment, setLoadingByDepartment] = useState(false);
+
   // Modal
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
@@ -59,7 +63,7 @@ export const LaboratoryProvider = ({ children }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setCurrentPage(1); // ✅ Reset sa page 1 kapag nag-search
+      setCurrentPage(1);
     }, 400);
 
     return () => clearTimeout(timer);
@@ -104,7 +108,6 @@ export const LaboratoryProvider = ({ children }) => {
           }
         );
 
-        // Support both new (totalRecords) at old (totalLaboratory) keys
         const total =
           response.data.totalRecords ??
           response.data.totalLaboratory ??
@@ -120,7 +123,6 @@ export const LaboratoryProvider = ({ children }) => {
         setTotalPages(pages);
         setError(null);
       } catch (error) {
-        // Ignore canceled requests
         if (
           error.name === "CanceledError" ||
           error.code === "ERR_CANCELED"
@@ -129,10 +131,7 @@ export const LaboratoryProvider = ({ children }) => {
 
         console.error("Fetch laboratory error:", error);
 
-        // ✅ ONLY show error if the SERVER responded with an error.
-        // Hide network errors (no response) from the UI.
         if (error.response) {
-          // Server responded (e.g., 400, 401, 500)
           if (error.response.status === 401) {
             setCustomError("Unauthorized: Please log in again.");
           } else {
@@ -143,7 +142,6 @@ export const LaboratoryProvider = ({ children }) => {
           }
           setError("Failed to fetch data");
         } else {
-          // Network error, timeout, or no response — DON'T show to user
           setError(null);
           setCustomError(null);
         }
@@ -231,14 +229,12 @@ export const LaboratoryProvider = ({ children }) => {
       setLabDropdown(res.data.data || []);
       return { success: true, data: res.data.data };
     } catch (error) {
-      // ✅ Only show error if server responded
       if (error.response) {
         const errorMsg =
           error.response.data?.message || "Server connection error";
         setCustomError(errorMsg);
         return { success: false, error: errorMsg };
       } else {
-        // Network error — silent fail
         console.error("Fetch laboratory dropdown network error:", error);
         return { success: false, error: null };
       }
@@ -246,6 +242,71 @@ export const LaboratoryProvider = ({ children }) => {
       setLoading(false);
     }
   };
+
+  // ============================================================
+  // 🆕 GET LABORATORY BY DEPARTMENT
+  // ============================================================
+  /**
+   * Kunin lahat ng laboratories sa isang department (no pagination).
+   * Returns the array directly + stores in `laboratoriesByDepartment`.
+   *
+   * @param {string} departmentId - The department ObjectId
+   * @param {Object} [options] - Optional settings
+   * @param {boolean} [options.silent=false] - If true, won't set customError on failure
+   * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+   */
+  const GetLaboratoryByDepartment = useCallback(
+    async (departmentId, options = {}) => {
+      const { silent = false } = options;
+
+      // Validate input
+      if (!departmentId) {
+        return { success: false, error: "Missing Department ID" };
+      }
+
+      if (!authToken) {
+        return { success: false, error: "Missing auth token" };
+      }
+
+      setLoadingByDepartment(true);
+
+      try {
+        const res = await axiosInstance.get(
+          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/laboratory/GetLaboratoriesByDepartment`,
+          {
+            params: { departmentId },
+            headers: { Authorization: `Bearer ${authToken}` },
+            withCredentials: true,
+          }
+        );
+
+        const data = res.data?.data || [];
+        setLaboratoriesByDepartment(data);
+
+        return { success: true, data };
+      } catch (error) {
+        if (error.response) {
+          const errorMsg =
+            error.response.data?.message ||
+            "Failed to fetch laboratories for this department.";
+
+          if (!silent) setCustomError(errorMsg);
+
+          return { success: false, error: errorMsg };
+        }
+
+        // Network error — silent fail
+        console.error(
+          "GetLaboratoryByDepartment network error:",
+          error
+        );
+        return { success: false, error: null };
+      } finally {
+        setLoadingByDepartment(false);
+      }
+    },
+    [authToken]
+  );
 
   // ============================================================
   // CRUD — ADD
@@ -276,7 +337,6 @@ export const LaboratoryProvider = ({ children }) => {
         return { success: false, error: "Unexpected response from server." };
       }
     } catch (error) {
-      // ✅ Only show error if server responded
       if (error.response) {
         const message =
           error.response.data?.message ||
@@ -287,7 +347,6 @@ export const LaboratoryProvider = ({ children }) => {
         setShowModal(true);
         return { success: false, error: message };
       } else {
-        // Network error — silent fail
         console.error("Add laboratory network error:", error);
         return { success: false, error: null };
       }
@@ -323,7 +382,6 @@ export const LaboratoryProvider = ({ children }) => {
         return { success: false, error: "Unexpected response from server." };
       }
     } catch (error) {
-      // ✅ Only show error if server responded
       if (error.response) {
         const message =
           error.response.data?.message ||
@@ -334,7 +392,6 @@ export const LaboratoryProvider = ({ children }) => {
         setShowModal(true);
         return { success: false, error: message };
       } else {
-        // Network error — silent fail
         console.error("Update laboratory network error:", error);
         return { success: false, error: null };
       }
@@ -365,7 +422,6 @@ export const LaboratoryProvider = ({ children }) => {
         return { success: false, error: "Unexpected response from server." };
       }
     } catch (error) {
-      // ✅ Only show error if server responded
       if (error.response) {
         const errorMessage =
           error.response.data?.message || "Failed to delete Laboratory.";
@@ -373,7 +429,6 @@ export const LaboratoryProvider = ({ children }) => {
         setShowModal(true);
         return { success: false, error: errorMessage };
       } else {
-        // Network error — silent fail
         console.error("Delete laboratory network error:", error);
         return { success: false, error: null };
       }
@@ -421,6 +476,12 @@ export const LaboratoryProvider = ({ children }) => {
         AddedLaboratory,
         UpdateLaboratory,
         DeleteLaboratory,
+
+        // 🆕 Get Laboratory by Department
+        GetLaboratoryByDepartment,
+        laboratoriesByDepartment,
+        setLaboratoriesByDepartment,
+        loadingByDepartment,
 
         // Modal / Error
         customError,

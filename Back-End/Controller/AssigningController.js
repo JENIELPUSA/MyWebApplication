@@ -24,10 +24,6 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
   try {
     const userId = req.user._id;
     const role = req.user.role;
-
-    console.log("userId", userId);
-    console.log("role", role);
-
     const {
       search = "",
       page = 1,
@@ -35,18 +31,16 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
       sortBy = "createdAt",
       sortOrder = "desc",
       laboratory,
+      department,
       category,
       brand,
       status,
+      dateFrom,   // 🆕
+      dateTo,     // 🆕
     } = req.query;
 
     console.log("🔍 RAW QUERY:", req.query);
-    console.log(
-      "🔍 category value:",
-      category,
-      "| valid ObjectId?:",
-      category ? mongoose.Types.ObjectId.isValid(category) : "n/a"
-    );
+    console.log("📅 dateFrom:", dateFrom, "| dateTo:", dateTo);
 
     // ─── Pagination setup ────────────────────────────────────────────
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -107,9 +101,21 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
     const sortDir = sortOrder === "asc" ? 1 : -1;
 
-    // ─── Detecting kung may active equipment-level filter ───────────
+    // ─── Detecting kung may active filter ───────────────────────────
     const hasEquipmentFilter =
       Object.keys(equipmentMatchStage).length > 0 || !!categoryNameFilter;
+
+    const hasDateFilter = !!(dateFrom || dateTo);
+
+    const hasAnyFilter =
+      !!laboratory ||
+      (!!department && mongoose.Types.ObjectId.isValid(department)) ||
+      !!category ||
+      !!brand ||
+      (status && status !== "All") ||
+      !!search.trim() ||
+      hasEquipmentFilter ||
+      hasDateFilter;
 
     // ─── Base pipeline ──────────────────────────────────────────────
     const basePipeline = [
@@ -130,6 +136,19 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
           preserveNullAndEmptyArrays: true,
         },
       },
+
+      // Department filter (post-unwind)
+      ...(department && mongoose.Types.ObjectId.isValid(department)
+        ? [
+          {
+            $match: {
+              "LaboratoryInfo.department": new mongoose.Types.ObjectId(
+                department
+              ),
+            },
+          },
+        ]
+        : []),
 
       // Join Encharge
       {
@@ -208,15 +227,15 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
       // Fallback: category name match
       ...(categoryNameFilter
         ? [
-            {
-              $match: {
-                "CategoryInfo.CategoryName": {
-                  $regex: `^${categoryNameFilter}$`,
-                  $options: "i",
-                },
+          {
+            $match: {
+              "CategoryInfo.CategoryName": {
+                $regex: `^${categoryNameFilter}$`,
+                $options: "i",
               },
             },
-          ]
+          },
+        ]
         : []),
 
       // Apply search
@@ -224,9 +243,8 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
         ? [{ $match: searchStage }]
         : []),
 
-      // ✅✅✅ CRITICAL FIX: Kung may equipment filter, alisin ang null rows
-      // Para kapag walang match → walang lumabas (empty array)
-      ...(hasEquipmentFilter
+      // Null-guard
+      ...(hasAnyFilter
         ? [{ $match: { "EquipmentsInfo._id": { $exists: true, $ne: null } } }]
         : []),
 
@@ -262,6 +280,40 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
           },
         },
       },
+
+      // 🆕✅ DATE RANGE FILTER — based sa Assign.createdAt
+      ...(hasDateFilter
+        ? [
+          {
+            $match: {
+              $and: [
+                ...(dateFrom
+                  ? [
+                    {
+                      createdAt: {
+                        $gte: new Date(dateFrom),
+                      },
+                    },
+                  ]
+                  : []),
+                ...(dateTo
+                  ? [
+                    {
+                      createdAt: {
+                        $lte: (() => {
+                          const d = new Date(dateTo);
+                          d.setHours(23, 59, 59, 999);
+                          return d;
+                        })(),
+                      },
+                    },
+                  ]
+                  : []),
+              ],
+            },
+          },
+        ]
+        : []),
     ];
 
     // ─── Execute in parallel ────────────────────────────────────────
@@ -293,10 +345,21 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
           },
         },
 
+        // Compute equipmentsCount
+        {
+          $addFields: {
+            equipmentsCount: { $size: { $ifNull: ["$equipments", []] } },
+          },
+        },
+
         // Sort
         {
           $sort: {
-            [sortField === "Laboratory" ? "_id" : "createdAt"]: sortDir,
+            [sortField === "Laboratory"
+              ? "_id"
+              : sortField === "Equipments"
+                ? "equipmentsCount"
+                : "createdAt"]: sortDir,
           },
         },
 
@@ -329,7 +392,7 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
             departmentName: 1,
             equipments: 1,
             enchargeId: 1,
-            equipmentsCount: { $size: { $ifNull: ["$equipments", []] } },
+            equipmentsCount: 1,
             createdAt: 1,
           },
         },
@@ -346,8 +409,13 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
     const totalRecords = countResult[0]?.total || 0;
 
     console.log("📊 assigns:", dataResult.length, "of", totalRecords);
+    if (hasDateFilter) {
+      console.log("📅 Date filter applied (on createdAt):", {
+        dateFrom: dateFrom || "(none)",
+        dateTo: dateTo || "(none)",
+      });
+    }
 
-    // ✅ Kapag walang match, empty array ang data (hindi lahat)
     res.status(200).json({
       status: "success",
       totalRecords,
@@ -356,7 +424,7 @@ exports.displayAssign = AsyncErrorHandler(async (req, res) => {
       totalPages: Math.ceil(totalRecords / limitNum) || 0,
       limit: limitNum,
       count: dataResult.length,
-      data: dataResult, // ✅ empty [] kapag walang nahanap
+      data: dataResult,
     });
   } catch (error) {
     console.error("❌ Error in displayAssign:", error);

@@ -1,5 +1,7 @@
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/theme-context";
+import AxiosInterceptor from "./components/AxiosInterceptor";
+
 import Layout from "@/routes/layout";
 import DashboardPage from "@/routes/dashboard/page";
 import PublicRoute from "./components/PublicRoute/PublicRoute";
@@ -12,72 +14,72 @@ import EquipmentForm from "./components/Equipment/EquipmentManagement";
 import DepartmentContent from "./components/Department/DepartmentContent";
 import LaboratoryContent from "./components/Laboratories/LaboratoryContent";
 import AssignLab from "./components/Assign/AssignLab";
-//  Fixed import path - Use relative path
 import ModalReport from "./components/Report/ModalReport";
 import PmsExport from "./components/PMSExport/PmsDisplay";
 import MaintenanceManagement from "./components/MaintenanceHistory/MaintenanceManagement";
 import ProblemTable from "./components/ProblemManagementComponents/ProblemTable";
-import Pms011 from "./components/PMSForm/Pms011"
-import Pms002 from "./components/PMSForm/Pms002"
-import Pms003 from "./components/PMSForm/Pms003"
-import Pms004 from "./components/PMSForm/Pms004"
-import Pms005 from "./components/PMSForm/Pms005"
-import Pms006 from "./components/PMSForm/Pms006"
+import Pms011 from "./components/PMSForm/Pms011";
+import Pms002 from "./components/PMSForm/Pms002";
+import Pms003 from "./components/PMSForm/Pms003";
+import Pms004 from "./components/PMSForm/Pms004";
+import Pms005 from "./components/PMSForm/Pms005";
+import Pms006 from "./components/PMSForm/Pms006";
 import Category from "./components/Category/CategoryTable";
 import UpdatePassword from "./components/AuthenticationComponents/UpdatePassword";
 
+// Router created ONCE, outside the component
+const router = createBrowserRouter([
+    {
+        path: "/",
+        element: <Navigate to="/dashboard" replace />,
+    },
+    {
+        element: <PublicRoute />,
+        children: [
+            { path: "/login", element: <LoginPage /> },
+        ],
+    },
+    {
+        element: <PrivateRoute />,
+        children: [
+            {
+                path: "dashboard",
+                element: <Layout />,
+                children: [
+                    { index: true, element: <DashboardPage /> },
+                    { path: "LaboratoryAssign", element: <LaboratoryHome /> },
+                    { path: "RequestMaintenances", element: <RequestMaintenance /> },
+                    { path: "User", element: <UserList /> },
+                    { path: "equipment", element: <EquipmentForm /> },
+                    { path: "department", element: <DepartmentContent /> },
+                    { path: "laboratory", element: <LaboratoryContent /> },
+                    { path: "report", element: <ModalReport /> },
+                    { path: "assign", element: <RequestMaintenance /> },
+                    { path: "pms", element: <PmsExport /> },
+                    { path: "maintenance", element: <MaintenanceManagement /> },
+                    { path: "problem", element: <ProblemTable /> },
+                    { path: "pms001", element: <Pms011 /> },
+                    { path: "pms002", element: <Pms002 /> },
+                    { path: "pms003", element: <Pms003 /> },
+                    { path: "pms004", element: <Pms004 /> },
+                    { path: "pms005", element: <Pms005 /> },
+                    { path: "pms006", element: <Pms006 /> },
+                    { path: "category", element: <Category /> },
+                    { path: "updatepassword", element: <UpdatePassword /> },
+                ],
+            },
+        ],
+    },
+    {
+        path: "*",
+        element: <Navigate to="/dashboard" replace />,
+    },
+]);
 
 function App() {
-    const router = createBrowserRouter([
-        {
-            path: "/",
-            element: <Navigate to="/dashboard" replace />,
-        },
-        {
-            element: <PublicRoute />,
-            children: [
-                { path: "/login", element: <LoginPage /> },
-            ],
-        },
-        {
-            element: <PrivateRoute />,
-            children: [
-                {
-                    path: "dashboard",
-                    element: <Layout />,
-                    children: [
-                        { index: true, element: <DashboardPage /> },
-                        { path: "LaboratoryAssign", element: <LaboratoryHome /> },
-                        { path: "RequestMaintenances", element: <RequestMaintenance /> },
-                        { path: "User", element: <UserList /> },
-                        { path: "equipment", element: <EquipmentForm /> },
-                        { path: "department", element: <DepartmentContent /> },
-                        { path: "laboratory", element: <LaboratoryContent /> },
-                        { path: "report", element: <ModalReport /> },
-                        { path: "assign", element: <RequestMaintenance /> },
-                        { path: "pms", element: <PmsExport /> },
-                        { path: "maintenance", element: <MaintenanceManagement /> },
-                        { path: "problem", element: <ProblemTable /> },
-                        { path: "pms001", element: <Pms011 /> },
-                        { path: "pms002", element: <Pms002 /> },
-                        { path: "pms003", element: <Pms003 /> },
-                        { path: "pms004", element: <Pms004 /> },
-                        { path: "pms005", element: <Pms005 /> },
-                        { path: "pms006", element: <Pms006 /> },
-                        { path: "category", element: <Category /> },
-                        { path: "updatepassword", element: <UpdatePassword /> },
-                    ],
-                },
-            ],
-        },
-        {
-            path: "*",
-            element: <Navigate to="/dashboard" replace />,
-        },
-    ]);
-
     return (
         <ThemeProvider storageKey="theme">
+            <AxiosInterceptor />
             <RouterProvider router={router} />
         </ThemeProvider>
     );

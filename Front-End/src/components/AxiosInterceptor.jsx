@@ -1,14 +1,12 @@
-import { useEffect } from 'react';
-import axiosInstance from './ReusableComponent/axiosInstance'; // same instance used everywhere
-import { useAuth } from './Context/AuthContext'; // kunin mo logout() dito
+import { useContext, useEffect } from 'react';
+import axiosInstance from './ReusableComponent/axiosInstance'; 
+import { AuthContext } from '../contexts/AuthContext';
 
 const AxiosInterceptor = () => {
-  const { logout } = useAuth(); // kunin logout function from context
-
+  const { logout } = useContext(AuthContext);
   useEffect(() => {
-    // register interceptor
     const interceptor = axiosInstance.interceptors.response.use(
-      response => response, // pass normal responses
+      response => response, 
       error => {
         if (error.response?.status === 401) {
             console.log("401 Unauthorized - Logging out...");
@@ -17,14 +15,12 @@ const AxiosInterceptor = () => {
         return Promise.reject(error);
       }
     );
-
-    // cleanup interceptor kapag umalis ang component
     return () => {
       axiosInstance.interceptors.response.eject(interceptor);
     };
   }, [logout]);
 
-  return null; // no UI, logic-only component
+  return null;
 };
 
 export default AxiosInterceptor;

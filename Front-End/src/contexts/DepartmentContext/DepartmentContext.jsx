@@ -20,6 +20,10 @@ export const DepartmentDisplayProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // 🆕 DROPDOWN STATE (walang limit, _id + DepartmentName lang)
+  const [departmentDropdown, setDepartmentDropdown] = useState([]);
+  const [dropdownLoading, setDropdownLoading] = useState(false);
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [departmentPerPage, setDepartmentsPerPage] = useState(6);
@@ -136,6 +140,45 @@ export const DepartmentDisplayProvider = ({ children }) => {
   );
 
   // ============================================================
+  // 🆕 FETCH DEPARTMENT DROPDOWN (walang limit, _id + DepartmentName lang)
+  // ============================================================
+  const fetchDepartmentDropdown = useCallback(
+    async (signal) => {
+      if (!authToken) {
+        setDepartmentDropdown([]);
+        setDropdownLoading(false);
+        return;
+      }
+
+      try {
+        setDropdownLoading(true);
+
+        const response = await axiosInstance.get(
+          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/dropdown`,
+          {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Cache-Control": "no-cache",
+            },
+            signal,
+          }
+        );
+
+        const dropdownData = response.data?.data || [];
+        setDepartmentDropdown(dropdownData);
+      } catch (error) {
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        console.error("Error fetching department dropdown:", error);
+        setDepartmentDropdown([]);
+      } finally {
+        setDropdownLoading(false);
+      }
+    },
+    [authToken]
+  );
+
+  // ============================================================
   // AUTO-FETCH WITH ABORT CONTROLLER
   // ============================================================
   useEffect(() => {
@@ -150,6 +193,22 @@ export const DepartmentDisplayProvider = ({ children }) => {
 
     return () => controller.abort();
   }, [authToken, fetchCategoryData]);
+
+  // ============================================================
+  // 🆕 AUTO-FETCH DROPDOWN (kapag may authToken)
+  // ============================================================
+  useEffect(() => {
+    if (!authToken) {
+      setDepartmentDropdown([]);
+      setDropdownLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    fetchDepartmentDropdown(controller.signal);
+
+    return () => controller.abort();
+  }, [authToken, fetchDepartmentDropdown]);
 
   // ============================================================
   // CLIENT-SIDE FILTER (Fallback lang)
@@ -197,6 +256,8 @@ export const DepartmentDisplayProvider = ({ children }) => {
         setModalStatus("success");
         setShowModal(true);
         await fetchCategoryData(new AbortController().signal);
+        // 🆕 refresh din ang dropdown para updated agad
+        await fetchDepartmentDropdown(new AbortController().signal);
         return { success: true, data: response.data.data };
       } else {
         setModalStatus("failed");
@@ -240,6 +301,8 @@ export const DepartmentDisplayProvider = ({ children }) => {
         setModalStatus("success");
         setShowModal(true);
         await fetchCategoryData(new AbortController().signal);
+        // 🆕 refresh din ang dropdown para updated agad
+        await fetchDepartmentDropdown(new AbortController().signal);
         return { success: true, data: response.data.data };
       } else {
         setModalStatus("failed");
@@ -276,6 +339,8 @@ export const DepartmentDisplayProvider = ({ children }) => {
         setModalStatus("success");
         setShowModal(true);
         await fetchCategoryData(new AbortController().signal);
+        // 🆕 refresh din ang dropdown para updated agad
+        await fetchDepartmentDropdown(new AbortController().signal);
         return { success: true, data: response.data.data };
       } else {
         setModalStatus("failed");
@@ -332,6 +397,11 @@ export const DepartmentDisplayProvider = ({ children }) => {
         AddAcceptDepartment,
         UpdateDepartment,
         DeleteDepartment,
+
+        // 🆕 Dropdown
+        departmentDropdown,
+        dropdownLoading,
+        fetchDepartmentDropdown,
 
         // Modal / Error
         customError,

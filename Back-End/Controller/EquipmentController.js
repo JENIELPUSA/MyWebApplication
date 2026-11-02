@@ -256,9 +256,6 @@ exports.Displaytool = AsyncErrorHandler(async (req, res) => {
     data: dataResult,
   });
 });
-
-// Purpose ang code na ito ay para once may ma remove na Equipment ay lahat na releted ay ma remove
-// pero naka base siya collectionMapping
 exports.deleteEquipmentAndRelated = async (req, res, next) => {
   const { equipmentID } = req.params;
 
@@ -299,8 +296,6 @@ exports.deleteEquipmentAndRelated = async (req, res, next) => {
   }
 };
 
-// Purpose ang code na ito ay para once may ma remove na Equipment ay lahat na releted ay ma remove
-// pero naka base siya collectionMapping
 exports.RemoverelatedData = async (req, res, next) => {
   const { equipmentID } = req.params; // Assuming equipmentID is passed as a parameter
 

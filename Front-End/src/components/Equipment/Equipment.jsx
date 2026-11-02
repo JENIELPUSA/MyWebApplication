@@ -2,8 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaTimes, FaTools, FaBarcode, FaTags, FaInfoCircle, FaChevronDown, FaChevronUp, FaSave, FaCalendarAlt, FaStickyNote, FaHashtag } from "react-icons/fa";
-import { EquipmentContext } from "../CountContext"; 
+import { FaTimes, FaTools, FaBarcode, FaTags, FaInfoCircle, FaChevronDown, FaChevronUp, FaSave, FaCalendarAlt, FaStickyNote, FaHashtag } from "react-icons/fa"; 
 import StatusModal from "../ReusableComponent/SuccessandFailedModal";
 import { EquipmentDataContext } from "../../contexts/EquipmentContext/EquipmentContext";
 
