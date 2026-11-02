@@ -92,8 +92,10 @@ exports.UpdateSenData = AsyncErrorHandler(async (req, res, next) => {
 });
 
 exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
-  console.log("Trigger!!!");
+  
   const { Equipments } = req.body;
+
+  console.log("BODYYYY",req.body)
 
   if (!Equipments) {
     return res.status(400).json({
