@@ -10,6 +10,10 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
   const [request, setRequest] = useState([]);
   const [loading, setLoading] = useState(true);
 
+
+
+
+
   useEffect(() => {
     if (!authToken) return;
     fetchRequest();
@@ -77,12 +81,34 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
             <h2 className="text-xl font-bold">Maintenance Log System</h2>
             <p className="text-sm text-blue-100">Equipment Service History</p>
           </div>
-          <button
-            onClick={handleClose}
+          <button 
+            onClick={handleClose} 
             className="text-white/70 hover:text-white text-2xl"
           >
             ×
           </button>
+        </div>
+
+        {/* Device Info */}
+        <div className="bg-gray-50 border-b border-gray-200 px-6 py-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm flex-shrink-0">
+          <div>
+            <p className="text-gray-500 font-semibold text-xs uppercase">Equipment</p>
+            <p className="text-gray-800 font-medium">
+              {getDisplayValue(equipment?.Brand)} / {getDisplayValue(equipment?.categoryName)}
+            </p>
+          </div>
+          <div>
+            <p className="text-gray-500 font-semibold text-xs uppercase">Serial Number</p>
+            <p className="text-gray-800 font-mono">{equipment?.SerialNumber || "---"}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 font-semibold text-xs uppercase">Laboratory</p>
+            <p className="text-gray-800 font-medium">{getDisplayValue(lab?.departmentName)}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 font-semibold text-xs uppercase">In-Charge</p>
+            <p className="text-gray-800 font-medium">{getDisplayValue(lab?.encharge)}</p>
+          </div>
         </div>
 
         {/* Table */}
@@ -99,7 +125,7 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
                   <th className="p-3">Remarks</th>
                   <th className="p-3 text-center">
                     {role === "User" && (
-                      <button
+                      <button 
                         onClick={() => setFormModalOpen(true)}
                         className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
                       >
@@ -161,7 +187,7 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
           isOpen={isFormModalOpen}
           EquipmentID={equipment?._id}
           DepartmentID={lab?.departmentId || lab?.DepartmentId}
-          LaboratoryID={lab?.laboratoryId || lab?.LaboratoryId}
+          LaboratoryID={lab}
           onClose={() => setFormModalOpen(false)}
           onAddRequest={(newData) => setRequest(prev => [...prev, newData])}
         />

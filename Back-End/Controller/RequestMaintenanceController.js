@@ -91,11 +91,15 @@ exports.UpdateSenData = AsyncErrorHandler(async (req, res, next) => {
   });
 });
 
+
 exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
-  
+  const userId = req.user._id;
+
+  console.log("userId", userId);
+
   const { Equipments } = req.body;
 
-  console.log("BODYYYY",req.body)
+  console.log("BODYYYY", req.body);
 
   if (!Equipments) {
     return res.status(400).json({
@@ -122,15 +126,24 @@ exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
     });
   }
 
-  // Create maintenance request
-  const maintenance = await requestmaintenance.create(req.body);
+  const laboratory = await Laboratory.findOne({ Encharge: userId });
+
+  if (!laboratory) {
+    console.warn(`No Laboratory found for Encharge userId: ${userId}`);
+  }
+
+  const laboratoryId = laboratory?._id ?? null;
+  console.log("Resolved Laboratory:", laboratory?.LaboratoryName, laboratoryId);
+
+  const maintenance = await requestmaintenance.create({
+    ...req.body,
+    Laboratory: laboratoryId,
+  });
 
   // -------------------- CREATE MESSAGE --------------------
-  // Find all Admin users
   const admins = await user.find({ role: "Admin" }, "_id");
   const technicians = await user.find({ role: "Technician" }, "_id");
 
-  // Build viewers array (Admins and Technicians)
   const viewers = [
     ...admins.map((admin) => ({
       user: admin._id,
@@ -147,9 +160,9 @@ exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
     equipmentId: Equipments,
     typesNotification: "MaintenanceRequest",
     Status: "Pending",
-    Laboratory: maintenance.Laboratory ? [maintenance.Laboratory] : [],
+    Laboratory: laboratoryId,   // ✅ ObjectId
     To: "Admin",
-    Encharge: null,
+    Encharge: userId,           // ✅ optional: ilagay ang userId
     role: "Admin",
     RequestID: maintenance._id,
     viewers,
@@ -167,9 +180,8 @@ exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
       data: maintenance,
       timestamp: new Date(),
     });
-    console.log(`📡 [Socket] Broadcasted 'assignEquipment:created'`);
+    console.log(`📡 [Socket] Broadcasted 'requestmaintenance:created'`);
   }
-
 
   res.status(201).json({
     status: "success",
