@@ -1048,7 +1048,7 @@ const AdminDashboard = React.memo(({ statisticsData }) => {
                         <FaChartLine className="text-yellow-400 text-xl" />
                     </div>
                     <h3 className="font-black text-blue-700 dark:text-yellow-400 uppercase text-sm tracking-widest">
-                        Distribution Analytics
+                        Equipment & Request Distribution
                     </h3>
                     <span className="ml-auto text-[8px] font-black uppercase tracking-widest text-blue-700/30 dark:text-yellow-400/30 px-3 py-1 rounded-full bg-blue-50 dark:bg-yellow-900/10 border border-blue-100 dark:border-yellow-800/30">
                         {Object.keys(pieCharts || {}).filter(key => (pieCharts?.[key] || []).length > 0).length} Active

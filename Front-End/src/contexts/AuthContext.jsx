@@ -145,7 +145,7 @@ export const AuthProvider = ({ children }) => {
                     return "";
                 };
 
-                // ✅ Safe localStorage — i-save kahit empty string
+                // ✅ Safe localStorage — i-save kahit empty string, remove kung undefined/null
                 const safeSetItem = (key, value) => {
                     if (value === undefined || value === null) {
                         localStorage.removeItem(key);
@@ -490,6 +490,59 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // ============================================================
+    // ✅ NEW: Save theme (backend + localStorage + state)
+    // ============================================================
+    const saveTheme = async (nextTheme) => {
+        // Validate
+        if (!["light", "dark"].includes(nextTheme)) {
+            console.warn("Invalid theme value:", nextTheme);
+            return { success: false, message: "Invalid theme" };
+        }
+
+        // Optimistically update state + localStorage agad (instant UI)
+        setTheme(nextTheme);
+        localStorage.setItem("theme", nextTheme);
+
+        // If walang token, skip backend call (guest user)
+        if (!authToken) {
+            return { success: true, message: "Theme saved locally" };
+        }
+
+        try {
+            const res = await axios.patch(
+                `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/authentication/theme`,
+                { theme: nextTheme },
+                {
+                    headers: {
+                        Authorization: `Bearer ${authToken}`,
+                        "Content-Type": "application/json",
+                    },
+                    withCredentials: true,
+                }
+            );
+
+            if (res.data?.success) {
+                return { success: true, theme: res.data.theme };
+            }
+
+            return {
+                success: false,
+                message: res.data?.message || "Failed to save theme",
+            };
+        } catch (err) {
+            console.error("saveTheme error:", err.response?.data || err.message);
+            // UI already updated — huwag i-revert para hindi jarring
+            return {
+                success: false,
+                message:
+                    err.response?.data?.message ||
+                    err.message ||
+                    "Failed to save theme to server",
+            };
+        }
+    };
+
     const value = {
         authToken,
         role,
@@ -513,7 +566,7 @@ export const AuthProvider = ({ children }) => {
         fetchProfile,
         updateAvatar,
         UpdateProfileInfo,
-        isApprover,
+        isApprover, saveTheme,
         approverStatus,
         isHr,
         hrStatus,

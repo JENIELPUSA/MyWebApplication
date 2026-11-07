@@ -132,8 +132,6 @@ function TechnicianTable() {
           setLocalError("Context not available, but request was processed.");
         }
         
-        // ✅ Inalis ang socket.emit() calls
-        
         setClickedRows((prev) => new Set(prev).add(datapass._id));
       }
     } catch (error) {
@@ -146,11 +144,11 @@ function TechnicianTable() {
 
   if (messageContextError) {
     return (
-      <div className="bg-red-50 border-2 border-red-400 rounded-xl p-8 text-center">
-        <FaExclamationTriangle className="text-red-500 text-4xl mx-auto mb-4" />
-        <h3 className="text-red-700 font-bold text-lg mb-2">Context Error</h3>
-        <p className="text-red-600">{messageContextError}</p>
-        <p className="text-sm text-gray-600 mt-2">
+      <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-400 dark:border-red-600 rounded-xl p-8 text-center transition-colors">
+        <FaExclamationTriangle className="text-red-500 dark:text-red-400 text-4xl mx-auto mb-4" />
+        <h3 className="text-red-700 dark:text-red-400 font-bold text-lg mb-2">Context Error</h3>
+        <p className="text-red-600 dark:text-red-300">{messageContextError}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
           Please ensure the component is wrapped with MessagePOSTProvider
         </p>
       </div>
@@ -158,14 +156,14 @@ function TechnicianTable() {
   }
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-lg border-2 border-blue-900 font-sans">
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-lg border-2 border-blue-900 dark:border-yellow-400 font-sans transition-colors">
       
       {localError && (
-        <div className="mb-4 bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between">
+        <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg flex items-center justify-between">
           <span className="font-medium">{localError}</span>
           <button 
             onClick={() => setLocalError(null)}
-            className="text-red-700 hover:text-red-900 font-bold"
+            className="text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 font-bold"
           >
             ×
           </button>
@@ -175,27 +173,27 @@ function TechnicianTable() {
       {/* --- HEADER SECTION --- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-black text-black uppercase tracking-tight">Technician Tasks</h2>
+          <h2 className="text-xl font-black text-black dark:text-white uppercase tracking-tight">Technician Tasks</h2>
           <div className="h-1.5 w-16 bg-yellow-400 mt-1 rounded-full"></div>
-          <p className="text-xs text-gray-500 mt-1 font-medium">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
             Total: {filteredRequests.length} {filteredRequests.length === 1 ? 'task' : 'tasks'}
           </p>
         </div>
         
         <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
           <div className="relative">
-            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
             <input
               type="text"
               placeholder="Search by Ref or Equipment..."
-              className="w-full sm:w-64 pl-10 pr-4 py-2 bg-gray-50 border-2 border-blue-900 rounded-lg focus:border-yellow-400 outline-none text-sm text-black font-semibold"
+              className="w-full sm:w-64 pl-10 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border-2 border-blue-900 dark:border-yellow-400 rounded-lg focus:border-yellow-400 dark:focus:border-yellow-300 outline-none text-sm text-black dark:text-white font-semibold placeholder:text-gray-400 dark:placeholder:text-gray-500"
               onChange={(e) => setSearchQuery(e.target.value)}
               value={searchQuery}
             />
           </div>
 
           <select
-            className="px-4 py-2 bg-blue-900 text-white border-2 border-blue-900 rounded-lg text-sm outline-none focus:border-yellow-400 cursor-pointer font-bold uppercase"
+            className="px-4 py-2 bg-blue-900 dark:bg-yellow-400 text-white dark:text-blue-900 border-2 border-blue-900 dark:border-yellow-400 rounded-lg text-sm outline-none focus:border-yellow-400 dark:focus:border-yellow-300 cursor-pointer font-bold uppercase"
             onChange={(e) => setSelectedStatus(e.target.value)}
             value={selectedStatus}
           >
@@ -208,17 +206,17 @@ function TechnicianTable() {
       </div>
 
       {/* --- TABLE SECTION - WITHOUT ACTIONS COLUMN --- */}
-      <div className="overflow-hidden border-2 border-blue-900 rounded-xl">
+      <div className="overflow-hidden border-2 border-blue-900 dark:border-yellow-400 rounded-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
-            <thead className="bg-blue-900 text-white">
+            <thead className="bg-blue-900 dark:bg-yellow-400 text-white dark:text-blue-900">
               <tr>
                 <th className="px-6 py-4 font-black uppercase tracking-widest text-[11px]">Ref#</th>
                 <th className="px-6 py-4 font-black uppercase tracking-widest text-[11px]">Equipment Details</th>
                 <th className="px-6 py-4 font-black uppercase tracking-widest text-[11px] text-center">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y-2 divide-gray-100">
+            <tbody className="divide-y-2 divide-gray-100 dark:divide-slate-700">
               {loading ? (
                 <tr>
                   <td colSpan={3} className="py-20 text-center">
@@ -227,7 +225,7 @@ function TechnicianTable() {
                 </tr>
               ) : filteredRequests.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="py-20 text-center text-gray-400 font-bold uppercase italic">
+                  <td colSpan={3} className="py-20 text-center text-gray-400 dark:text-gray-500 font-bold uppercase italic">
                     No records found.
                   </td>
                 </tr>
@@ -240,14 +238,14 @@ function TechnicianTable() {
                   const status = getDisplayValue(item.Status);
                   
                   return (
-                    <tr key={item._id} className="hover:bg-yellow-50 transition-colors">
-                      <td className="px-6 py-4 font-mono font-black text-black">{ref}</td>
+                    <tr key={item._id} className="hover:bg-yellow-50 dark:hover:bg-slate-800 transition-colors">
+                      <td className="px-6 py-4 font-mono font-black text-black dark:text-white">{ref}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
-                          <span className="font-black text-black uppercase text-xs tracking-tight">
+                          <span className="font-black text-black dark:text-white uppercase text-xs tracking-tight">
                             {equipmentName || 'N/A'}
                           </span>
-                          <span className="text-[10px] text-gray-600 font-bold uppercase">
+                          <span className="text-[10px] text-gray-600 dark:text-gray-400 font-bold uppercase">
                             {laboratoryName || 'N/A'} • {department || 'N/A'}
                           </span>
                         </div>
@@ -269,27 +267,27 @@ function TechnicianTable() {
       {/* --- PAGINATION SECTION --- */}
       {filteredRequests.length > 0 && (
         <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-[11px] text-black font-black uppercase tracking-widest">
+          <p className="text-[11px] text-black dark:text-white font-black uppercase tracking-widest">
             Showing {indexOfFirstRow + 1} - {Math.min(indexOfLastRow, filteredRequests.length)} of {filteredRequests.length}
           </p>
           
           <div className="flex items-center gap-2">
             <button
-              className="p-2 border-2 border-blue-900 rounded-lg hover:bg-blue-900 hover:text-white text-black disabled:opacity-20 transition-all shadow-sm"
+              className="p-2 border-2 border-blue-900 dark:border-yellow-400 rounded-lg hover:bg-blue-900 dark:hover:bg-yellow-400 hover:text-white dark:hover:text-blue-900 text-black dark:text-white disabled:opacity-20 transition-all shadow-sm"
               onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
             >
               <FaChevronLeft size={14} />
             </button>
             
-            <div className="bg-blue-900 px-4 py-1.5 rounded-lg border-2 border-blue-900 shadow-md">
-              <span className="text-white font-black text-xs uppercase tracking-widest">
+            <div className="bg-blue-900 dark:bg-yellow-400 px-4 py-1.5 rounded-lg border-2 border-blue-900 dark:border-yellow-400 shadow-md">
+              <span className="text-white dark:text-blue-900 font-black text-xs uppercase tracking-widest">
                 Page {currentPage} / {totalPages || 1}
               </span>
             </div>
 
             <button
-              className="p-2 border-2 border-blue-900 rounded-lg hover:bg-blue-900 hover:text-white text-black disabled:opacity-20 transition-all shadow-sm"
+              className="p-2 border-2 border-blue-900 dark:border-yellow-400 rounded-lg hover:bg-blue-900 dark:hover:bg-yellow-400 hover:text-white dark:hover:text-blue-900 text-black dark:text-white disabled:opacity-20 transition-all shadow-sm"
               onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages || totalPages === 0}
             >
@@ -305,7 +303,6 @@ function TechnicianTable() {
           isOpen={isModalOpen}
           remarkdata={senddata}
           onClose={() => setIsModalOpen(false)}
-          // ✅ Inalis ang socket props
         />
       )}
     </div>
@@ -317,9 +314,9 @@ const StatusBadge = ({ status }) => {
   const displayStatus = getDisplayValue(status) || "Pending";
   
   const styles = {
-    "Pending": "bg-gray-100 text-black border-gray-300",
-    "Under Maintenance": "bg-yellow-100 text-black border-yellow-400",
-    "Success": "bg-blue-900 text-white border-blue-900 shadow-md"
+    "Pending": "bg-gray-100 dark:bg-slate-700 text-black dark:text-gray-200 border-gray-300 dark:border-gray-500",
+    "Under Maintenance": "bg-yellow-100 dark:bg-yellow-900/30 text-black dark:text-yellow-300 border-yellow-400 dark:border-yellow-500",
+    "Success": "bg-blue-900 dark:bg-yellow-400 text-white dark:text-blue-900 border-blue-900 dark:border-yellow-400 shadow-md"
   };
 
   const icons = {

@@ -26,6 +26,11 @@ const userSchema = new mongoose.Schema({
   isVerified: {
     type: Boolean, default: false
   },
+  theme: {
+    type: String,
+    enum: ["dark", "light"],
+    default: "light"
+  },
   passwordChangedAt: Date,
   passwordResetToken: String,
   passwordResetTokenExpires: Date

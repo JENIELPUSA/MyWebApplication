@@ -15,6 +15,10 @@ router.route('/resetPassword/:token')
 router.route('/updatePassword')
     .patch(authController.protect, authController.updatePassword)
 
+// NEW: Theme switch
+router.route('/theme')
+    .patch(authController.protect, authController.updateTheme)
+
 
 
 module.exports = router;

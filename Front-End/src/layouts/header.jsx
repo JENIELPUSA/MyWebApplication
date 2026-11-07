@@ -1,6 +1,5 @@
 // Header.jsx - Show ALL notifications always, mark as read changes status only
 import { useState, useContext, useMemo, useEffect, useCallback } from "react";
-import { useTheme } from "@/hooks/use-theme";
 import {
     Bell,
     Moon,
@@ -148,29 +147,39 @@ const DEFAULT_NOTIFICATION_LABEL = NOTIFICATION_LABELS.General;
 const getNotificationLabel = (type) =>
     NOTIFICATION_LABELS[type] || DEFAULT_NOTIFICATION_LABEL;
 
+// ✅ Theme validation helper
+const VALID_THEMES = ["light", "dark"];
+const resolveTheme = (value) =>
+    VALID_THEMES.includes(value) ? value : "light";
+
 export const Header = ({ collapsed, setCollapsed }) => {
     const { messages, markAllAsRead, markMessageAsRead } = useContext(MessagePOSTcontext);
-    const { theme, setTheme } = useTheme();
     const [showNotifications, setShowNotifications] = useState(false);
     const [selectedMessage, setSelectedMessage] = useState(null);
-    const [isLoadingTechnicians, setIsLoadingTechnicians] = useState(false);
-    const [localTechnicians, setLocalTechnicians] = useState([]);
+    const [isLoadingTechnicians] = useState(false);
+    const [localTechnicians] = useState([]);
     const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
+    const [isSavingTheme, setIsSavingTheme] = useState(false);
 
     // ✅ Optimistic "read" override set
     const [locallyReadIds, setLocallyReadIds] = useState(() => new Set());
 
-    // ✅ Auth
+    // ✅ Auth — theme at saveTheme galing sa AuthContext
     const {
         first_name,
         role,
-        email,
         Firstname,
+        theme,
+        saveTheme,
     } = useContext(AuthContext);
 
     const displayFirstName = first_name || Firstname || "";
 
     const { technicians = [] } = useContext(UserDataContext) || {};
+
+    // ✅ Resolved theme para sa UI (para hindi mag-render ng invalid state)
+    const activeTheme = resolveTheme(theme);
+    const isDark = activeTheme === "dark";
 
     // ✅ Greeting
     const getGreeting = () => {
@@ -185,6 +194,50 @@ export const Header = ({ collapsed, setCollapsed }) => {
     const isEmptyOrWhitespace = (str) => {
         return !str || str.trim() === "" || str === "N/A" || str === "   ";
     };
+
+    // ==========================================
+    // ✅ THEME TOGGLE — gamit ang saveTheme (backend + localStorage + state)
+    // ==========================================
+    const handleThemeToggle = useCallback(async () => {
+        if (isSavingTheme) return;
+
+        const nextTheme = isDark ? "light" : "dark";
+
+        try {
+            setIsSavingTheme(true);
+
+            // saveTheme ang bahala sa:
+            //  1) setTheme (state)
+            //  2) localStorage.setItem("theme", ...)
+            //  3) PATCH backend (kung may authToken)
+            const result = await saveTheme(nextTheme);
+
+            if (result?.success) {
+                console.log(`[Header] ✅ Theme saved: ${nextTheme}`);
+            } else {
+                console.warn(`[Header] ⚠️ Theme save failed:`, result?.message);
+            }
+        } catch (err) {
+            console.error("[Header] ❌ Theme toggle error:", err);
+
+            // Fallback — apply class + localStorage manually para hindi stuck
+            try {
+                localStorage.setItem("theme", nextTheme);
+                document.documentElement.classList.toggle("dark", nextTheme === "dark");
+            } catch (fallbackErr) {
+                console.error("[Header] Theme fallback failed:", fallbackErr);
+            }
+        } finally {
+            setIsSavingTheme(false);
+        }
+    }, [isDark, saveTheme, isSavingTheme]);
+
+    // ==========================================
+    // ✅ Sync "dark" class sa <html> kapag nagbago ang theme
+    // ==========================================
+    useEffect(() => {
+        document.documentElement.classList.toggle("dark", activeTheme === "dark");
+    }, [activeTheme]);
 
     // ==========================================
     // TRANSFORM MESSAGES → NOTIFICATIONS
@@ -316,16 +369,13 @@ export const Header = ({ collapsed, setCollapsed }) => {
     const handleNotificationClick = async (notif) => {
         console.log("[Header] Notification clicked:", notif);
 
-        // Kung unread at may valid ID, mark as read agad
         if (notif.unread && notif.id) {
-            // Optimistic — agad mawala ang badge
             setLocallyReadIds((prev) => {
                 const next = new Set(prev);
                 next.add(notif.id);
                 return next;
             });
 
-            // Server-side (background)
             if (typeof markMessageAsRead === "function") {
                 try {
                     const success = await markMessageAsRead(notif.id);
@@ -336,7 +386,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
                     }
                 } catch (error) {
                     console.error(`[Header] ❌ markMessageAsRead error:`, error);
-                    // Rollback kung nag-fail
                     setLocallyReadIds((prev) => {
                         const next = new Set(prev);
                         next.delete(notif.id);
@@ -346,7 +395,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
             }
         }
 
-        // Buksan ang modal at isara ang dropdown
         setSelectedMessage(notif);
         setShowNotifications(false);
     };
@@ -425,12 +473,23 @@ export const Header = ({ collapsed, setCollapsed }) => {
                 </div>
 
                 <div className="flex items-center gap-x-4">
+                    {/* ✅ Theme Toggle — via saveTheme (backend + localStorage + state) */}
                     <button
-                        className="btn-ghost size-10 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg transition-all duration-300"
-                        onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                        type="button"
+                        className="btn-ghost size-10 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={handleThemeToggle}
+                        disabled={isSavingTheme}
+                        title={isSavingTheme ? "Saving..." : isDark ? "Switch to light mode" : "Switch to dark mode"}
+                        aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+                        aria-busy={isSavingTheme}
                     >
-                        <Sun size={20} className="dark:hidden" />
-                        <Moon size={20} className="hidden dark:block" />
+                        {isSavingTheme ? (
+                            <Loader2 size={20} className="animate-spin" />
+                        ) : isDark ? (
+                            <Sun size={20} />
+                        ) : (
+                            <Moon size={20} />
+                        )}
                     </button>
 
                     {/* Notification Button */}
@@ -547,7 +606,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                                     `}
                                                 >
                                                     <div className="flex items-start gap-3">
-                                                        {/* ICON */}
                                                         <div
                                                             className={`
                                                                 size-10 rounded-xl flex items-center justify-center shrink-0
@@ -560,7 +618,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                                             <IconComponent size={19} />
                                                         </div>
 
-                                                        {/* CONTENT */}
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-start justify-between gap-3">
                                                                 <div className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
