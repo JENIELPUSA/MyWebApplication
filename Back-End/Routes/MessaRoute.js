@@ -15,6 +15,12 @@ router
   .route("/mark-all-read")
 
   .patch(authController.protect, MsgController.MarkAllAsRead)
+
+router
+  .route("/:messageId/read")
+  .patch(authController.protect, MsgController.MarkMessageAsRead)
+
+  
 router.route("/:id").patch(MsgController.UpdateSendMSG);
 
 router

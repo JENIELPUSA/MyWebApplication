@@ -147,7 +147,7 @@ exports.deleteUser = AsyncErrorHandler(async (req, res) => {
 exports.Updateuser = AsyncErrorHandler(async (req, res, next) => {
   const { FirstName, LastName, email, role } = req.body;
 
-  if (!FirstName || !LastName || !email || !role) {
+  if (!FirstName || !LastName || !role) {
     return res.status(400).json({
       status: "fail",
       message: "Please fill in all required fields.",

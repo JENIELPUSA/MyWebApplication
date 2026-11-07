@@ -297,13 +297,14 @@ const LaboratoryTable = () => {
                           >
                             <FaEdit size={15} />
                           </button>
-                          <button
+
+{/*                          <button
                             onClick={() => handleDeleteClick(lab)}
                             className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
                             title="Delete Laboratory"
                           >
                             <FaTrashAlt size={15} />
-                          </button>
+                          </button>*/}
                         </div>
                       </td>
                     )}
@@ -395,7 +396,6 @@ const LaboratoryTable = () => {
           <AddFormModal
             isOpen={isModalAddForm}
             onAddLaboratory={(newLab) => {
-              setLaboratories((prev) => [...prev, newLab]);
               handleCloseModal();
             }}
             OnEditLaboratory={(updated) => {

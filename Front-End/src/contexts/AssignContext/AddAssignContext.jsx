@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import axios from "axios";
 import axiosInstance from "../../components/ReusableComponent/axiosInstance";
+import StatusModal from "../../components/ReusableComponent/SuccessandFailedModal";
 
 export const AddAssignContext = createContext();
 
@@ -24,8 +25,8 @@ const DEFAULT_FILTERS = {
   category: "",
   brand: "",
   status: "",
-  dateFrom: "", // 🆕
-  dateTo: "",   // 🆕
+  dateFrom: "",
+  dateTo: "",
 };
 
 // ============================================================
@@ -50,7 +51,6 @@ const cleanQueryParams = (params) => {
       value !== undefined &&
       value !== "All"
     ) {
-      // Normalize ID-like fields
       if (["department", "laboratory", "category"].includes(key)) {
         const normalized = toIdStr(value);
         if (normalized) cleaned[key] = normalized;
@@ -67,6 +67,11 @@ export const AddAssignProvider = ({ children }) => {
   const [assigns, setAssigns] = useState([]);
   const [error, setError] = useState(null);
   const [confirm, setConfirm] = useState(null);
+
+  // ✅ StatusModal states
+  const [showModal, setShowModal] = useState(false);
+  const [modalStatus, setModalStatus] = useState("success");
+  const [modalMessage, setModalMessage] = useState("");
 
   // ✅ Pagination state
   const [pagination, setPagination] = useState({
@@ -109,13 +114,26 @@ export const AddAssignProvider = ({ children }) => {
   }, []);
 
   // ============================================================
+  // ✅ HELPER — Show Status Modal
+  // ============================================================
+  const openStatusModal = useCallback((status, message) => {
+    setModalStatus(status);
+    setModalMessage(message);
+    setShowModal(true);
+  }, []);
+
+  const closeStatusModal = useCallback(() => {
+    setShowModal(false);
+  }, []);
+
+  // ============================================================
   // ADD ASSIGN EQUIPMENT
   // ============================================================
   const addAssignEquipment = async (values) => {
     const authToken = getAuthToken();
     if (!authToken) {
-      console.warn("⚠️ No auth token — cannot add assign");
-      return;
+      openStatusModal("error", "Authentication required. Please log in.");
+      return { success: false };
     }
 
     setLoading(true);
@@ -127,26 +145,41 @@ export const AddAssignProvider = ({ children }) => {
           Equipments: values.id,
           Laboratory: values.Laboratory,
         },
-        { headers: { Authorization: `Bearer ${authToken}` } },
+        { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (response.data.status === "success") {
         await axios.patch(
           `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/equipment/${values.id}`,
           { status: "Not Available" },
-          { headers: { Authorization: `Bearer ${authToken}` } },
+          { headers: { Authorization: `Bearer ${authToken}` } }
         );
         setConfirm(true);
+        openStatusModal("success", "Equipment assigned successfully.");
+        return { success: true, data: response.data.data };
+      } else {
+        openStatusModal(
+          "error",
+          response.data.message || "Failed to assign equipment."
+        );
+        return { success: false };
       }
     } catch (error) {
       console.error("Error assigning equipment:", error);
+      openStatusModal(
+        "error",
+        error?.response?.data?.message ||
+          error.message ||
+          "Unexpected error occurred."
+      );
+      return { success: false };
     } finally {
       setLoading(false);
     }
   };
 
   // ============================================================
-  // ✅ DISPLAY ASSIGN — Robust param handling + logs
+  // ✅ DISPLAY ASSIGN
   // ============================================================
   const displayAssign = useCallback(
     async (queryParams = {}) => {
@@ -161,55 +194,26 @@ export const AddAssignProvider = ({ children }) => {
       setError(null);
 
       try {
-        // ✅ DETECT kung "reset" ang request
         const isResetRequest =
           !queryParams || Object.keys(queryParams).length === 0;
 
-        // ✅ Merge filters + queryParams
         const baseFilters = isResetRequest ? DEFAULT_FILTERS : filters;
         const mergedParams = { ...baseFilters, ...queryParams };
 
-        // ✅ Clean & normalize
         const cleanedParams = cleanQueryParams(mergedParams);
         const queryString = new URLSearchParams(cleanedParams).toString();
 
-        const url = `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/AssignEquipment${
-          queryString ? `?${queryString}` : ""
-        }`;
-
-        // ============ DEBUG LOGS ============
-        console.log("🌐 Fetching Assigns:");
-        console.log("  isResetRequest:", isResetRequest);
-        console.log("  Filters sent:", {
-          department: cleanedParams.department || "(none)",
-          laboratory: cleanedParams.laboratory || "(none)",
-          category: cleanedParams.category || "(none)",
-          brand: cleanedParams.brand || "(none)",
-          status: cleanedParams.status || "(none)",
-          search: cleanedParams.search || "(none)",
-          dateFrom: cleanedParams.dateFrom || "(none)", // 🆕
-          dateTo: cleanedParams.dateTo || "(none)",     // 🆕
-        });
-        console.log("  Full URL:", url);
-        // =====================================
+        const url = `${
+          import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+        }/api/v1/AssignEquipment${queryString ? `?${queryString}` : ""}`;
 
         const response = await axiosInstance.get(url, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
 
-        console.log("📥 displayAssign response:", {
-          status: response.data.status,
-          totalRecords: response.data.totalRecords,
-          totalLaboratories: response.data.totalLaboratories,
-          count: response.data.count,
-          firstItem: response.data.data?.[0] || null,
-        });
-
         if (response.data.status === "success") {
-          // ✅ I-save ang data
           setAssigns(response.data.data);
 
-          // ✅ I-save ang pagination metadata
           setPagination({
             totalRecords: response.data.totalRecords || 0,
             totalLaboratories: response.data.totalLaboratories || 0,
@@ -219,7 +223,6 @@ export const AddAssignProvider = ({ children }) => {
             count: response.data.count || 0,
           });
 
-          // ✅ Reset o merge ang filters
           if (isResetRequest) {
             setFilters(DEFAULT_FILTERS);
           } else {
@@ -259,7 +262,7 @@ export const AddAssignProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    [filters],
+    [filters]
   );
 
   // ============================================================
@@ -270,7 +273,7 @@ export const AddAssignProvider = ({ children }) => {
       const safePage = Math.max(1, Math.min(page, pagination.totalPages));
       return displayAssign({ ...filters, page: safePage });
     },
-    [displayAssign, filters, pagination.totalPages],
+    [displayAssign, filters, pagination.totalPages]
   );
 
   const nextPage = useCallback(() => {
@@ -289,7 +292,7 @@ export const AddAssignProvider = ({ children }) => {
     (newLimit) => {
       return displayAssign({ ...filters, limit: newLimit, page: 1 });
     },
-    [displayAssign, filters],
+    [displayAssign, filters]
   );
 
   // ============================================================
@@ -299,22 +302,16 @@ export const AddAssignProvider = ({ children }) => {
     (searchTerm) => {
       return displayAssign({ ...filters, search: searchTerm, page: 1 });
     },
-    [displayAssign, filters],
+    [displayAssign, filters]
   );
 
   const handleFilterChange = useCallback(
     (filterKey, value) => {
-      // 🆕 Normalize ID-like filters automatically
       const normalizedValue = ["department", "laboratory", "category"].includes(
-        filterKey,
+        filterKey
       )
         ? toIdStr(value)
         : value;
-
-      // 🆕 Debug pag date filter
-      if (filterKey === "dateFrom" || filterKey === "dateTo") {
-        console.log(`📅 ${filterKey} changed:`, normalizedValue || "(cleared)");
-      }
 
       return displayAssign({
         ...filters,
@@ -322,14 +319,14 @@ export const AddAssignProvider = ({ children }) => {
         page: 1,
       });
     },
-    [displayAssign, filters],
+    [displayAssign, filters]
   );
 
   const handleSort = useCallback(
     (sortBy, sortOrder = "desc") => {
       return displayAssign({ ...filters, sortBy, sortOrder, page: 1 });
     },
-    [displayAssign, filters],
+    [displayAssign, filters]
   );
 
   // ============================================================
@@ -354,7 +351,6 @@ export const AddAssignProvider = ({ children }) => {
     let isMounted = true;
 
     const fetchAssigns = async () => {
-      console.log("🚀 AuthToken detected — fetching assigns...");
       await displayAssign();
       if (!isMounted) return;
     };
@@ -375,7 +371,6 @@ export const AddAssignProvider = ({ children }) => {
       const currentToken = getAuthToken();
       setToken((prevToken) => {
         if (prevToken !== currentToken) {
-          console.log("🔄 Token changed — updating state");
           return currentToken;
         }
         return prevToken;
@@ -389,11 +384,14 @@ export const AddAssignProvider = ({ children }) => {
   // DOWNLOAD PDF HISTORY
   // ============================================================
   const downloadPMSEquipmentHistory = async (laboratoryId) => {
-    if (!laboratoryId) return console.error("Laboratory ID is required");
+    if (!laboratoryId) {
+      openStatusModal("error", "Laboratory ID is required.");
+      return;
+    }
 
     const authToken = getAuthToken();
     if (!authToken) {
-      console.warn("⚠️ No auth token — cannot download PDF");
+      openStatusModal("error", "Authentication required. Please log in.");
       return;
     }
 
@@ -401,7 +399,9 @@ export const AddAssignProvider = ({ children }) => {
 
     try {
       const response = await axios({
-        url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/AssignEquipment/displayAssignHistory?laboratory=${laboratoryId}`,
+        url: `${
+          import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
+        }/api/v1/AssignEquipment/displayAssignHistory?laboratory=${laboratoryId}`,
         method: "GET",
         responseType: "blob",
         headers: { Authorization: `Bearer ${authToken}` },
@@ -423,12 +423,20 @@ export const AddAssignProvider = ({ children }) => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("PDF Download Error:", error);
-      alert("No records found or unauthorized access.");
+      openStatusModal(
+        "error",
+        error?.response?.status === 404
+          ? "No records found for this laboratory."
+          : "Unauthorized access or unexpected error."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // ============================================================
+  // ✅ RENDER — StatusModal nasa LOOB ng Provider, katabi ng children
+  // ============================================================
   return (
     <AddAssignContext.Provider
       value={{
@@ -451,9 +459,22 @@ export const AddAssignProvider = ({ children }) => {
         handleFilterChange,
         handleSort,
         resetFilters,
+        // ✅ StatusModal helpers (optional, para sa manual trigger)
+        openStatusModal,
+        closeStatusModal,
       }}
     >
       {children}
+
+      {/* ===== STATUS MODAL — nasa loob ng Provider ===== */}
+      <StatusModal
+        isOpen={showModal}
+        onClose={closeStatusModal}
+        status={modalStatus}
+        message={modalMessage}
+        showCancel={false}
+        submitText="OK"
+      />
     </AddAssignContext.Provider>
   );
 };

@@ -66,7 +66,6 @@ export const Sidebar = forwardRef(({ collapsed }, ref) => {
             Technician: [
                 "/dashboard",
                 "/dashboard/report",
-                "/dashboard/category",
                 "/dashboard/maintenance",
                 "/dashboard/assign", "/dashboard/updatepassword"
             ],

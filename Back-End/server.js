@@ -4,250 +4,257 @@ dotenv.config({ path: "./config.env" });
 const mongoose = require("mongoose");
 const http = require("http");
 const socketIo = require("socket.io");
-const { spawn } = require("child_process");
-const path = require("path");
-const os = require("os");
+const jwt = require("jsonwebtoken");
+
 const app = require("./app");
 const initDefaultUser = require("./Controller/initDefaultUser");
+const UserLoginSchema = require("./Models/usermodel"); // adjust path
+
+const {
+  roleRoom,
+  userRoom,
+  privateRoom,
+  ROOM_ALL_ROLES,
+} = require("./rooms");
+
+const SECRET_STR = process.env.SECRET_STR || process.env.SECRET_STR;
 
 app.set("trust proxy", true);
 
-// ==========================
-// 1. ERROR HANDLING
-// ==========================
+// =========================================================
+// SERVER — define FIRST (para magamit sa error handlers)
+// =========================================================
+const server = http.createServer(app);
+
+// =========================================================
+// GLOBAL ERROR HANDLERS
+// =========================================================
 process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception! Shutting down...");
+  console.error("❌ Uncaught Exception! Shutting down...");
   console.error(err);
   process.exit(1);
 });
 
-const server = http.createServer(app);
+process.on("unhandledRejection", (err) => {
+  console.error("❌ Unhandled Rejection! Shutting down...");
+  console.error(err);
+  server.close(() => process.exit(1));
+});
 
-// ==========================
-// 2. SOCKET.IO CONFIG
-// ==========================
+// =========================================================
+// SOCKET.IO
+// =========================================================
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "*",
+    origin: process.env.FRONTEND_URL,
     methods: ["GET", "POST"],
     credentials: true,
   },
-  allowEIO3: true,
   transports: ["websocket", "polling"],
+  pingInterval: 25000,
+  pingTimeout: 60000,
 });
 
 app.set("io", io);
 
-// ==========================
-// 3. DEV vs PRODUCTION (RFID Python Bridge)
-// ==========================
-if (process.env.NODE_ENV === "development") {
-  const pythonCmd = process.platform === "win32" ? "py" : "python3";
-  const desktopPath = path.join(
-    os.homedir(),
-    "Desktop",
-    "RFID-Bridge",
-    "scan.py"
-  );
+// =========================================================
+// SOCKET AUTH MIDDLEWARE
+// =========================================================
+io.use(async (socket, next) => {
+  try {
+    const token =
+      socket.handshake.auth?.token ||
+      socket.handshake.headers?.authorization?.replace("Bearer ", "");
 
-  console.log(`🛠️ Dev Mode: Spawning local Python at ${desktopPath}`);
-  const rfidPython = spawn(pythonCmd, [desktopPath]);
-
-  rfidPython.stdout.on("data", (data) => {
-    const cardUID = data.toString().trim();
-    if (cardUID && cardUID !== "NO_READER") {
-      console.log(`Local Scan: ${cardUID}`);
-      io.emit("rfid-scanned", {
-        uid: cardUID,
-        timestamp: new Date(),
-        source: "Local-Spawn",
-      });
+    if (!token) {
+      console.warn(`[Socket] ❌ No token for socket ${socket.id}`);
+      return next(new Error("Authentication required"));
     }
-  });
 
-  rfidPython.stderr.on("data", (data) =>
-    console.error(`Python Error: ${data}`)
-  );
-} else {
-  console.log(
-    "🚀 Production Mode: Waiting for remote RFID bridge from your Desktop..."
-  );
-}
+    const decoded = jwt.verify(token, SECRET_STR);
 
-// ==========================
-// 4. GLOBAL USERS TRACKING
-// ==========================
+    const user = await UserLoginSchema.findById(decoded.id).select(
+      "_id role linkedId firstName lastName"
+    );
+
+    if (!user) return next(new Error("User not found"));
+
+    socket.user = user;
+    console.log(
+      `[Socket] ✅ Auth OK: ${user._id} (role=${user.role}) socket=${socket.id}`
+    );
+    next();
+  } catch (err) {
+    console.error(`[Socket] ❌ Auth error: ${err.message}`);
+    next(new Error("Unauthorized"));
+  }
+});
+
+// =========================================================
+// CONNECTION
+// =========================================================
 global.connectedUsers = {};
 
 io.on("connection", (socket) => {
   console.log(`🔌 New Connection: ${socket.id}`);
 
-  // ==========================
-  // RFID SCANNER (browser-side bridge)
-  // ==========================
+  // ==========================================================
+  // RFID SCANNER
+  // ==========================================================
   socket.on("rfid-scanned", (data) => {
-    console.log("UID received:", data.uid);
-
+    console.log("UID received:", data?.uid);
     io.emit("rfid-scanned", {
       ...data,
       timestamp: new Date(),
     });
   });
 
-  // ==========================
-  // REGISTER USER (ROLE-BASED ROOMS)
-  // Roles: User | Admin | Technician | Supply
-  // ==========================
+  // ==========================================================
+  // REGISTER USER — joins all necessary rooms
+  // ==========================================================
   socket.on("register-user", (userId, role) => {
     if (!userId || !role) {
       console.log("⚠️ No User ID or Role provided");
       return;
     }
 
-    const normalizedRole = role.toLowerCase();
+    const normalizedRole = String(role).toLowerCase().trim();
 
     socket.userId = userId;
     socket.role = normalizedRole;
 
-    socket.join(`user:${userId}`);
+    // ---- Common rooms (using helpers) ----
+    socket.join(userRoom(userId));
+    socket.join(roleRoom(normalizedRole));
+    socket.join(privateRoom(normalizedRole, userId));
+    socket.join(ROOM_ALL_ROLES);
+
     global.connectedUsers[userId] = socket.id;
 
-    switch (normalizedRole) {
-      case "admin":
-        socket.join("role:admin");
-        socket.join("admin-shared");
-        socket.join(`private:admin:${userId}`);
-        console.log(`🛡️ ADMIN: ${userId}`);
-        break;
+    console.log(
+      `✅ ${normalizedRole.toUpperCase()}: ${userId} (socket: ${socket.id})`
+    );
+  });
 
-      case "user":
-        socket.join("role:user");
-        socket.join("admin-shared");
-        socket.join(`private:user:${userId}`);
-        console.log(`👤 USER: ${userId}`);
-        break;
+  // ==========================================================
+  // UNIVERSAL MESSAGING
+  // Supports:
+  //   - self-message only        → { self: true }
+  //   - specific users           → { targetUsers: ["id1", "id2"] }
+  //   - specific roles           → { targetRoles: ["technician", "admin"] }
+  //   - all roles                → { targetRoles: ["all"] }
+  //   - include sender           → { includeSelf: true }
+  // ==========================================================
+  socket.on("send-message", (data) => {
+    try {
+      const {
+        targetRoles,
+        targetUsers,
+        event,
+        payload,
+        self,
+        includeSelf,
+      } = data || {};
 
-      case "technician":
-        socket.join("role:technician");
-        socket.join("admin-shared");
-        socket.join(`private:technician:${userId}`);
-        console.log(`🔧 TECHNICIAN: ${userId}`);
-        break;
+      if (!event) {
+        console.log("⚠️ send-message: no event name provided");
+        return;
+      }
 
-      case "supply":
-        socket.join("role:supply");
-        socket.join("admin-shared");
-        socket.join(`private:supply:${userId}`);
-        console.log(`📦 SUPPLY: ${userId}`);
-        break;
+      const messageData = {
+        ...payload,
+        from: socket.userId,
+        fromRole: socket.role,
+        timestamp: new Date(),
+      };
 
-      default:
-        console.log(`⚠️ Unknown role: ${role}`);
+      const emitToSelf = () => {
+        if (socket.userId) {
+          io.to(userRoom(socket.userId)).emit(event, messageData);
+        }
+      };
+
+      // --------------------------------------------------------
+      // 1. SELF MESSAGE ONLY
+      // --------------------------------------------------------
+      if (self === true) {
+        emitToSelf();
+        console.log(`📨 ${socket.role}:${socket.userId} → SELF`);
+        return;
+      }
+
+      // --------------------------------------------------------
+      // 2. SPECIFIC USERS
+      // --------------------------------------------------------
+      if (Array.isArray(targetUsers) && targetUsers.length > 0) {
+        targetUsers.forEach((uid) => {
+          if (uid) {
+            io.to(userRoom(uid)).emit(event, messageData);
+          }
+        });
+
+        if (includeSelf && !targetUsers.includes(socket.userId)) {
+          emitToSelf();
+        }
+
+        console.log(
+          `📨 ${socket.role}:${socket.userId} → users: ${targetUsers.join(", ")}`
+        );
+        return;
+      }
+
+      // --------------------------------------------------------
+      // 3. SPECIFIC ROLES
+      // --------------------------------------------------------
+      if (Array.isArray(targetRoles) && targetRoles.length > 0) {
+        // ---- ALL ROLES ----
+        if (targetRoles.includes("all")) {
+          io.to(ROOM_ALL_ROLES).emit(event, messageData);
+          console.log(`📨 ${socket.role}:${socket.userId} → ALL ROLES`);
+          return;
+        }
+
+        // ---- MULTIPLE ROLES ----
+        targetRoles.forEach((role) => {
+          io.to(roleRoom(role)).emit(event, messageData);
+        });
+
+        // Optional: include sender if not already covered by role
+        if (includeSelf) {
+          const includesSelfRole = targetRoles
+            .map((r) => String(r).toLowerCase())
+            .includes(socket.role);
+
+          if (!includesSelfRole) {
+            emitToSelf();
+          }
+        }
+
+        console.log(
+          `📨 ${socket.role}:${socket.userId} → roles: ${targetRoles.join(", ")}`
+        );
+        return;
+      }
+
+      console.log("⚠️ send-message: no target specified");
+    } catch (err) {
+      console.error("❌ send-message error:", err);
     }
   });
 
-  // ==========================
-  // WELLNESS LEAVE — JOIN ROOM
-  // ==========================
-  socket.on("wellness:join", (userId, role) => {
-    if (!userId || !role) return;
-
-    const normalizedRole = role.toLowerCase();
-    socket.join(`wellness:${normalizedRole}:${userId}`);
-    console.log(`📋 Wellness join: ${normalizedRole}:${userId}`);
-  });
-
-  // ==========================
-  // ADMIN → USER (private alert)
-  // ==========================
-  socket.on("admin:send-to-user", (targetUserId, messageData) => {
-    if (socket.role !== "admin") return;
-
-    io.to(`private:user:${targetUserId}`).emit("private-alert", {
-      ...messageData,
-      from: socket.userId,
-      timestamp: new Date(),
-    });
-  });
-
-  // ==========================
-  // ADMIN → TECHNICIAN
-  // ==========================
-  socket.on("admin:send-to-technician", (targetUserId, messageData) => {
-    if (socket.role !== "admin") return;
-
-    io.to(`private:technician:${targetUserId}`).emit("private-alert", {
-      ...messageData,
-      from: socket.userId,
-      timestamp: new Date(),
-    });
-  });
-
-  // ==========================
-  // ADMIN → SUPPLY
-  // ==========================
-  socket.on("admin:send-to-supply", (targetUserId, messageData) => {
-    if (socket.role !== "admin") return;
-
-    io.to(`private:supply:${targetUserId}`).emit("private-alert", {
-      ...messageData,
-      from: socket.userId,
-      timestamp: new Date(),
-    });
-  });
-
-  // ==========================
-  // USER → ADMIN
-  // ==========================
-  socket.on("user:send-to-admin", (targetUserId, messageData) => {
-    if (socket.role !== "user") return;
-
-    io.to(`private:admin:${targetUserId}`).emit("private-alert", {
-      ...messageData,
-      from: socket.userId,
-      timestamp: new Date(),
-    });
-  });
-
-  // ==========================
-  // TECHNICIAN → ADMIN
-  // ==========================
-  socket.on("technician:send-to-admin", (targetUserId, messageData) => {
-    if (socket.role !== "technician") return;
-
-    io.to(`private:admin:${targetUserId}`).emit("private-alert", {
-      ...messageData,
-      from: socket.userId,
-      timestamp: new Date(),
-    });
-  });
-
-  // ==========================
-  // SUPPLY → ADMIN
-  // ==========================
-  socket.on("supply:send-to-admin", (targetUserId, messageData) => {
-    if (socket.role !== "supply") return;
-
-    io.to(`private:admin:${targetUserId}`).emit("private-alert", {
-      ...messageData,
-      from: socket.userId,
-      timestamp: new Date(),
-    });
-  });
-
-  // ==========================
-  // EQUIPMENT UPDATE
-  // ==========================
+  // ==========================================================
+  // EQUIPMENT STATUS UPDATE
+  // ==========================================================
   socket.on("updatestatusequipment:send", (payload) => {
     try {
       const ownerId = payload?.loan?.userId;
 
       // Admin gets all updates
-      io.to("role:admin").emit("updatestatusequipment:update", payload);
+      io.to(roleRoom("admin")).emit("updatestatusequipment:update", payload);
 
-      // Owner (User/Technician/Supply) gets own update
+      // Owner gets own update
       if (ownerId) {
-        io.to(`user:${ownerId}`).emit(
+        io.to(userRoom(ownerId)).emit(
           "updatestatusequipment:update",
           payload
         );
@@ -257,44 +264,20 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ==========================
-  // WELLNESS LEAVE — MANUAL TRIGGER
-  // ==========================
-  socket.on("wellness:trigger-refresh", (data) => {
-    const { targetRole, targetUserId } = data || {};
-
-    if (targetRole) {
-      const normalizedRole = targetRole.toLowerCase();
-      io.to(`role:${normalizedRole}`).emit("wellness:refresh");
-      console.log(`🔄 Refresh triggered for role:${normalizedRole}`);
-    }
-
-    if (targetUserId && targetRole) {
-      const normalizedRole = targetRole.toLowerCase();
-      io.to(`private:${normalizedRole}:${targetUserId}`).emit(
-        "wellness:refresh"
-      );
-      console.log(
-        `🔄 Refresh triggered for private:${normalizedRole}:${targetUserId}`
-      );
-    }
-  });
-
-  // ==========================
+  // ==========================================================
   // DISCONNECT
-  // ==========================
+  // ==========================================================
   socket.on("disconnect", () => {
     if (socket.userId) {
       delete global.connectedUsers[socket.userId];
     }
-
     console.log(`❌ Disconnected: ${socket.id}`);
   });
 });
 
-// ==========================
-// 5. DATABASE & SERVER START
-// ==========================
+// =========================================================
+// DB CONNECT + START SERVER
+// =========================================================
 mongoose
   .connect(process.env.CONN_STR)
   .then(async () => {
@@ -310,12 +293,3 @@ mongoose
     console.error("❌ DB connection error:", err.message);
     process.exit(1);
   });
-
-// ==========================
-// 6. UNHANDLED REJECTION
-// ==========================
-process.on("unhandledRejection", (err) => {
-  console.error("Unhandled Rejection!");
-  console.error(err);
-  server.close(() => process.exit(1));
-});

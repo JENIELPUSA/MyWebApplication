@@ -1,124 +1,129 @@
-import { useEffect, useContext } from "react";
-import socket from "../socket.js";
+import { useContext, useEffect, useRef } from "react";
+import socket, { connectSocket } from "../socket.js";
 import { EquipmentDataContext } from "./contexts/EquipmentContext/EquipmentContext.jsx";
 import { MessagePOSTcontext } from "./contexts/MessageContext/POSTmessage.jsx";
 import { MaintenanceRecordContext } from "./contexts/PMSMaintenanceRecord/PMSMaintenanceRecord.jsx";
 import { MaintenanceRequestContext } from "./contexts/MaintenanceRequestContext/MaintenanceRequestContext.jsx";
+
 const SocketListener = () => {
-    const { fetchRequestData } = useContext(MaintenanceRecordContext);
-    const { fetchEquipmentData, fetchMyLaboratory } = useContext(EquipmentDataContext);
-    const { fetchDisplayMessage } = useContext(MessagePOSTcontext);
-    const {fetchTechnicianTasks}=useContext(MaintenanceRequestContext)
+  const { fetchEquipmentData } = useContext(EquipmentDataContext);
+  const { fetchDisplayMessage } = useContext(MessagePOSTcontext);
+  const { fetchRequestData } = useContext(MaintenanceRecordContext);
+  const { fetchTechnicianTasks } = useContext(MaintenanceRequestContext);
 
-    useEffect(() => {
-        const role = localStorage.getItem("role");
-        const linkId = localStorage.getItem("linkId");
+  const ctxRef = useRef({});
 
-        console.log("🔌 [SocketListener] Mounting...");
-        console.log("👤 [SocketListener] role:", role);
-        console.log("🆔 [SocketListener] linkId:", linkId);
+  useEffect(() => {
+    ctxRef.current = {
+      fetchEquipmentData,
+      fetchDisplayMessage,
+      fetchRequestData,
+      fetchTechnicianTasks,
+    };
+  }, [
+    fetchEquipmentData,
+    fetchDisplayMessage,
+    fetchRequestData,
+    fetchTechnicianTasks,
+  ]);
 
-        if (!linkId || !role) {
-            console.warn("⚠️ [SocketListener] Missing linkId or role. Skipping registration.");
-            return;
-        }
+  // =====================================================
+  // MAIN SOCKET EFFECT — runs ONCE
+  // =====================================================
+  useEffect(() => {
+    // ---------------------------------------------
+    // Helper: register on the SERVER
+    // ---------------------------------------------
+    const doRegister = () => {
+      const role = localStorage.getItem("role");
+      const userId = localStorage.getItem("userId");
 
-        // ==========================
-        // SOCKET CONNECTION STATUS
-        // ==========================
-        socket.on("connect", () => {
-            console.log("✅ [Socket] Connected! Socket ID:", socket.id);
-        });
+      // ✅ userId lang ang kailangan
+      if (!userId || !role) {
+        console.warn(
+          "[SocketListener] missing userId/role in localStorage — skip register"
+        );
+        return;
+      }
 
-        socket.on("disconnect", (reason) => {
-            console.warn("❌ [Socket] Disconnected. Reason:", reason);
-        });
+      socket.emit("register-user", userId, role);
 
-        socket.on("connect_error", (error) => {
-            console.error("🚨 [Socket] Connection Error:", error.message);
-        });
+      console.log(
+        `[SocketListener] register-user → userId=${userId}, role=${role}`
+      );
+    };
 
-        // ==========================
-        // REGISTER USER
-        // ==========================
-        socket.emit("register-user", linkId, role);
-        console.log(`📤 [Socket] Emitted 'register-user' with linkId=${linkId}, role=${role}`);
+    // ---------------------------------------------
+    // Register NOW if connected, AND on every connect/reconnect
+    // ---------------------------------------------
+    if (socket.connected) {
+      doRegister();
+    } else {
+      socket.once("connect", doRegister);
+    }
 
-        // ==========================
-        // MAINTENANCE CREATED
-        // ==========================
-        const handleMaintenanceCreated = (data) => {
-            console.log("📌 [EVENT] requestmaintenance:created");
-            console.log("   ➜ Data:", data);
-            fetchDisplayMessage();
-            fetchRequestData();
-            fetchTechnicianTasks();
-        };
+    socket.on("reconnect", doRegister);
 
+    // Ensure we're connecting
+    connectSocket();
 
-        const handleUpdateEquipment = (data) => {
-            console.log("📌 [EVENT] requestmaintenance:created");
-            console.log("   ➜ Data:", data);
-            fetchRequestData();
-        };
+    // ---------------------------------------------
+    // Handlers
+    // ---------------------------------------------
 
+    const handleUpdateEquipment = (data) => {
+      console.log("📌 [EVENT] update_equipment:updated:", data);
+      const c = ctxRef.current;
 
-        const handlemarkAll = (data) => {
-            console.log("📌 [EVENT] requestmaintenance:created");
-            console.log("   ➜ Data:", data);
-            fetchDisplayMessage();
-        }
+      if (c.fetchEquipmentData) c.fetchEquipmentData();
+      if (c.fetchRequestData) c.fetchRequestData();
+      if (c.fetchTechnicianTasks) c.fetchTechnicianTasks();
 
-        // ==========================
-        // CONTRACT CREATED / UPDATED
-        // ==========================
-        const handleContractCreated = async ({ payload }) => {
-            console.log("📄 [EVENT] contract:created");
-            console.log("   ➜ Payload:", payload);
+      window.dispatchEvent(
+        new CustomEvent("equipment:updated", { detail: data?.payload || data })
+      );
+    };
 
-            window.dispatchEvent(
-                new CustomEvent("contract:created", { detail: payload })
-            );
-        };
+    const handleStatusEquipmentUpdate = (payload) => {
+      console.log("📌 [EVENT] updatestatusequipment:update:", payload);
+      const c = ctxRef.current;
 
-        // ==========================
-        // ✅ ASSIGN EQUIPMENT — CREATED
-        // ==========================
-        const handleAssignEquipmentCreated = (data) => {
-            console.log("🆕 [EVENT] assignEquipment:created");
-            console.log("   ➜ Data:", data);
-            fetchEquipmentData();
-        };
+      if (c.fetchEquipmentData) c.fetchEquipmentData();
+      if (c.fetchRequestData) c.fetchRequestData();
+    };
 
-        // ==========================
-        // LISTENERS
-        // ==========================
-        socket.on("contract:created", handleContractCreated);
+    const handlePrivateAlert = (data) => {
+      console.log("📩 [EVENT] private-alert:", data);
+      window.dispatchEvent(
+        new CustomEvent("private-alert", { detail: data })
+      );
+    };
 
-        // Assign Equipment listeners
-        socket.on("assignEquipment:created", handleAssignEquipmentCreated);
-        socket.on("requestmaintenance:created", handleMaintenanceCreated);
-        socket.on("mark_all:created", handlemarkAll);
-        console.log("🎧 [SocketListener] All listeners attached.");
-        socket.on("update_equipment:updated", handleUpdateEquipment);
-        // ==========================
-        // CLEANUP
-        // ==========================
-        return () => {
-            console.log("🧹 [SocketListener] Cleaning up listeners...");
-            socket.off("update_equipment:updated", handleUpdateEquipment);
-            socket.off("contract:created", handleContractCreated);
-            socket.off("requestmaintenance:created", handleMaintenanceCreated);
-            socket.off("assignEquipment:created", handleAssignEquipmentCreated);
-            socket.off("mark_all:created", handlemarkAll);
+    // ---------------------------------------------
+    // Attach listeners
+    // ---------------------------------------------
+    socket.on("update_equipment:updated", handleUpdateEquipment);
+    socket.on("updatestatusequipment:update", handleStatusEquipmentUpdate);
+    socket.on("private-alert", handlePrivateAlert);
 
-            socket.off("connect");
-            socket.off("disconnect");
-            socket.off("connect_error");
-        };
-    }, []);
+    console.log("🎧 [SocketListener] All listeners attached.");
 
-    return null;
+    // ---------------------------------------------
+    // Cleanup
+    // ---------------------------------------------
+    return () => {
+      socket.off("connect", doRegister);
+      socket.off("reconnect", doRegister);
+
+      socket.off("update_equipment:updated", handleUpdateEquipment);
+      socket.off("updatestatusequipment:update", handleStatusEquipmentUpdate);
+      socket.off("private-alert", handlePrivateAlert);
+
+      console.log("🧹 [SocketListener] Cleaned up.");
+    };
+  }, []);
+
+  return null;
 };
 
 export default SocketListener;

@@ -79,6 +79,7 @@ const CategoryTable = () => {
     }
   };
 
+  // ✅ DELETE HANDLER — kept for reference (unused kapag naka-comment ang button)
   const handleDeleteCategory = async (categoryId) => {
     const result = await deleteCategory(categoryId);
     if (result?.success === true) {
@@ -242,6 +243,7 @@ const CategoryTable = () => {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center items-center gap-2">
+                        {/* ✅ EDIT BUTTON — ACTIVE */}
                         <button
                           onClick={() => handleSelectCategory(cat)}
                           className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
@@ -249,6 +251,8 @@ const CategoryTable = () => {
                         >
                           <FaEdit size={15} />
                         </button>
+
+                        {/* ❌ DELETE BUTTON — COMMENTED OUT
                         <button
                           onClick={() => handleDeleteCategory(cat._id)}
                           className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
@@ -256,6 +260,7 @@ const CategoryTable = () => {
                         >
                           <FaTrashAlt size={15} />
                         </button>
+                        */}
                       </div>
                     </td>
                   </tr>

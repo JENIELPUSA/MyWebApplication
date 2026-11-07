@@ -279,13 +279,15 @@ const DepartmentTables = () => {
                           >
                             <FaEdit size={15} />
                           </button>
-                          <button
-                            onClick={() => handleDeleteClick(dept)}
-                            className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
-                            title="Delete Department"
-                          >
-                            <FaTrashAlt size={15} />
-                          </button>
+                          {/*
+<button
+    onClick={() => handleDeleteClick(dept)}
+    className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors"
+    title="Delete Department"
+>
+    <FaTrashAlt size={15} />
+</button>
+*/}
                         </div>
                       </td>
                     )}
@@ -344,13 +346,12 @@ const DepartmentTables = () => {
                   key={i}
                   onClick={() => typeof num === "number" && paginate(num)}
                   disabled={num === "..."}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                    currentPage === num
+                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${currentPage === num
                       ? "bg-blue-600 dark:bg-blue-500 text-white"
                       : num === "..."
-                      ? "cursor-default text-gray-300 dark:text-gray-600"
-                      : "hover:bg-blue-50 dark:hover:bg-slate-700 text-blue-800 dark:text-slate-300"
-                  }`}
+                        ? "cursor-default text-gray-300 dark:text-gray-600"
+                        : "hover:bg-blue-50 dark:hover:bg-slate-700 text-blue-800 dark:text-slate-300"
+                    }`}
                 >
                   {num}
                 </button>
@@ -405,10 +406,10 @@ const DepartmentTables = () => {
         itemDetails={
           departmentToDelete
             ? {
-                code: departmentToDelete._id,
-                brand: departmentToDelete.DepartmentName,
-                specification: departmentToDelete.DepartmentCode || "N/A",
-              }
+              code: departmentToDelete._id,
+              brand: departmentToDelete.DepartmentName,
+              specification: departmentToDelete.DepartmentCode || "N/A",
+            }
             : null
         }
       />

@@ -17,42 +17,17 @@ exports.AddMessage = AsyncErrorHandler(async (req, res) => {
 
 
 exports.DisplayMessage = AsyncErrorHandler(async (req, res) => {
-  // I-convert ang userId sa ObjectId
   const userId = new mongoose.Types.ObjectId(req.user._id);
   const role = req.user.role;
 
   console.log("role:", role);
   console.log("userId (ObjectId):", userId);
 
-  // Apply Apifeatures methods on the query
-  const features = new Apifeatures(message.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields()
-    .paginate();
-
-  const filteredMessage = await features.query;
-
-  // I-extract ang message IDs
-  const messageIds = filteredMessage.map((msg) => msg._id);
-
-  console.log("Filtered message IDs:", messageIds.length);
-  console.log("Looking for user:", userId);
-
-  if (messageIds.length === 0) {
-    return res.status(200).json({
-      status: "success",
-      totalMessages: 0,
-      totalMessagePending: 0,
-      data: [],
-    });
-  }
-
   // ==========================================
   // BASE MATCH CONDITION
+  // Match lang sa viewers — kung nasa viewers, lalabas
   // ==========================================
   const matchCondition = {
-    _id: { $in: messageIds },
     "viewers.user": userId,
   };
 
@@ -66,7 +41,7 @@ exports.DisplayMessage = AsyncErrorHandler(async (req, res) => {
     };
   }
 
-  console.log("Match condition:", matchCondition);
+  console.log("Match condition:", JSON.stringify(matchCondition));
 
   // ==========================================
   // AGGREGATION
@@ -316,26 +291,6 @@ exports.DisplayMessage = AsyncErrorHandler(async (req, res) => {
           $ifNull: ["$EnchargeInfo.Email", "N/A"],
         },
 
-        TechnicianId: {
-          $ifNull: ["$EnchargeInfo._id", "N/A"],
-        },
-
-        TechnicianName: {
-          $cond: {
-            if: { $eq: ["$EnchargeInfo", null] },
-            then: "N/A",
-            else: {
-              $concat: [
-                { $ifNull: ["$EnchargeInfo.FirstName", ""] },
-                " ",
-                { $ifNull: ["$EnchargeInfo.MiddleName", ""] },
-                " ",
-                { $ifNull: ["$EnchargeInfo.LastName", ""] },
-              ],
-            },
-          },
-        },
-
         LaboratoryEnchargeId: {
           $cond: {
             if: { $eq: [{ $size: "$LaboratoryInfo" }, 0] },
@@ -529,5 +484,73 @@ exports.MarkAllAsRead = AsyncErrorHandler(async (req, res, next) => {
     message: "All messages marked as read.",
     updatedCount: result.modifiedCount,
     updatedIds: updatedMessages.map((m) => m._id),
+  });
+});
+
+// ==========================================
+// ✅ MARK SINGLE MESSAGE AS READ
+// ==========================================
+exports.MarkMessageAsRead = AsyncErrorHandler(async (req, res, next) => {
+  const { messageId } = req.params;
+  const userId = new mongoose.Types.ObjectId(req.user._id);
+
+  console.log("[MarkMessageAsRead] messageId:", messageId);
+  console.log("[MarkMessageAsRead] userId:", userId);
+
+  if (!messageId) {
+    return res.status(400).json({
+      status: "fail",
+      message: "messageId is required",
+    });
+  }
+
+  // Find the message
+  const msg = await message.findById(messageId);
+
+  if (!msg) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Message not found",
+    });
+  }
+
+  // Check kung ang user ay nasa viewers
+  const viewerIndex = msg.viewers?.findIndex(
+    (v) => v.user?.toString() === userId.toString()
+  );
+
+  console.log("[MarkMessageAsRead] viewerIndex:", viewerIndex);
+
+  // Update: viewers[].isRead = true at read = true
+  const updateQuery = {};
+
+  if (viewerIndex !== -1 && viewerIndex !== undefined) {
+    updateQuery[`viewers.${viewerIndex}.isRead`] = true;
+  }
+
+  updateQuery.read = true;
+  updateQuery.readonUser = true;
+
+  const updated = await message.findByIdAndUpdate(
+    messageId,
+    { $set: updateQuery },
+    { new: true }
+  );
+
+  // Socket emit
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("message:read", {
+      status: "success",
+      messageId: updated._id,
+      userId: userId,
+      timestamp: new Date(),
+    });
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Message marked as read",
+    data: updated,
   });
 });

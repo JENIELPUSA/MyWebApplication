@@ -47,7 +47,7 @@ export const ProblemProvider = ({ children }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setCurrentPage(1); // ✅ Reset sa page 1 kapag nag-search
+      setCurrentPage(1);
     }, 400);
 
     return () => clearTimeout(timer);
@@ -91,9 +91,12 @@ export const ProblemProvider = ({ children }) => {
               search: debouncedSearch,
               sortBy,
               sortOrder,
-              ...(statusFilter && statusFilter !== "All" && { status: statusFilter }),
-              ...(priorityFilter && priorityFilter !== "All" && { priority: priorityFilter }),
-              ...(categoryFilter && categoryFilter !== "All" && { category: categoryFilter }),
+              ...(statusFilter &&
+                statusFilter !== "All" && { status: statusFilter }),
+              ...(priorityFilter &&
+                priorityFilter !== "All" && { priority: priorityFilter }),
+              ...(categoryFilter &&
+                categoryFilter !== "All" && { category: categoryFilter }),
               ...(fromDate && { from: fromDate }),
               ...(toDate && { to: toDate }),
             },
@@ -106,14 +109,10 @@ export const ProblemProvider = ({ children }) => {
         );
 
         if (response.data.status === "success") {
-          // Support both new (totalRecords) at old (totalProblems) keys
           const total =
-            response.data.totalRecords ??
-            response.data.totalProblems ??
-            0;
+            response.data.totalRecords ?? response.data.totalProblems ?? 0;
           const pages =
-            response.data.totalPages ??
-            Math.ceil(total / problemPerPage);
+            response.data.totalPages ?? Math.ceil(total / problemPerPage);
 
           const problemData = response.data.data || [];
 
@@ -126,7 +125,8 @@ export const ProblemProvider = ({ children }) => {
           return problemData;
         }
       } catch (error) {
-        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
+        if (error.name === "CanceledError" || error.code === "ERR_CANCELED")
+          return;
         console.error("Error fetching problems:", error);
         setError(error.response?.data?.message || "Failed to fetch problems");
       } finally {
@@ -199,11 +199,15 @@ export const ProblemProvider = ({ children }) => {
 
   // ============================================================
   // CREATE — Gumawa ng bagong problema
+  // ✅ Standardized return: { success, data } | { success: false, error, message }
   // ============================================================
   const createProblem = async (values) => {
     if (!authToken) {
-      console.error("No token found");
-      return;
+      return {
+        success: false,
+        error: "Authentication required.",
+        message: "Authentication required.",
+      };
     }
 
     setLoading(true);
@@ -225,11 +229,24 @@ export const ProblemProvider = ({ children }) => {
       if (response.data.status === "success") {
         setConfirm(true);
         await displayProblems(new AbortController().signal);
-        return response.data;
+        return { success: true, data: response.data };
       }
+
+      return {
+        success: false,
+        error: response.data.message || "Failed to create problem",
+        message: response.data.message || "Failed to create problem",
+      };
     } catch (error) {
       console.error("Error creating problem:", error);
-      setError(error.response?.data?.message || "Failed to create problem");
+      const errMsg =
+        error.response?.data?.message || "Failed to create problem";
+      setError(errMsg);
+      return {
+        success: false,
+        error: errMsg,
+        message: errMsg,
+      };
     } finally {
       setLoading(false);
     }
@@ -240,8 +257,11 @@ export const ProblemProvider = ({ children }) => {
   // ============================================================
   const getProblem = async (id) => {
     if (!authToken || !id) {
-      console.error("No token or ID found");
-      return;
+      return {
+        success: false,
+        error: "Authentication or ID missing.",
+        message: "Authentication or ID missing.",
+      };
     }
 
     setLoading(true);
@@ -255,11 +275,20 @@ export const ProblemProvider = ({ children }) => {
 
       if (response.data.status === "success") {
         setProblem(response.data.data.problem);
-        return response.data.data.problem;
+        return { success: true, data: response.data.data.problem };
       }
+
+      return {
+        success: false,
+        error: response.data.message || "Failed to fetch problem",
+        message: response.data.message || "Failed to fetch problem",
+      };
     } catch (error) {
       console.error("Error fetching problem:", error);
-      setError(error.response?.data?.message || "Failed to fetch problem");
+      const errMsg =
+        error.response?.data?.message || "Failed to fetch problem";
+      setError(errMsg);
+      return { success: false, error: errMsg, message: errMsg };
     } finally {
       setLoading(false);
     }
@@ -267,11 +296,15 @@ export const ProblemProvider = ({ children }) => {
 
   // ============================================================
   // UPDATE — I-update ang isang problema
+  // ✅ Standardized return: { success, data } | { success: false, error, message }
   // ============================================================
   const updateProblem = async (id, values) => {
     if (!authToken || !id) {
-      console.error("No token or ID found");
-      return;
+      return {
+        success: false,
+        error: "Authentication or ID missing.",
+        message: "Authentication or ID missing.",
+      };
     }
 
     setLoading(true);
@@ -293,11 +326,20 @@ export const ProblemProvider = ({ children }) => {
       if (response.data.status === "success") {
         setConfirm(true);
         await displayProblems(new AbortController().signal);
-        return response.data.data;
+        return { success: true, data: response.data };
       }
+
+      return {
+        success: false,
+        error: response.data.message || "Failed to update problem",
+        message: response.data.message || "Failed to update problem",
+      };
     } catch (error) {
       console.error("Error updating problem:", error);
-      setError(error.response?.data?.message || "Failed to update problem");
+      const errMsg =
+        error.response?.data?.message || "Failed to update problem";
+      setError(errMsg);
+      return { success: false, error: errMsg, message: errMsg };
     } finally {
       setLoading(false);
     }
@@ -305,11 +347,15 @@ export const ProblemProvider = ({ children }) => {
 
   // ============================================================
   // DELETE — Burahin ang isang problema
+  // ✅ Standardized return: { success, data } | { success: false, error, message }
   // ============================================================
   const deleteProblem = async (id) => {
     if (!authToken || !id) {
-      console.error("No token or ID found");
-      return;
+      return {
+        success: false,
+        error: "Authentication or ID missing.",
+        message: "Authentication or ID missing.",
+      };
     }
 
     setLoading(true);
@@ -324,11 +370,20 @@ export const ProblemProvider = ({ children }) => {
       if (response.data.status === "success") {
         setConfirm(true);
         await displayProblems(new AbortController().signal);
-        return true;
+        return { success: true, data: response.data };
       }
+
+      return {
+        success: false,
+        error: response.data.message || "Failed to delete problem",
+        message: response.data.message || "Failed to delete problem",
+      };
     } catch (error) {
       console.error("Error deleting problem:", error);
-      setError(error.response?.data?.message || "Failed to delete problem");
+      const errMsg =
+        error.response?.data?.message || "Failed to delete problem";
+      setError(errMsg);
+      return { success: false, error: errMsg, message: errMsg };
     } finally {
       setLoading(false);
     }

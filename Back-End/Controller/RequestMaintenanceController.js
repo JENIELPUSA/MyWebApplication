@@ -2244,7 +2244,6 @@ exports.DisplayUnscheduledRepair = AsyncErrorHandler(async (req, res, next) => {
   doc.end();
 });
 
-
 exports.updateDataAssignTechnician = AsyncErrorHandler(
   async (req, res, next) => {
     try {
@@ -2320,7 +2319,6 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
       let inchargeId = null;
       let laboratoryData = [];
 
-      // Use RequestId to find the message
       if (RequestId) {
         existingMessage = await Message.findOne({ RequestID: RequestId });
 
@@ -2348,7 +2346,7 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
       const feedbackSubmittedBy = getFeedbackSubmittedBy(feedback);
 
       // ==========================================
-      // NEW: HELPER FUNCTION FOR LOOKUP
+      // HELPER FUNCTION FOR LOOKUP
       // ==========================================
       const getRequestWithLookup = async (requestId) => {
         const result = await requestmaintenance.aggregate([
@@ -2488,7 +2486,7 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
       };
 
       // ==========================================
-      // NEW: HELPER FUNCTION TO SAVE TO HISTORY
+      // HELPER FUNCTION TO SAVE TO HISTORY
       // ==========================================
       const saveToHistory = async (lookupData, actionType) => {
         if (!lookupData) return null;
@@ -2600,7 +2598,7 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           .populate("Technician");
 
         // ==========================================
-        // NEW: GET LOOKUP DATA AND SAVE TO HISTORY
+        // GET LOOKUP DATA AND SAVE TO HISTORY
         // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "Re-assign");
@@ -2682,28 +2680,8 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
         // ==========================================
         // MESSAGE FOR NEW TECHNICIAN
         // ==========================================
-        const newTechnicianMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED TO YOU
-
-You have been re-assigned to the following maintenance task.
-
-🔧 EQUIPMENT DETAILS:
-• Equipment: ${equipmentBrand}
-• Serial Number: ${equipmentSerial}
-• Category: ${equipmentCategory}
-• Specifications: ${equipmentSpecs}
-
-📍 LOCATION:
-• Department: ${departmentName}
-• Laboratory: ${laboratoryName}
-
-📌 Request Reference: ${request.Ref || request._id}
-📅 Re-Assigned Date: ${reassignDate}
-
-⚠️ IMPORTANT: This task was previously assigned to ${oldTechName}. Please review the task details and provide your confirmation.
-
-📝 Remarks: ${remarks || 'No remarks provided.'}
-
-Please check the system for more details.`;
+        const equipLabel = equipmentBrand !== "N/A" ? `${equipmentBrand} (${request.Ref || request._id})` : `${request.Ref || request._id}`;
+        const newTechnicianMessage = `Re-assigned task: ${equipLabel}. Previous technician was ${oldTechName}. ${reassignDate}.${remarks ? ` Remarks: ${remarks}` : ""}`;
 
         const newTechnicianNotification = await Message.create({
           message: newTechnicianMessage,
@@ -2735,27 +2713,7 @@ Please check the system for more details.`;
         let oldTechnicianNotification = null;
 
         if (currentTechnicianId) {
-          const oldTechnicianMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED
-
-The maintenance task you were previously assigned to has been re-assigned to another technician.
-
-🔧 EQUIPMENT DETAILS:
-• Equipment: ${equipmentBrand}
-• Serial Number: ${equipmentSerial}
-• Category: ${equipmentCategory}
-• Specifications: ${equipmentSpecs}
-
-📍 LOCATION:
-• Department: ${departmentName}
-• Laboratory: ${laboratoryName}
-
-📌 Request Reference: ${request.Ref || request._id}
-📅 Re-Assigned Date: ${reassignDate}
-
-👤 Newly Assigned Technician: ${newTechName}
-👤 Previously Assigned (You): ${oldTechName}
-
-ℹ️ You are no longer assigned to this task. Please check the system for updates.`;
+          const oldTechnicianMessage = `Task ${equipLabel} is no longer assigned to you. Reassigned to ${newTechName}. ${reassignDate}.`;
 
           oldTechnicianNotification = await Message.create({
             message: oldTechnicianMessage,
@@ -2790,29 +2748,7 @@ The maintenance task you were previously assigned to has been re-assigned to ano
         let inchargeNotification = null;
 
         if (targetInchargeId) {
-          const inchargeMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED
-
-The maintenance task has been re-assigned to a new technician.
-
-🔧 EQUIPMENT DETAILS:
-• Equipment: ${equipmentBrand}
-• Serial Number: ${equipmentSerial}
-• Category: ${equipmentCategory}
-• Specifications: ${equipmentSpecs}
-
-📍 LOCATION:
-• Department: ${departmentName}
-• Laboratory: ${laboratoryName}
-
-📌 Request Reference: ${request.Ref || request._id}
-📅 Re-Assigned Date: ${reassignDate}
-
-👤 Previous Technician: ${oldTechName}
-👤 New Technician: ${newTechName}
-
-📝 Remarks: ${remarks || 'No remarks provided.'}
-
-⚠️ Please ensure the new technician acknowledges the re-assignment.`;
+          const inchargeMessage = `Task ${equipLabel} reassigned from ${oldTechName} to ${newTechName}. ${reassignDate}.${remarks ? ` Remarks: ${remarks}` : ""}`;
 
           let inchargeUser = null;
           try {
@@ -2859,27 +2795,7 @@ The maintenance task has been re-assigned to a new technician.
         });
 
         if (adminUsers.length > 0) {
-          const adminMessage = `🔄 MAINTENANCE TASK RE-ASSIGNED
-
-The maintenance task has been re-assigned from ${oldTechName} to ${newTechName}.
-
-🔧 EQUIPMENT DETAILS:
-• Equipment: ${equipmentBrand}
-• Serial Number: ${equipmentSerial}
-• Category: ${equipmentCategory}
-• Specifications: ${equipmentSpecs}
-
-📍 LOCATION:
-• Department: ${departmentName}
-• Laboratory: ${laboratoryName}
-
-📌 Request Reference: ${request.Ref || request._id}
-📅 Re-Assigned Date: ${reassignDate}
-
-👤 Previous Technician: ${oldTechName}
-👤 New Technician: ${newTechName}
-
-⚠️ Please ensure the new technician acknowledges the re-assignment.`;
+          const adminMessage = `Task ${equipLabel} reassigned from ${oldTechName} to ${newTechName}. ${reassignDate}.`;
 
           const viewers = adminUsers.map((adminUser) => ({
             user: adminUser._id,
@@ -2971,7 +2887,7 @@ The maintenance task has been re-assigned from ${oldTechName} to ${newTechName}.
           .populate("Technician");
 
         // ==========================================
-        // NEW: GET LOOKUP DATA AND SAVE TO HISTORY
+        // GET LOOKUP DATA AND SAVE TO HISTORY
         // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "Completed");
@@ -2983,36 +2899,39 @@ The maintenance task has been re-assigned from ${oldTechName} to ${newTechName}.
 
         let updatedMessage = null;
 
+        // ==========================================
+        // HANAPIN LAHAT NG role === "Admin"
+        // ==========================================
+        const adminUsers = await user.find({ role: "Admin" });
+
+        console.log("👑 Admins found:", adminUsers.length);
+
         // CHECK IF COMPLETED NOTIFICATION ALREADY EXISTS
-        const existingCompletedMessage = await Message.findOne({
+        const existingCompletedMessages = await Message.find({
           RequestID: request._id,
           typesNotification: "TaskCompleted",
         });
 
-        if (existingCompletedMessage) {
+        if (existingCompletedMessages.length > 0) {
           return res.status(200).json({
             success: true,
             message: "Task is already completed. Notification already exists.",
             data: lookupData || updatedRequest,
             history: history,
             messageData: updatedMessage,
-            adminNotifications: [existingCompletedMessage],
+            adminNotifications: existingCompletedMessages,
             adminNotified: true,
-            adminCount: 1,
+            adminCount: existingCompletedMessages.length,
             duplicatePrevented: true,
             feedbackUpdated: !!feedbackText,
             feedbackData: feedback,
           });
         }
 
-        // GET ALL ADMINS
-        const adminUsers = await user.find({
-          role: {
-            $in: ["Admin", "SuperAdmin"],
-          },
-        });
-
-        let adminNotification = null;
+        // ==========================================
+        // GUMAWA NG NOTIFICATION PARA SA BAWAT ADMIN
+        // ==========================================
+        const adminNotifications = [];
 
         if (adminUsers.length > 0) {
           let technicianName = "Unknown Technician";
@@ -3024,28 +2943,17 @@ The maintenance task has been re-assigned from ${oldTechName} to ${newTechName}.
           }
 
           let equipmentBrand = "N/A";
-          let equipmentSerial = "N/A";
-          let equipmentSpecs = "N/A";
-          let equipmentCategory = "N/A";
-
           if (request.Equipments) {
             equipmentBrand = request.Equipments.EquipmentBrand || request.Equipments.name || "N/A";
-            equipmentSerial = request.Equipments.EquipmentSerial || request.Equipments.serialNumber || "N/A";
-            equipmentSpecs = request.Equipments.EquipmentSpecification || request.Equipments.specifications || "N/A";
-            equipmentCategory = request.Equipments.CategoryName || request.Equipments.category || "N/A";
           }
 
-          let departmentName = "N/A";
           let departmentId = null;
           if (request.Department) {
-            departmentName = request.Department.name || request.Department.departmentName || "N/A";
             departmentId = request.Department._id || request.Department;
           }
 
-          let laboratoryName = "N/A";
           let laboratoryId = null;
           if (request.Laboratory) {
-            laboratoryName = request.Laboratory.name || request.Laboratory.laboratoryName || "N/A";
             laboratoryId = request.Laboratory._id || request.Laboratory;
           }
 
@@ -3058,44 +2966,11 @@ The maintenance task has been re-assigned from ${oldTechName} to ${newTechName}.
             hour12: true,
           });
 
-          let feedbackDisplay = "No feedback provided.";
-          if (feedbackText) {
-            feedbackDisplay = feedbackText;
-            if (feedbackType) {
-              feedbackDisplay = `Type: ${feedbackType}\nMessage: ${feedbackText}`;
-            }
-            if (feedbackSubmittedBy) {
-              feedbackDisplay += `\nSubmitted By: ${feedbackSubmittedBy}`;
-            }
-          }
+          const equipLabel = equipmentBrand !== "N/A"
+            ? `${equipmentBrand} (${request.Ref || request._id})`
+            : `${request.Ref || request._id}`;
 
-          const completionMessage = `✅ MAINTENANCE TASK COMPLETED
-
-The maintenance task has been successfully completed and marked as COMPLETED.
-
-🔧 EQUIPMENT DETAILS:
-• Equipment: ${equipmentBrand}
-• Serial Number: ${equipmentSerial}
-• Category: ${equipmentCategory}
-• Specifications: ${equipmentSpecs}
-
-📍 LOCATION:
-• Department: ${departmentName}
-• Laboratory: ${laboratoryName}
-
-👨‍🔧 TECHNICIAN:
-• Assigned Technician: ${technicianName}
-
-📝 COMPLETION REMARKS:
-${remarks && typeof remarks === "string" ? remarks.trim() : "No remarks provided."}
-
-💬 FEEDBACK FROM IN-CHARGE:
-${feedbackDisplay}
-
-📌 Request Reference: ${request.Ref || request._id}
-📅 Date Completed: ${completedDate}
-
-✅ This task has been fully completed and is now closed.`;
+          const completionMessage = `Task ${equipLabel} completed by ${technicianName}. ${completedDate}.${remarks && typeof remarks === "string" ? ` Remarks: ${remarks.trim()}` : ""}${feedbackText ? ` Feedback: ${feedbackText}` : ""}`;
 
           let feedbackToStore = null;
           if (feedbackText) {
@@ -3111,42 +2986,50 @@ ${feedbackDisplay}
             }
           }
 
-          const viewers = adminUsers.map((adminUser) => ({
-            user: adminUser._id,
-            isRead: false,
-          }));
+          // ==========================================
+          // LOOP PER ADMIN — BAWAT ADMIN MAY SARILING VIEWER
+          // ==========================================
+          for (const adminUser of adminUsers) {
+            const messageData = {
+              message: completionMessage,
+              equipmentId: request.Equipments?._id || null,
+              typesNotification: "TaskCompleted",
+              Status: "Completed",
+              Laboratory: laboratoryId ? [laboratoryId] : laboratoryData,
+              Department: departmentId || null,
+              To: "Admin",
+              Encharge: adminUser._id,
+              role: adminUser.role || "Admin",
+              RequestID: request._id,
+              read: false,
+              viewers: [
+                {
+                  user: adminUser._id,
+                  isRead: false,
+                },
+              ],
+              feedback: feedbackToStore,
+              feedbackType: feedbackType,
+              feedbackSubmittedBy: feedbackSubmittedBy,
+              parentMessageId: MessageId || null,
+            };
 
-          const messageData = {
-            message: completionMessage,
-            equipmentId: request.Equipments?._id || null,
-            typesNotification: "TaskCompleted",
-            Status: "Completed",
-            Laboratory: laboratoryId ? [laboratoryId] : laboratoryData,
-            Department: departmentId || null,
-            To: "Admin",
-            Encharge: adminUsers[0]._id,
-            role: adminUsers[0].role || "Admin",
-            RequestID: request._id,
-            read: false,
-            viewers: viewers,
-            feedback: feedbackToStore,
-            feedbackType: feedbackType,
-            feedbackSubmittedBy: feedbackSubmittedBy,
-            parentMessageId: MessageId || null,
-          };
+            const notif = await Message.create(messageData);
+            adminNotifications.push(notif);
 
-          adminNotification = await Message.create(messageData);
+            console.log(`✅ Notification sent to Admin: ${adminUser._id}`);
+          }
         }
 
         return res.status(200).json({
           success: true,
-          message: "Task marked as completed successfully. Admins have been notified.",
+          message: "Task marked as completed successfully. All admins have been notified.",
           data: lookupData || updatedRequest,
           history: history,
           messageData: updatedMessage,
-          adminNotifications: adminNotification ? [adminNotification] : [],
-          adminNotified: !!adminNotification,
-          adminCount: adminNotification ? 1 : 0,
+          adminNotifications: adminNotifications,
+          adminNotified: adminNotifications.length > 0,
+          adminCount: adminNotifications.length,
           duplicatePrevented: false,
           feedbackUpdated: !!feedbackText,
           feedbackData: feedback,
@@ -3196,7 +3079,7 @@ ${feedbackDisplay}
           .populate("Technician");
 
         // ==========================================
-        // NEW: GET LOOKUP DATA AND SAVE TO HISTORY
+        // GET LOOKUP DATA AND SAVE TO HISTORY
         // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "Approved");
@@ -3282,41 +3165,8 @@ ${feedbackDisplay}
             hour12: true,
           });
 
-          let feedbackDisplay = "No feedback provided.";
-          if (feedbackText) {
-            feedbackDisplay = feedbackText;
-            if (feedbackType) {
-              feedbackDisplay = `Type: ${feedbackType}\nMessage: ${feedbackText}`;
-            }
-            if (feedbackSubmittedBy) {
-              feedbackDisplay += `\nSubmitted By: ${feedbackSubmittedBy}`;
-            }
-          }
-
-          const professionalMessage = `📋 MAINTENANCE TASK CONFIRMATION
-
-Technician ${technicianName} has successfully confirmed and completed the assigned maintenance task.
-
-🔧 EQUIPMENT DETAILS:
-• Equipment: ${equipmentBrand}
-• Serial Number: ${equipmentSerial}
-• Category: ${equipmentCategory}
-• Specifications: ${equipmentSpecs}
-
-📍 LOCATION:
-• Department: ${departmentName}
-• Laboratory: ${laboratoryName}
-
-📝 REMARKS:
-${remarks && typeof remarks === "string" ? remarks.trim() : "No remarks provided."}
-
-💬 FEEDBACK:
-${feedbackDisplay}
-
-📌 Request Reference: ${request.Ref || request._id}
-📅 Date Confirmed: ${approvedDate}
-
-This task has been marked as APPROVED and completed by the assigned technician.`;
+          const equipLabel = equipmentBrand !== "N/A" ? `${equipmentBrand} (${request.Ref || request._id})` : `${request.Ref || request._id}`;
+          const professionalMessage = `Task ${equipLabel} confirmed by ${technicianName}. ${approvedDate}.${remarks && typeof remarks === "string" ? ` Remarks: ${remarks.trim()}` : ""}${feedbackText ? ` Feedback: ${feedbackText}` : ""}`;
 
           let feedbackToStore = null;
           if (feedbackText) {
@@ -3414,7 +3264,7 @@ This task has been marked as APPROVED and completed by the assigned technician.`
           .populate("Technician");
 
         // ==========================================
-        // NEW: GET LOOKUP DATA AND SAVE TO HISTORY
+        // GET LOOKUP DATA AND SAVE TO HISTORY
         // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "InchargedConfirmed");
@@ -3482,21 +3332,8 @@ This task has been marked as APPROVED and completed by the assigned technician.`
             equipmentSerial = request.Equipments.EquipmentSerial || request.Equipments.serialNumber || "N/A";
           }
 
-          const inchargeMessage = `📋 MAINTENANCE TASK COMPLETION - NEEDS YOUR CONFIRMATION
-
-Technician ${technicianName} has completed the assigned maintenance task and is awaiting your confirmation.
-
-🔧 EQUIPMENT DETAILS:
-• Equipment: ${equipmentBrand}
-• Serial Number: ${equipmentSerial}
-
-📝 TECHNICIAN'S REMARKS:
-${remarks ? remarks.trim() : 'No remarks provided.'}
-
-📌 Request Reference: ${request.Ref || request._id}
-📅 Date Completed: ${new Date().toLocaleString()}
-
-⚠️ ACTION REQUIRED: Please review the technician's work and provide your confirmation or feedback.`;
+          const equipLabel = equipmentBrand !== "N/A" ? `${equipmentBrand} (${request.Ref || request._id})` : `${request.Ref || request._id}`;
+          const inchargeMessage = `Task ${equipLabel} completed by ${technicianName} and awaiting your confirmation. ${new Date().toLocaleString()}.${remarks ? ` Remarks: ${remarks.trim()}` : ""}`;
 
           let inchargeUser = null;
           try {
@@ -3567,7 +3404,7 @@ ${remarks ? remarks.trim() : 'No remarks provided.'}
           .populate("Technician");
 
         // ==========================================
-        // NEW: GET LOOKUP DATA AND SAVE TO HISTORY
+        // GET LOOKUP DATA AND SAVE TO HISTORY
         // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "Remarks Only");
@@ -3641,7 +3478,7 @@ ${remarks ? remarks.trim() : 'No remarks provided.'}
           .populate("Technician");
 
         // ==========================================
-        // NEW: GET LOOKUP DATA AND SAVE TO HISTORY
+        // GET LOOKUP DATA AND SAVE TO HISTORY
         // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
         const history = await saveToHistory(lookupData, "Assign Technician");
@@ -3684,8 +3521,14 @@ ${remarks ? remarks.trim() : 'No remarks provided.'}
           }
         }
 
+        let assignedEquipmentBrand = "N/A";
+        if (request.Equipments) {
+          assignedEquipmentBrand = request.Equipments.EquipmentBrand || request.Equipments.name || "N/A";
+        }
+
+        const equipLabel = assignedEquipmentBrand !== "N/A" ? `${assignedEquipmentBrand} (${request.Ref || request._id})` : `${request.Ref || request._id}`;
         const messageData = {
-          message: `New maintenance request assigned to you for Equipment ID: ${request.Equipments}.`,
+          message: `New task assigned to you: ${equipLabel}.`,
           equipmentId: request.Equipments?._id || null,
           typesNotification: status || "AssignedTechnician",
           Status: status || "Assigned",
@@ -3728,7 +3571,6 @@ ${remarks ? remarks.trim() : 'No remarks provided.'}
     }
   }
 );
-
 
 exports.TechnicianTask = AsyncErrorHandler(async (req, res) => {
   // ============================================================

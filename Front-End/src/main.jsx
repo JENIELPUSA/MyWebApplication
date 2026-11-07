@@ -14,29 +14,26 @@ import { TypeofMaintenanceProvider } from './contexts/TypesofMainten/TypeofMaint
 import { DepartmentDisplayProvider } from './contexts/DepartmentContext/DepartmentContext.jsx'
 import { IncomingDisplayProvider } from './contexts/ProcessIncomingRequest/IncomingRequestContext.jsx'
 import { StatisticsProvider } from './contexts/StatisticContext/statisticalContext.jsx'
-import SocketListener from './SocketListener.jsx'
+import SocketListener from './SocketListener.jsx'  // ✅ Idagdag
 import { PMSProvider } from './contexts/PMS/pmsContext.jsx'
 import PMS002Provider from './contexts/PMS/pmsContext002.jsx'
 import PMS003Provider from './contexts/PMS/pmsContext003.jsx'
 import PMS006Provider from './contexts/PMS/pmsContext006.jsx'
-import {
-  DeleteAssignProvider,
-  LaboratorytProvider
-} from './contexts/CountContext/CountContext.jsx'
-
+import { DeleteAssignProvider, LaboratorytProvider } from './contexts/CountContext/CountContext.jsx'
 import { AddAssignProvider } from './contexts/AssignContext/AddAssignContext.jsx'
-
 import { MessagePostProvider } from './contexts/MessageContext/POSTmessage.jsx'
-
 import { ProblemProvider } from './contexts/ProblemContext/ProblemContext.jsx'
-
 import { HistoryProvider } from './contexts/HistoryContext/HistoryContext.jsx'
-
 import { MaintenanceRecordProvider } from './contexts/PMSMaintenanceRecord/PMSMaintenanceRecord.jsx'
 import PMS004Provider from './contexts/PMS/pmsContext004.jsx'
 import PMS005Provider from './contexts/PMS/pmsContext005.jsx'
 import { CategoryProvider } from './contexts/CategoryContext/categoryContext.jsx'
 import { UpdateDisplayProvider } from './contexts/UpdateContext/updateContext.jsx'
+
+// ✅ Idagdag ang missing providers (kung meron):
+// import { NotificationDisplayProvider } from './contexts/NotificationContext/NotificationContext.jsx'
+// import { EmployeeProvider } from './contexts/EmployeeContext/EmployeeContext.jsx'
+// import { WellnessLeaveProvider } from './contexts/WellnessLeave/wellnessleave.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -63,18 +60,15 @@ createRoot(document.getElementById('root')).render(
                                             <FilterSpecificAssignProvider>
                                               <LaboratorytProvider>
                                                 <LaboratoryProvider>
-                                                  {/*  Wrap EquipmentProvider with EquipmentDataProvider */}
-                                                  <EquipmentProvider>
-                                                    <EquipmentProvider>
-                                                      <AddAssignProvider>
-                                                        <DeleteAssignProvider>
-                                                          <AssignLabProvider>
-                                                            <App />
-                                                            <SocketListener />
-                                                          </AssignLabProvider>
-                                                        </DeleteAssignProvider>
-                                                      </AddAssignProvider>
-                                                    </EquipmentProvider>
+                                                  <EquipmentProvider>   {/* ✅ Isang provider lang */}
+                                                    <AddAssignProvider>
+                                                      <DeleteAssignProvider>
+                                                        <AssignLabProvider>
+                                                          <App />
+                                                          <SocketListener />
+                                                        </AssignLabProvider>
+                                                      </DeleteAssignProvider>
+                                                    </AddAssignProvider>
                                                   </EquipmentProvider>
                                                 </LaboratoryProvider>
                                               </LaboratorytProvider>
@@ -97,9 +91,7 @@ createRoot(document.getElementById('root')).render(
             </PMS005Provider>
           </PMS006Provider>
         </CategoryProvider>
-
       </UpdateDisplayProvider>
-
     </AuthProvider>
   </StrictMode>,
 )

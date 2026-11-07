@@ -39,12 +39,12 @@ const EquipmentForm = () => {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
 
-  //  DELETE CONFIRMATION STATES
+  // DELETE CONFIRMATION STATES (kept for future use)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [equipmentToDelete, setEquipmentToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  //  LOCAL CATEGORY LIST
+  // LOCAL CATEGORY LIST
   const [availableCategories, setAvailableCategories] = useState([]);
 
   // ==========================================
@@ -98,6 +98,7 @@ const EquipmentForm = () => {
     setSelectedEquipment(null);
   };
 
+  // ✅ DELETE HANDLERS — kept for reference (unused kapag naka-comment ang button)
   const handleDeleteClick = (item) => {
     setEquipmentToDelete(item);
     setIsDeleteModalOpen(true);
@@ -397,7 +398,7 @@ const EquipmentForm = () => {
                       {item.SerialNumber || 'N/A'}
                     </td>
 
-                    {/*  BRAND & SPECS — NOW UPPERCASE */}
+                    {/* BRAND & SPECS */}
                     <td className="px-4 py-4">
                       <div className="font-medium text-gray-900 dark:text-white uppercase">
                         {item.Brand || 'N/A'}
@@ -482,6 +483,7 @@ const EquipmentForm = () => {
 
                     <td className="px-4 py-4 text-center">
                       <div className="flex justify-center items-center gap-2">
+                        {/* ✅ EDIT BUTTON — ACTIVE */}
                         <button
                           onClick={() => { setSelectedEquipment(item); setFormModalOpen(true); }}
                           className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
@@ -489,6 +491,8 @@ const EquipmentForm = () => {
                         >
                           <Edit size={16} strokeWidth={1.5} />
                         </button>
+
+                        {/* ❌ DELETE BUTTON — COMMENTED OUT
                         <button
                           onClick={() => handleDeleteClick(item)}
                           className="p-1.5 text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded transition-colors"
@@ -496,6 +500,7 @@ const EquipmentForm = () => {
                         >
                           <Trash2 size={16} strokeWidth={1.5} />
                         </button>
+                        */}
 
                         {item.status !== "Missing" && item.status !== "Defective" && (
                           <button
@@ -574,7 +579,7 @@ const EquipmentForm = () => {
         {isAssignModalOpen && <PopupModal isOpen={isAssignModalOpen} onClose={handleCloseSubModals} equipment={selectedEquipment} />}
       </div>
 
-      {/*  REUSABLE DELETE CONFIRMATION MODAL */}
+      {/* ❌ REUSABLE DELETE CONFIRMATION MODAL — COMMENTED OUT (walang Delete button)
       <ConfirmDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={handleCancelDelete}
@@ -595,6 +600,7 @@ const EquipmentForm = () => {
             : null
         }
       />
+      */}
     </>
   );
 };

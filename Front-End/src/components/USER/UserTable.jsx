@@ -1,9 +1,18 @@
 import React, { useState, useContext, useEffect } from "react";
 import { UserDataContext } from "../../contexts/UserContext/UserContext";
 import {
-  Plus, ChevronLeft, ChevronRight, Edit,
-  Trash2, RefreshCw, Search,
-  Users, UserCheck, Mail, Shield, Hash, Info
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  Trash2,
+  RefreshCw,
+  Search,
+  Users,
+  UserCheck,
+  Mail,
+  Shield,
+  Info,
 } from "lucide-react";
 import UserFormModal from "./SignUpForm";
 import ConfirmDeleteModal from "../../components/ReusableComponent/ConfirmationDeleteModal";
@@ -11,12 +20,12 @@ import ConfirmDeleteModal from "../../components/ReusableComponent/ConfirmationD
 // ============================================================
 // UI-ONLY ROLE CONVERSION
 // Backend value SAME PA RIN: "User"
-// UI lang ang nagpapakita ng "Encharge"
+// UI lang ang nagpapakita ng "Incharge"
 // ============================================================
 const ROLE_DISPLAY_MAP = {
   Admin: "Admin",
   Technician: "Technician",
-  User: "Encharge",   // ← backend "User" → UI "Encharge"
+  User: "Incharge",   // ← backend "User" → UI "Incharge"
   Supply: "Supply",
 };
 
@@ -47,12 +56,12 @@ const UserTable = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isFormModalOpen, setFormModalOpen] = useState(false);
 
-  //  DELETE CONFIRMATION STATES
+  // DELETE CONFIRMATION STATES (kept for future use)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // ─── Reset sa page 1 kapag nag-change ang perPage ───────────────
+  // Reset sa page 1 kapag nag-change ang perPage
   useEffect(() => {
     setCurrentPage(1);
   }, [usersPerPage, setCurrentPage]);
@@ -89,6 +98,7 @@ const UserTable = () => {
     setSelectedUser(null);
   };
 
+  // ✅ DELETE HANDLERS — kept for reference (unused kapag naka-comment ang button)
   const handleDeleteClick = (user) => {
     setUserToDelete(user);
     setIsDeleteModalOpen(true);
@@ -122,7 +132,7 @@ const UserTable = () => {
   // HELPERS
   // ==========================================
 
-  // ✅ UI-only: backend "User" → display "Encharge"
+  // ✅ UI-only: backend "User" → display "Incharge"
   const getRoleLabel = (roleValue) => {
     if (!roleValue) return "N/A";
     return ROLE_DISPLAY_MAP[roleValue] || roleValue;
@@ -134,8 +144,7 @@ const UserTable = () => {
         return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-300 dark:border-purple-700";
       case "technician":
         return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700";
-      case "encharge":
-        return "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 border-cyan-300 dark:border-cyan-700";
+      case "incharge":
       case "user":
         return "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 border-cyan-300 dark:border-cyan-700";
       case "supply":
@@ -156,9 +165,15 @@ const UserTable = () => {
   const getAvatarColor = (name) => {
     if (!name) return "bg-slate-400";
     const colors = [
-      "bg-blue-600", "bg-blue-700", "bg-indigo-600",
-      "bg-amber-500", "bg-yellow-600", "bg-cyan-600",
-      "bg-sky-600", "bg-blue-500", "bg-amber-600"
+      "bg-blue-600",
+      "bg-blue-700",
+      "bg-indigo-600",
+      "bg-amber-500",
+      "bg-yellow-600",
+      "bg-cyan-600",
+      "bg-sky-600",
+      "bg-blue-500",
+      "bg-amber-600",
     ];
     const index = name.charCodeAt(0) % colors.length;
     return colors[index];
@@ -166,17 +181,22 @@ const UserTable = () => {
 
   const getFullName = (user) => {
     if (!user) return "N/A";
-    return `${user?.FirstName || ""} ${user?.Middle ? user.Middle + " " : ""}${user?.LastName || ""}`.trim() || "N/A";
+    return (
+      `${user?.FirstName || ""} ${
+        user?.Middle ? user.Middle + " " : ""
+      }${user?.LastName || ""}`.trim() || "N/A"
+    );
   };
 
   return (
     <>
       <div className="w-full bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-blue-100 dark:border-slate-700 flex flex-col">
-
         {/* HEADER */}
-        <div className="px-6 py-4 border-b border-blue-100 dark:border-slate-700 flex justify-between items-center
+        <div
+          className="px-6 py-4 border-b border-blue-100 dark:border-slate-700 flex justify-between items-center
           bg-gradient-to-r from-blue-50 via-white to-amber-50
-          dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 rounded-t-lg">
+          dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 rounded-t-lg"
+        >
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-500 dark:to-blue-600 rounded-lg text-white shadow-sm shadow-blue-500/30">
               <Users size={18} />
@@ -209,11 +229,16 @@ const UserTable = () => {
         </div>
 
         {/* SEARCH, FILTER & ADD BAR */}
-        <div className="p-4 flex flex-col sm:flex-row gap-3
-          bg-slate-50 dark:bg-slate-800 border-b border-blue-100 dark:border-slate-700">
+        <div
+          className="p-4 flex flex-col sm:flex-row gap-3
+          bg-slate-50 dark:bg-slate-800 border-b border-blue-100 dark:border-slate-700"
+        >
           {/* Search */}
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 dark:text-blue-500" size={16} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 dark:text-blue-500"
+              size={16}
+            />
             <input
               type="text"
               placeholder="Search name, email..."
@@ -226,7 +251,7 @@ const UserTable = () => {
             />
           </div>
 
-          {/* Role Filter — ✅ UI "Encharge" pero value "User" (backend) */}
+          {/* Role Filter — ✅ UI "Incharge" pero value "User" (backend) */}
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
@@ -237,7 +262,7 @@ const UserTable = () => {
             <option value="">All Roles</option>
             <option value="Admin">Admin</option>
             <option value="Technician">Technician</option>
-            <option value="User">Encharge</option>
+            <option value="User">Incharge</option>
             <option value="Supply">Supply</option>
           </select>
 
@@ -279,27 +304,40 @@ const UserTable = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gradient-to-r from-blue-700 to-blue-800 dark:from-slate-800 dark:to-slate-800
+              <tr
+                className="bg-gradient-to-r from-blue-700 to-blue-800 dark:from-slate-800 dark:to-slate-800
                 text-white dark:text-slate-300 text-xs uppercase tracking-wider font-semibold
-                border-b border-blue-800 dark:border-slate-700">
+                border-b border-blue-800 dark:border-slate-700"
+              >
                 <th className="px-4 py-3">
-                  <div className="flex items-center gap-2"><UserCheck size={12} /> Full Name</div>
+                  <div className="flex items-center gap-2">
+                    <UserCheck size={12} /> Full Name
+                  </div>
                 </th>
                 <th className="px-4 py-3">
-                  <div className="flex items-center gap-2"><Mail size={12} /> Email Address</div>
+                  <div className="flex items-center gap-2">
+                    <Mail size={12} /> Email Address
+                  </div>
                 </th>
                 <th className="px-4 py-3 text-center">
-                  <div className="flex items-center justify-center gap-2"><Shield size={12} /> Role</div>
+                  <div className="flex items-center justify-center gap-2">
+                    <Shield size={12} /> Role
+                  </div>
                 </th>
                 <th className="px-4 py-3 text-center">
-                  <div className="flex items-center justify-center gap-2"><Info size={12} /> Actions</div>
+                  <div className="flex items-center justify-center gap-2">
+                    <Info size={12} /> Actions
+                  </div>
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-blue-50 dark:divide-slate-700 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-900">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td
+                    colSpan={4}
+                    className="py-12 text-center text-gray-500 dark:text-gray-400"
+                  >
                     <div className="flex justify-center items-center gap-2">
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 dark:border-blue-400 border-t-transparent"></div>
                       <span>Loading users...</span>
@@ -308,8 +346,13 @@ const UserTable = () => {
                 </tr>
               ) : safeFilteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center text-gray-400 dark:text-gray-500 italic">
-                    {searchQuery ? 'No matching users found.' : 'No users found. Click "Add User" to get started.'}
+                  <td
+                    colSpan={4}
+                    className="py-12 text-center text-gray-400 dark:text-gray-500 italic"
+                  >
+                    {searchQuery
+                      ? "No matching users found."
+                      : 'No users found. Click "Add User" to get started.'}
                   </td>
                 </tr>
               ) : (
@@ -321,30 +364,44 @@ const UserTable = () => {
                     {/* FULL NAME — with avatar */}
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-full ${getAvatarColor(user?.FirstName)} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+                        <div
+                          className={`w-9 h-9 rounded-full ${getAvatarColor(
+                            user?.FirstName
+                          )} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
+                        >
                           {getInitials(user)}
                         </div>
                         <div className="min-w-0">
                           <div className="font-medium text-gray-900 dark:text-white truncate max-w-[180px]">
                             {getFullName(user)}
                           </div>
-                          <div className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate max-w-[150px]" title={user?._id}>
+                          <div
+                            className="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate max-w-[150px]"
+                            title={user?._id}
+                          >
                             {user?._id}
                           </div>
                         </div>
                       </div>
                     </td>
 
-                    {/* ✅ EMAIL — user.username (dito naka-save ang email sa DB mo) */}
+                    {/* EMAIL — user.username */}
                     <td className="px-4 py-4">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-[200px] inline-block" title={user?.username}>
+                      <span
+                        className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-[200px] inline-block"
+                        title={user?.username}
+                      >
                         {user?.username || "N/A"}
                       </span>
                     </td>
 
-                    {/* ✅ ROLE — UI "Encharge" kung backend "User" */}
+                    {/* ✅ ROLE — UI "Incharge" kung backend "User" */}
                     <td className="px-4 py-4 text-center">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase border ${getRoleStyle(user?.role)}`}>
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase border ${getRoleStyle(
+                          user?.role
+                        )}`}
+                      >
                         {getRoleLabel(user?.role)}
                       </span>
                     </td>
@@ -359,6 +416,8 @@ const UserTable = () => {
                         >
                           <Edit size={16} strokeWidth={1.5} />
                         </button>
+
+                        {/* ❌ DELETE BUTTON — COMMENTED OUT
                         <button
                           onClick={() => handleDeleteClick(user)}
                           className="p-1.5 text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded transition-colors"
@@ -366,6 +425,7 @@ const UserTable = () => {
                         >
                           <Trash2 size={16} strokeWidth={1.5} />
                         </button>
+                        */}
                       </div>
                     </td>
                   </tr>
@@ -376,18 +436,31 @@ const UserTable = () => {
         </div>
 
         {/* FOOTER / PAGINATION */}
-        <div className="px-6 py-3 bg-gradient-to-r from-blue-50 via-white to-amber-50
+        <div
+          className="px-6 py-3 bg-gradient-to-r from-blue-50 via-white to-amber-50
           dark:bg-slate-800 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800
           border-t border-blue-100 dark:border-slate-700
-          rounded-b-lg flex flex-col sm:flex-row justify-between items-center gap-3">
+          rounded-b-lg flex flex-col sm:flex-row justify-between items-center gap-3"
+        >
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Showing <span className="font-medium text-blue-700 dark:text-blue-400">
-              {totalUsers === 0 ? 0 : Math.min(totalUsers, (currentPage - 1) * usersPerPage + 1)}
-            </span> to{' '}
+            Showing{" "}
+            <span className="font-medium text-blue-700 dark:text-blue-400">
+              {totalUsers === 0
+                ? 0
+                : Math.min(
+                    totalUsers,
+                    (currentPage - 1) * usersPerPage + 1
+                  )}
+            </span>{" "}
+            to{" "}
             <span className="font-medium text-blue-700 dark:text-blue-400">
               {Math.min(currentPage * usersPerPage, totalUsers)}
-            </span> of{' '}
-            <span className="font-medium text-blue-700 dark:text-blue-400">{totalUsers}</span> entries
+            </span>{" "}
+            of{" "}
+            <span className="font-medium text-blue-700 dark:text-blue-400">
+              {totalUsers}
+            </span>{" "}
+            entries
           </div>
 
           <div className="flex items-center gap-2">
@@ -398,7 +471,9 @@ const UserTable = () => {
                 bg-white dark:bg-slate-700 text-blue-800 dark:text-slate-300"
             >
               {[6, 10, 25, 50, 100].map((n) => (
-                <option key={n} value={n}>{n} / page</option>
+                <option key={n} value={n}>
+                  {n} / page
+                </option>
               ))}
             </select>
 
@@ -445,14 +520,16 @@ const UserTable = () => {
             }}
             onUpdate={(updated) => {
               if (!updated) return;
-              setUsers((prev) => prev.map((u) => (u?._id === updated._id ? updated : u)));
+              setUsers((prev) =>
+                prev.map((u) => (u?._id === updated._id ? updated : u))
+              );
               handleCloseSubModals();
             }}
           />
         )}
       </div>
 
-      {/* REUSABLE DELETE CONFIRMATION MODAL */}
+      {/* ❌ REUSABLE DELETE CONFIRMATION MODAL — COMMENTED OUT (walang Delete button)
       <ConfirmDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={handleCancelDelete}
@@ -465,14 +542,14 @@ const UserTable = () => {
         itemDetails={
           userToDelete
             ? {
-                code: userToDelete._id,
                 brand: getFullName(userToDelete),
                 specification: userToDelete.username,
-                serialNumber: getRoleLabel(userToDelete.role), // ✅ UI "Encharge"
+                serialNumber: getRoleLabel(userToDelete.role),
               }
             : null
         }
       />
+      */}
     </>
   );
 };

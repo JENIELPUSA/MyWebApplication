@@ -220,6 +220,38 @@ export const MessagePostProvider = ({ children }) => {
     }
   }, [authToken]);
 
+  const markMessageAsRead = useCallback(async (messageId) => {
+    console.log("🔥 markMessageAsRead CALLED:", messageId);
+    if (!messageId) return false;
+
+    try {
+      const url = `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MessageRequest/${messageId}/read`;
+      console.log("🌐 PATCH →", url);
+
+      const response = await axiosInstance.patch(url, {}, {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      console.log("📥 Response:", response.status, response.data);
+
+      if (response.data?.status === "success" || response.status === 200) {
+        setMessages(prevMessages =>
+          prevMessages.map(msg =>
+            msg._id === messageId
+              ? { ...msg, read: true, readonUser: true }
+              : msg
+          )
+        );
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("❌ markMessageAsRead error:", error);
+      return false;
+    }
+  }, [authToken]);
+
   // Get unread messages count
   const getUnreadCount = useCallback(() => {
     return messages.filter(msg => !msg.read).length;
@@ -231,7 +263,7 @@ export const MessagePostProvider = ({ children }) => {
         // Original functions
         setSendMsg,
         setSendPatch,
-        setSendPost, markAllAsRead,
+        setSendPost, markAllAsRead, markMessageAsRead,
         // DisplayMessage functions
         messages,
         setMessages,

@@ -53,6 +53,7 @@ const MaintenanceRequestSchema = new mongoose.Schema(
     Laboratory: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Laboratory", // Reference to the Equipment model
+      required: true,
     },
 
     Technician:

@@ -1,4 +1,4 @@
-const AsyncErrorHandler = require("../Utils/AsyncErrorHandler");
+const AsyncErrorHandler = require("../Utils/AsyncErrorHandler"); 
 const tools = require("./../Models/Equipment");
 const mongoose = require("mongoose");
 const Apifeatures = require("./../Utils/ApiFeatures");
@@ -10,6 +10,12 @@ const Equipment = require("../Models/Equipment");
 const Laboratory = require("../Models/Laboratory");
 const Assign = require("../Models/AssigningEquipment");
 const PMSMaintenanceController = require("../Models/PMS001")
+const {
+  ROOM_ALL_ROLES,
+  userRoom,
+  roleRoom,       // kung kailangan
+  privateRoom,    // kung kailangan
+} = require("../rooms")
 
 // Mapping of collections and their corresponding field names
 const collectionFieldMapping = {
@@ -59,7 +65,7 @@ exports.Displaytool = AsyncErrorHandler(async (req, res) => {
     const trimmedCategory = category.trim();
 
     if (trimmedCategory.toLowerCase() === "null" ||
-        trimmedCategory.toLowerCase() === "unassigned") {
+      trimmedCategory.toLowerCase() === "unassigned") {
       matchStage.Category = null;
     } else if (mongoose.Types.ObjectId.isValid(trimmedCategory)) {
       matchStage.Category = new mongoose.Types.ObjectId(trimmedCategory);
@@ -332,121 +338,122 @@ exports.RemoverelatedData = async (req, res, next) => {
 };
 
 exports.createtool = AsyncErrorHandler(async (req, res) => {
-  // Validate Category if it's provided
-  if (
-    req.body.Category &&
-    !mongoose.Types.ObjectId.isValid(req.body.Category)
-  ) {
-    return res.status(400).json({
-      status: "fail",
-      message: "Invalid Category ID format",
-    });
-  }
+  try {
+    // Validate Category if provided
+    if (
+      req.body.Category &&
+      !mongoose.Types.ObjectId.isValid(req.body.Category)
+    ) {
+      throw new CustomError("Invalid Category ID format", 400);
+    }
 
-  // Validate required fields (Brand, SerialNumber, and Specification)
-  const { Brand, SerialNumber, Specification } = req.body;
-  if (!Brand || !SerialNumber || !Specification) {
-    return res.status(400).json({
-      status: "fail",
-      message: "Please fill in all required fields.",
-    });
-  }
+    // Validate required fields
+    const { Brand, SerialNumber, Specification } = req.body;
+    if (!Brand || !SerialNumber || !Specification) {
+      throw new CustomError("Please fill in all required fields.", 400);
+    }
 
-  // Create the new tool
-  const newTool = await tools.create(req.body);
+    // Create the new tool
+    const newTool = await tools.create(req.body);
 
-  // Check if tool creation was successful
-  if (!newTool) {
-    return res.status(400).json({
-      status: "fail",
-      message: "Tool creation failed.",
-    });
-  }
-
-  // Use aggregation to fetch the newly created tool with joined category details
-  const toolWithCategory = await tools.aggregate([
-    {
-      $match: { _id: newTool._id }, // Match the newly created tool by its ID
-    },
-    {
-      $lookup: {
-        from: "categories", // The collection to join
-        localField: "Category", // Field in tools that references category ID
-        foreignField: "_id", // Field in categories to join on
-        as: "CategoryData", // Alias for the joined data
-      },
-    },
-    {
-      $unwind: {
-        path: "$CategoryData",
-        preserveNullAndEmptyArrays: true, // Allow null if no matching category
-      },
-    },
-    {
-      $project: {
-        code: 1,
-        Brand: 1,
-        SerialNumber: 1,
-        Specification: 1,
-        status: 1,
-        remarks: 1,
-        DateAcquired: 1,
-        CategoryName: {
-          $ifNull: ["$CategoryData.CategoryName", "N/A"], // Use 'N/A' if CategoryName is missing
+    // Aggregate with category details
+    const toolWithCategory = await tools.aggregate([
+      { $match: { _id: newTool._id } },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "Category",
+          foreignField: "_id",
+          as: "CategoryData",
         },
-        CategoryId: "$CategoryData._id", // Include the Category ID from the joined data
-        _id: 1,
       },
-    },
-  ]);
+      {
+        $unwind: { path: "$CategoryData", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $project: {
+          code: 1,
+          Brand: 1,
+          SerialNumber: 1,
+          Specification: 1,
+          status: 1,
+          remarks: 1,
+          DateAcquired: 1,
+          CategoryName: { $ifNull: ["$CategoryData.CategoryName", "N/A"] },
+          CategoryId: "$CategoryData._id",
+          _id: 1,
+        },
+      },
+    ]);
 
-  // Respond with the tool including category details
-  res.status(201).json({
-    status: "success",
-    data: toolWithCategory[0], // Send the first item in the aggregation result
-  });
+    // ✅ Guard — in case aggregation returns empty (race condition)
+    if (!toolWithCategory || toolWithCategory.length === 0) {
+      throw new CustomError(
+        "Tool was created but could not be retrieved. Please refresh.",
+        500
+      );
+    }
+
+    res.status(201).json({
+      status: "success",
+      data: toolWithCategory[0],
+    });
+  } catch (err) {
+    // ✅ Handle Mongoose validation errors
+    if (err?.name === "ValidationError") {
+      const firstError = Object.values(err.errors || {})[0];
+      return res.status(400).json({
+        status: "fail",
+        message: firstError?.message || "Validation failed.",
+      });
+    }
+
+    // ✅ Handle CastError (invalid ObjectId etc.)
+    if (err?.name === "CastError") {
+      return res.status(400).json({
+        status: "fail",
+        message: `Invalid value for ${err.path}: ${err.value}`,
+      });
+    }
+
+    // ✅ Custom / known operational errors
+    if (err instanceof CustomError) {
+      return res.status(err.statusCode || 400).json({
+        status: "fail",
+        message: err.message,
+      });
+    }
+
+    // ✅ Fallback — re-throw so AsyncErrorHandler can handle it globally
+    throw err;
+  }
 });
 
-exports.Updatetool = AsyncErrorHandler(async (req, res, next) => {
-  // Check if ID is valid
+exports.Updatetool = AsyncErrorHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-    return res
-      .status(400)
-      .json({ status: "fail", message: "Invalid ID format" });
+    throw new CustomError("Invalid ID format", 400);
   }
 
-  // Filter out empty values - huwag i-update ang fields na walang value
   const filteredBody = {};
   Object.keys(req.body).forEach((key) => {
     const value = req.body[key];
-    // Isama lang kung may value (hindi empty string, hindi null, hindi undefined)
     if (value !== "" && value !== null && value !== undefined) {
       filteredBody[key] = value;
     }
   });
 
-  // Update the tool (gamit ang filtered body)
   const updateTool = await tools.findByIdAndUpdate(
     req.params.id,
     filteredBody,
-    {
-      new: true,
-      runValidators: true,
-    }
+    { new: true, runValidators: true }
   );
 
   if (!updateTool) {
-    return res.status(404).json({
-      status: "fail",
-      message: "Tool not found",
-    });
+    throw new CustomError("Tool not found", 404);
   }
 
-  // Use aggregation to retrieve the updated tool with category details
   const toolWithCategory = await tools.aggregate([
-    {
-      $match: { _id: new mongoose.Types.ObjectId(req.params.id) },
-    },
+    { $match: { _id: new mongoose.Types.ObjectId(req.params.id) } },
     {
       $lookup: {
         from: "categories",
@@ -455,12 +462,7 @@ exports.Updatetool = AsyncErrorHandler(async (req, res, next) => {
         as: "CategoryData",
       },
     },
-    {
-      $unwind: {
-        path: "$CategoryData",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
+    { $unwind: { path: "$CategoryData", preserveNullAndEmptyArrays: true } },
     {
       $project: {
         code: 1,
@@ -470,34 +472,54 @@ exports.Updatetool = AsyncErrorHandler(async (req, res, next) => {
         status: 1,
         remarks: 1,
         DateAcquired: 1,
-        CategoryName: {
-          $ifNull: ["$CategoryData.CategoryName", "N/A"],
-        },
+        CategoryName: { $ifNull: ["$CategoryData.CategoryName", "N/A"] },
         CategoryId: "$CategoryData._id",
         _id: 1,
       },
     },
   ]);
 
-  // ==========================================
-  // Socket.IO emit — Tool updated
-  // ==========================================
-  const io = req.app.get("io");
-  if (io) {
-    io.emit("update_equipment:updated", {
-      status: "success",
-      action: "updated",
-      data: toolWithCategory[0] || updateTool,   // ✅ complete data with category
-      timestamp: new Date(),
-    });
-    console.log(`📡 [Socket] Broadcasted 'update_equipment:updated'`);
+  const updatedTool = toolWithCategory[0];
+
+  // Socket — keep the try/catch here! It's a non-critical side effect.
+  try {
+    const io = req.app.get("io");
+    if (io && updatedTool) {
+      const notification = {
+        _id: updatedTool._id,
+        code: updatedTool.code,
+        Brand: updatedTool.Brand,
+        SerialNumber: updatedTool.SerialNumber,
+        status: updatedTool.status,
+        remarks: updatedTool.remarks,
+        CategoryName: updatedTool.CategoryName,
+        updatedAt: new Date(),
+        message: `Tool "${updatedTool.code || updatedTool._id}" was updated`,
+      };
+
+      io.to(ROOM_ALL_ROLES).emit("update_equipment:updated", {
+        payload: notification,
+      });
+
+      const ownerId =
+        updatedTool.loan?.userId ||
+        updatedTool.borrowedBy ||
+        updatedTool.assignedTo;
+
+      if (ownerId) {
+        io.to(userRoom(ownerId)).emit("update_equipment:updated", {
+          payload: notification,
+        });
+      }
+    }
+  } catch (socketErr) {
+    console.error("❌ Socket emit error (Updatetool):", socketErr);
   }
 
-  // Return the updated tool data along with category details
-  res.status(200).json({
+  return res.status(200).json({
     status: "success",
     totalEquipment: toolWithCategory.length,
-    data: toolWithCategory[0],
+    data: updatedTool,
   });
 });
 

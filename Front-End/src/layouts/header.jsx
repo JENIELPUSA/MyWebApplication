@@ -3,48 +3,150 @@ import { useState, useContext, useMemo, useEffect, useCallback } from "react";
 import { useTheme } from "@/hooks/use-theme";
 import {
     Bell,
-    ChevronsLeft,
     Moon,
     Sun,
     AlertCircle,
     Wrench,
     CheckCircle2,
+    CheckCircle,
+    XCircle,
     Clock,
     Activity,
-    Package,
-    Building2,
     User,
-    Mail,
-    Hash,
-    Calendar,
-    FileText,
-    Tag,
-    Monitor,
-    Cpu,
-    HardDrive,
-    Server,
-    Info,
-    Users,
-    Building,
-    Phone,
-    MapPin,
-    Check,
-    X,
+    CheckCheckIcon,
     Loader2,
     UserPlus,
     PanelLeftClose,
     PanelLeftOpen,
-    Menu,
-    ChevronLeft,
     ChevronRight,
-    ArrowLeftToLine,
-    ArrowRightToLine
+    RefreshCw,
+    ClipboardCheck,
+    ShieldCheck,
+    MessageSquare,
+    Info,
+    AlertTriangle,
 } from "lucide-react";
 import PropTypes from "prop-types";
 import { MessagePOSTcontext } from "../contexts/MessageContext/POSTmessage";
 import { UserDataContext } from "../contexts/UserContext/UserContext";
 import { MessageDetailModal } from "./MessageDetailModal";
 import { AuthContext } from "../contexts/AuthContext";
+
+// ==========================================
+// ✅ PROFESSIONAL LABEL MAP
+// ==========================================
+const NOTIFICATION_LABELS = {
+    AssignedTechnician: {
+        label: "Technician Assigned",
+        shortLabel: "Assigned",
+        icon: UserPlus,
+        iconColor: "text-blue-600 dark:text-blue-400",
+        bgColor: "bg-blue-100 dark:bg-blue-900/30",
+    },
+    ReAssignedTechnician: {
+        label: "Task Reassigned",
+        shortLabel: "Reassigned",
+        icon: RefreshCw,
+        iconColor: "text-indigo-600 dark:text-indigo-400",
+        bgColor: "bg-indigo-100 dark:bg-indigo-900/30",
+    },
+    MaintenanceRequest: {
+        label: "Maintenance Request",
+        shortLabel: "Request",
+        icon: Wrench,
+        iconColor: "text-yellow-600 dark:text-yellow-400",
+        bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
+    },
+    Approved: {
+        label: "Request Approved",
+        shortLabel: "Approved",
+        icon: CheckCircle2,
+        iconColor: "text-green-600 dark:text-green-400",
+        bgColor: "bg-green-100 dark:bg-green-900/30",
+    },
+    Rejected: {
+        label: "Request Rejected",
+        shortLabel: "Rejected",
+        icon: XCircle,
+        iconColor: "text-red-600 dark:text-red-400",
+        bgColor: "bg-red-100 dark:bg-red-900/30",
+    },
+    TaskCompleted: {
+        label: "Task Completed",
+        shortLabel: "Completed",
+        icon: CheckCircle,
+        iconColor: "text-emerald-600 dark:text-emerald-400",
+        bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
+    },
+    Pending: {
+        label: "Pending Review",
+        shortLabel: "Pending",
+        icon: Clock,
+        iconColor: "text-orange-600 dark:text-orange-400",
+        bgColor: "bg-orange-100 dark:bg-orange-900/30",
+    },
+    UnderMaintenance: {
+        label: "Under Maintenance",
+        shortLabel: "Maintenance",
+        icon: Activity,
+        iconColor: "text-purple-600 dark:text-purple-400",
+        bgColor: "bg-purple-100 dark:bg-purple-900/30",
+    },
+    TechnicianConfirmed: {
+        label: "Technician Confirmation",
+        shortLabel: "Confirmed",
+        icon: ClipboardCheck,
+        iconColor: "text-teal-600 dark:text-teal-400",
+        bgColor: "bg-teal-100 dark:bg-teal-900/30",
+    },
+    InchargeConfirmation: {
+        label: "Awaiting Confirmation",
+        shortLabel: "For Review",
+        icon: ShieldCheck,
+        iconColor: "text-cyan-600 dark:text-cyan-400",
+        bgColor: "bg-cyan-100 dark:bg-cyan-900/30",
+    },
+    NewMessage: {
+        label: "New Message",
+        shortLabel: "Message",
+        icon: MessageSquare,
+        iconColor: "text-slate-600 dark:text-slate-400",
+        bgColor: "bg-slate-100 dark:bg-slate-800",
+    },
+    StatusUpdate: {
+        label: "Status Update",
+        shortLabel: "Update",
+        icon: Bell,
+        iconColor: "text-blue-600 dark:text-blue-400",
+        bgColor: "bg-blue-100 dark:bg-blue-900/30",
+    },
+    Reminder: {
+        label: "Reminder",
+        shortLabel: "Reminder",
+        icon: Bell,
+        iconColor: "text-amber-600 dark:text-amber-400",
+        bgColor: "bg-amber-100 dark:bg-amber-900/30",
+    },
+    Urgent: {
+        label: "Urgent Notice",
+        shortLabel: "Urgent",
+        icon: AlertTriangle,
+        iconColor: "text-red-600 dark:text-red-400",
+        bgColor: "bg-red-100 dark:bg-red-900/30",
+    },
+    General: {
+        label: "Notification",
+        shortLabel: "Notice",
+        icon: Info,
+        iconColor: "text-slate-600 dark:text-slate-400",
+        bgColor: "bg-slate-100 dark:bg-slate-800",
+    },
+};
+
+const DEFAULT_NOTIFICATION_LABEL = NOTIFICATION_LABELS.General;
+
+const getNotificationLabel = (type) =>
+    NOTIFICATION_LABELS[type] || DEFAULT_NOTIFICATION_LABEL;
 
 export const Header = ({ collapsed, setCollapsed }) => {
     const { messages, markAllAsRead, markMessageAsRead } = useContext(MessagePOSTcontext);
@@ -55,25 +157,22 @@ export const Header = ({ collapsed, setCollapsed }) => {
     const [localTechnicians, setLocalTechnicians] = useState([]);
     const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
 
-    // ✅ NEW: Optimistic "read" override set — para agad mawala ang badge
+    // ✅ Optimistic "read" override set
     const [locallyReadIds, setLocallyReadIds] = useState(() => new Set());
 
-    // ✅ Get auth data — with fallback aliases
+    // ✅ Auth
     const {
         first_name,
         role,
         email,
-        Firstname,  // 👈 fallback kung capital F ang gamit sa ibang components
+        Firstname,
     } = useContext(AuthContext);
 
-    // ✅ Use fallback — kung alin ang meron
     const displayFirstName = first_name || Firstname || "";
-
-    console.log("role:", role, "first_name:", displayFirstName);
 
     const { technicians = [] } = useContext(UserDataContext) || {};
 
-    // ✅ One-line greeting — Welcome Back + Role
+    // ✅ Greeting
     const getGreeting = () => {
         if (!role) return "Welcome Back";
         const normalizedRole = role.toLowerCase();
@@ -83,90 +182,20 @@ export const Header = ({ collapsed, setCollapsed }) => {
         return "Welcome Back User";
     };
 
-    // Helper function
     const isEmptyOrWhitespace = (str) => {
         return !str || str.trim() === "" || str === "N/A" || str === "   ";
     };
 
-    // Transform messages into notifications format with improved icons
+    // ==========================================
+    // TRANSFORM MESSAGES → NOTIFICATIONS
+    // ==========================================
     const notifications = useMemo(() => {
         if (!messages || messages.length === 0) return [];
 
-        // Step 1: Group messages by RequestID
-        const groupedByRequestId = {};
-        messages.forEach((msg) => {
-            const requestId = msg.RequestID || msg.RequestId;
-            if (!requestId) {
-                const key = `no-id-${msg._id || Math.random()}`;
-                groupedByRequestId[key] = [msg];
-                return;
-            }
-            if (!groupedByRequestId[requestId]) {
-                groupedByRequestId[requestId] = [];
-            }
-            groupedByRequestId[requestId].push(msg);
-        });
-
-        // Step 2: Filter each group
-        const filteredMessages = [];
-        Object.values(groupedByRequestId).forEach((group) => {
-            const hasTechnicianConfirmed = group.some(
-                (msg) => msg.typesNotification === "TechnicianConfirmed"
-            );
-
-            if (hasTechnicianConfirmed) {
-                const confirmedMessages = group.filter(
-                    (msg) => msg.typesNotification === "TechnicianConfirmed"
-                );
-                filteredMessages.push(...confirmedMessages);
-            } else {
-                filteredMessages.push(...group);
-            }
-        });
-
-        // Step 3: Transform filtered messages into notifications
-        return filteredMessages.map((msg, index) => {
-            let icon = AlertCircle;
-            let iconColor = "text-blue-500";
-            let bgColor = "bg-blue-100 dark:bg-blue-900/30";
-            let statusColor = "text-blue-600 dark:text-blue-400";
-            let statusBg = "bg-blue-100 dark:bg-blue-900/30";
-
-            if (msg.typesNotification === "MaintenanceRequest") {
-                icon = Wrench;
-                iconColor = "text-yellow-600";
-                bgColor = "bg-yellow-100 dark:bg-yellow-900/30";
-                statusColor = "text-yellow-600 dark:text-yellow-400";
-                statusBg = "bg-yellow-100 dark:bg-yellow-900/30";
-            } else if (msg.typesNotification === "TechnicianConfirmed") {
-                icon = CheckCircle2;
-                iconColor = "text-green-500";
-                bgColor = "bg-green-100 dark:bg-green-900/30";
-                statusColor = "text-green-600 dark:text-green-400";
-                statusBg = "bg-green-100 dark:bg-green-900/30";
-            } else if (msg.RequestStatus === "Completed" || msg.Status === "Completed") {
-                icon = CheckCircle2;
-                iconColor = "text-green-500";
-                bgColor = "bg-green-100 dark:bg-green-900/30";
-                statusColor = "text-green-600 dark:text-green-400";
-                statusBg = "bg-green-100 dark:bg-green-900/30";
-            } else if (msg.RequestStatus === "Pending" || msg.Status === "Pending") {
-                icon = Clock;
-                iconColor = "text-orange-500";
-                bgColor = "bg-orange-100 dark:bg-orange-900/30";
-                statusColor = "text-orange-600 dark:text-orange-400";
-                statusBg = "bg-orange-100 dark:bg-orange-900/30";
-            } else if (msg.RequestStatus === "In Progress" || msg.Status === "In Progress") {
-                icon = Activity;
-                iconColor = "text-purple-500";
-                bgColor = "bg-purple-100 dark:bg-purple-900/30";
-                statusColor = "text-purple-600 dark:text-purple-400";
-                statusBg = "bg-purple-100 dark:bg-purple-900/30";
-            }
+        return messages.map((msg, index) => {
+            const meta = getNotificationLabel(msg.typesNotification);
 
             const msgId = msg._id || index;
-
-            // ✅ Optimistic: mark as read kung nasa locallyReadIds
             const isUnread = msg.read === false && !locallyReadIds.has(msgId);
 
             let description = msg.message || "";
@@ -222,20 +251,19 @@ export const Header = ({ collapsed, setCollapsed }) => {
                 }
             }
 
-            let technicianName = msg.TechnicianName;
+            const technicianName = msg.TechnicianName;
 
             return {
                 id: msgId,
-                title: msg.typesNotification || msg.RequestStatus || "Maintenance Request",
+                title: meta.label,
+                shortLabel: meta.shortLabel,
                 desc: description,
                 details: details,
                 time: msg.DateTime,
                 unread: isUnread,
-                icon: icon,
-                iconColor: iconColor,
-                bgColor: bgColor,
-                statusColor: statusColor,
-                statusBg: statusBg,
+                icon: meta.icon,
+                iconColor: meta.iconColor,
+                bgColor: meta.bgColor,
                 data: msg,
                 enchargeFullDetails: enchargeFullDetails,
                 summary: {
@@ -264,11 +292,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
     }, [messages, locallyReadIds]);
 
     const unreadCount = notifications.filter(n => n.unread).length;
-
-    console.log("[Header] notifications count:", notifications.length);
-    console.log("[Header] unreadCount:", unreadCount);
-
-    // 👇 IPAKITA LAHAT — read man o unread
     const displayedNotifications = notifications;
 
     const formatDate = (dateString) => {
@@ -284,23 +307,53 @@ export const Header = ({ collapsed, setCollapsed }) => {
         if (diffMins < 60) return `${diffMins} mins ago`;
         if (diffHours < 24) return `${diffHours} hours ago`;
         if (diffDays < 7) return `${diffDays} days ago`;
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     };
 
-    const handleNotificationClick = (notif) => {
+    // ==========================================
+    // ✅ CLICK → MARK AS READ AGAD
+    // ==========================================
+    const handleNotificationClick = async (notif) => {
         console.log("[Header] Notification clicked:", notif);
+
+        // Kung unread at may valid ID, mark as read agad
+        if (notif.unread && notif.id) {
+            // Optimistic — agad mawala ang badge
+            setLocallyReadIds((prev) => {
+                const next = new Set(prev);
+                next.add(notif.id);
+                return next;
+            });
+
+            // Server-side (background)
+            if (typeof markMessageAsRead === "function") {
+                try {
+                    const success = await markMessageAsRead(notif.id);
+                    if (success) {
+                        console.log(`[Header] ✅ Message ${notif.id} marked as read`);
+                    } else {
+                        console.warn(`[Header] ⚠️ Failed to mark ${notif.id} as read`);
+                    }
+                } catch (error) {
+                    console.error(`[Header] ❌ markMessageAsRead error:`, error);
+                    // Rollback kung nag-fail
+                    setLocallyReadIds((prev) => {
+                        const next = new Set(prev);
+                        next.delete(notif.id);
+                        return next;
+                    });
+                }
+            }
+        }
+
+        // Buksan ang modal at isara ang dropdown
         setSelectedMessage(notif);
         setShowNotifications(false);
     };
 
-    const closeDetailView = () => {
-        setSelectedMessage(null);
-    };
+    const closeDetailView = () => setSelectedMessage(null);
 
-    // ==========================================
-    // ✅ CLEANUP: Clear locallyReadIds kapag
-    //    nag-update na ang messages galing server
-    // ==========================================
+    // Cleanup locallyReadIds
     useEffect(() => {
         if (!messages || messages.length === 0) return;
         setLocallyReadIds((prev) => {
@@ -317,103 +370,39 @@ export const Header = ({ collapsed, setCollapsed }) => {
         });
     }, [messages]);
 
-    // ==========================================
-    // MARK ALL AS READ
-    // Priority: markAllAsRead(messageIds) > markMessageAsRead(id) loop
-    // ==========================================
+    // Mark all as read
     const handleMarkAllAsRead = useCallback(async () => {
-        console.log("========================================");
-        console.log("[Header] 🖱️ Mark all as read clicked");
-        console.log("[Header] Current unreadCount:", unreadCount);
-        console.log("[Header] Total notifications:", notifications.length);
+        const unreadIds = notifications.filter(n => n.unread).map(n => n.id);
+        if (unreadCount === 0) return;
 
-        // Collect unread message IDs
-        const unreadIds = notifications
-            .filter(n => n.unread)
-            .map(n => n.id);
-
-        console.log("[Header] Unread notification IDs:", unreadIds);
-
-        if (unreadCount === 0) {
-            console.warn("[Header] ⚠️ No unread notifications — skipping.");
-            return;
-        }
-
-        // ==========================================
-        // ✅ OPTIMISTIC UPDATE — agad mawawala ang badge
-        // ==========================================
         setLocallyReadIds((prev) => {
             const next = new Set(prev);
             unreadIds.forEach((id) => next.add(id));
             return next;
         });
 
-        // ==========================================
-        // STRATEGY 1: Batch endpoint (markAllAsRead)
-        // ==========================================
         if (typeof markAllAsRead === "function") {
             try {
                 setIsMarkingAllRead(true);
-                console.log("[Header] 📤 Using markAllAsRead() batch endpoint with IDs:", unreadIds);
-
-                const result = await markAllAsRead(unreadIds);
-                console.log("[Header] ✅ markAllAsRead() resolved:", result);
+                await markAllAsRead(unreadIds);
                 return;
             } catch (error) {
-                console.error("[Header] ❌ markAllAsRead() failed:", error);
-                console.warn("[Header] 🔄 Falling back to markMessageAsRead() loop...");
-                // Fall through to strategy 2
+                console.error("[Header] markAllAsRead failed:", error);
             } finally {
                 setIsMarkingAllRead(false);
             }
         }
 
-        // ==========================================
-        // STRATEGY 2: Loop markMessageAsRead(id)
-        // ==========================================
         if (typeof markMessageAsRead === "function") {
             try {
                 setIsMarkingAllRead(true);
-                console.log("[Header] 📤 Using markMessageAsRead() loop for", unreadIds.length, "messages");
-
-                const results = await Promise.allSettled(
-                    unreadIds.map((id) => {
-                        console.log(`[Header]   ↳ markMessageAsRead(${id})`);
-                        return markMessageAsRead(id);
-                    })
-                );
-
-                const fulfilled = results.filter(
-                    r => r.status === "fulfilled" && r.value === true
-                ).length;
-                const rejected = results.filter(r => r.status === "rejected");
-                const returnedFalse = results.filter(
-                    r => r.status === "fulfilled" && r.value === false
-                );
-
-                console.log(`[Header] ✅ ${fulfilled}/${unreadIds.length} marked as read.`);
-                if (returnedFalse.length > 0) {
-                    console.warn(`[Header] ⚠️ ${returnedFalse.length} returned false.`);
-                }
-                if (rejected.length > 0) {
-                    console.warn("[Header] ⚠️ Some threw errors:", rejected);
-                }
+                await Promise.allSettled(unreadIds.map((id) => markMessageAsRead(id)));
             } catch (error) {
-                console.error("[Header] ❌ Loop failed:", error);
+                console.error("[Header] markMessageAsRead loop failed:", error);
             } finally {
                 setIsMarkingAllRead(false);
             }
-            return;
         }
-
-        // ==========================================
-        // WALANG AVAILABLE NA FUNCTION
-        // ==========================================
-        console.error(
-            "[Header] ❌ Neither markAllAsRead nor markMessageAsRead is available in MessagePOSTcontext."
-        );
-        console.log("[Header] 🏁 Mark all as read flow finished (no-op).");
-        console.log("========================================");
     }, [notifications, unreadCount, markAllAsRead, markMessageAsRead]);
 
     const techniciansToUse = localTechnicians.length > 0 ? localTechnicians : technicians;
@@ -448,118 +437,225 @@ export const Header = ({ collapsed, setCollapsed }) => {
                     <div className="relative">
                         <button
                             className="btn-ghost size-10 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 relative rounded-lg transition-all duration-300"
-                            onClick={() => {
-                                console.log("[Header] 🔔 Bell clicked. Opening:", !showNotifications);
-                                setShowNotifications(!showNotifications);
-                            }}
+                            onClick={() => setShowNotifications(!showNotifications)}
                         >
                             <Bell size={20} />
                             {unreadCount > 0 && (
                                 <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-white dark:border-slate-900 animate-pulse">
-                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                    {unreadCount > 9 ? "9+" : unreadCount}
                                 </span>
                             )}
                         </button>
 
-                        {/* Notification Dropdown */}
+                        {/* Dropdown */}
                         {showNotifications && (
-                            <div className="absolute right-0 mt-3 w-80 sm:w-96 max-h-[500px] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 py-3 z-[9999] animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden flex flex-col">
-                                <div className="flex items-center justify-between px-4 pb-2 border-b border-slate-100 dark:border-slate-700 shrink-0">
-                                    <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">Notifications</h3>
-                                    <span className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 font-semibold px-2 py-0.5 rounded-full">
-                                        {unreadCount} New
-                                    </span>
+                            <div className="absolute right-0 mt-3 w-[min(30rem,calc(100vw-2rem))] max-h-[min(75vh,42rem)] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 z-[9999] animate-in fade-in slide-in-from-top-2 duration-200 overflow-hidden flex flex-col">
+                                {/* HEADER */}
+                                <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="size-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                                                <Bell size={19} className="text-blue-600 dark:text-blue-400" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h3 className="text-base font-bold text-slate-800 dark:text-white">
+                                                    Notifications
+                                                </h3>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                    Stay updated with your latest activities
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400">
+                                            <span className="size-1.5 rounded-full bg-blue-500" />
+                                            {unreadCount} Unread
+                                        </span>
+                                    </div>
                                 </div>
 
-                                {/* Mark all as read control */}
-                                <div className="flex items-center justify-end px-4 py-2 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                                {/* ACTION BAR */}
+                                <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 shrink-0">
+                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                        Recent activity
+                                    </span>
                                     <button
                                         onClick={handleMarkAllAsRead}
                                         disabled={unreadCount === 0 || isMarkingAllRead}
-                                        className={`text-[11px] font-medium flex items-center gap-1 transition-colors ${unreadCount === 0 || isMarkingAllRead
-                                            ? "text-slate-300 dark:text-slate-600 cursor-not-allowed"
-                                            : "text-blue-600 dark:text-blue-400 hover:underline"
-                                            }`}
-                                        title="Mark all notifications as read"
+                                        className={`
+                                            flex items-center gap-1.5 text-xs font-semibold transition-colors
+                                            ${unreadCount === 0 || isMarkingAllRead
+                                                ? "text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                                                : "text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                                            }
+                                        `}
                                     >
                                         {isMarkingAllRead ? (
                                             <>
-                                                <Loader2 size={12} className="animate-spin" />
+                                                <Loader2 size={14} className="animate-spin" />
                                                 Marking...
                                             </>
                                         ) : (
                                             <>
-                                                <Check size={12} />
+                                                <CheckCheckIcon size={14} />
                                                 Mark all as read
                                             </>
                                         )}
                                     </button>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
+                                {/* LIST */}
+                                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
                                     {displayedNotifications.length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center py-8 text-slate-400 dark:text-slate-500">
-                                            <Bell size={32} className="mb-2 opacity-30" />
-                                            <p className="text-sm font-medium">No notifications</p>
-                                            <p className="text-xs">All caught up!</p>
+                                        <div className="flex flex-col items-center justify-center py-16 px-5">
+                                            <div className="size-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                                                <Bell size={27} className="text-slate-400" />
+                                            </div>
+                                            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                                No notifications yet
+                                            </h4>
+                                            <p className="text-xs text-slate-400 mt-1 text-center">
+                                                You're all caught up! New activities will appear here.
+                                            </p>
                                         </div>
                                     ) : (
                                         displayedNotifications.map((notif) => {
                                             const IconComponent = notif.icon || AlertCircle;
+
+                                            const isTechnicianConfirmed =
+                                                notif.data?.typesNotification === "TechnicianConfirmed";
+
+                                            const visibleDetails = (notif.details || []).filter((detail) => {
+                                                if (!isTechnicianConfirmed) return true;
+                                                return !/^(equipment|serial)\s*:/i.test(detail.trim());
+                                            });
+
                                             return (
-                                                <div
+                                                <button
+                                                    type="button"
                                                     key={notif.id}
                                                     onClick={() => handleNotificationClick(notif)}
-                                                    className={`p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer ${notif.unread
-                                                        ? 'bg-yellow-50/40 dark:bg-yellow-900/10'
-                                                        : ''
-                                                        }`}
+                                                    className={`
+                                                        w-full text-left px-5 py-4
+                                                        border-b border-slate-100 dark:border-slate-800
+                                                        transition-colors duration-200
+                                                        hover:bg-slate-50 dark:hover:bg-slate-800/70
+                                                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500
+                                                        ${notif.unread
+                                                            ? "bg-blue-50/40 dark:bg-blue-900/10"
+                                                            : "bg-white dark:bg-slate-900"
+                                                        }
+                                                    `}
                                                 >
                                                     <div className="flex items-start gap-3">
-                                                        <div className={`mt-0.5 p-1.5 rounded-full shrink-0 ${notif.unread
-                                                            ? `${notif.bgColor} ${notif.iconColor}`
-                                                            : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'
-                                                            }`}>
-                                                            <IconComponent size={14} />
+                                                        {/* ICON */}
+                                                        <div
+                                                            className={`
+                                                                size-10 rounded-xl flex items-center justify-center shrink-0
+                                                                ${notif.unread
+                                                                    ? `${notif.bgColor} ${notif.iconColor}`
+                                                                    : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                                                                }
+                                                            `}
+                                                        >
+                                                            <IconComponent size={19} />
                                                         </div>
+
+                                                        {/* CONTENT */}
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="flex items-start justify-between gap-2">
-                                                                <div className="flex items-center gap-1.5 min-w-0">
-                                                                    {notif.unread && (
-                                                                        <span className="size-1.5 rounded-full bg-blue-500 shrink-0" />
-                                                                    )}
-                                                                    <p className={`text-xs truncate ${notif.unread
-                                                                        ? 'font-semibold text-slate-800 dark:text-slate-200'
-                                                                        : 'font-medium text-slate-500 dark:text-slate-400'
-                                                                        }`}>
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
+                                                                    <h4
+                                                                        className={`
+                                                                            text-sm leading-5 break-words
+                                                                            ${notif.unread
+                                                                                ? "font-bold text-slate-800 dark:text-white"
+                                                                                : "font-semibold text-slate-600 dark:text-slate-300"
+                                                                            }
+                                                                        `}
+                                                                    >
                                                                         {notif.title}
-                                                                    </p>
+                                                                    </h4>
+
+                                                                    {notif.shortLabel && (
+                                                                        <span
+                                                                            className={`
+                                                                                inline-flex items-center rounded-full px-2 py-0.5
+                                                                                text-[10px] font-semibold uppercase tracking-wide
+                                                                                ${notif.unread
+                                                                                    ? `${notif.bgColor} ${notif.iconColor}`
+                                                                                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                                                                                }
+                                                                            `}
+                                                                        >
+                                                                            {notif.shortLabel}
+                                                                        </span>
+                                                                    )}
                                                                 </div>
-                                                                <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
+
+                                                                {notif.unread && (
+                                                                    <span className="size-2 rounded-full bg-blue-500 shrink-0 mt-1.5" />
+                                                                )}
+                                                            </div>
+
+                                                            {notif.desc && (
+                                                                <p className="mt-2 text-[13px] leading-6 text-slate-600 dark:text-slate-400 whitespace-pre-wrap break-words">
+                                                                    {notif.desc}
+                                                                </p>
+                                                            )}
+
+                                                            {visibleDetails.length > 0 && (
+                                                                <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-700 space-y-2">
+                                                                    {visibleDetails.map((detail, i) => (
+                                                                        <div
+                                                                            key={`${notif.id}-detail-${i}`}
+                                                                            className="flex items-start gap-2 text-xs leading-5 text-slate-600 dark:text-slate-400"
+                                                                        >
+                                                                            <span className="size-1.5 rounded-full bg-slate-400 shrink-0 mt-2" />
+                                                                            <span className="break-words min-w-0">{detail}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
+                                                                <span className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+                                                                    <Clock size={12} />
                                                                     {formatDate(notif.data?.DateTime)}
                                                                 </span>
+                                                                <span
+                                                                    className={`
+                                                                        inline-flex items-center rounded-md px-2 py-1
+                                                                        text-[10px] font-semibold
+                                                                        ${notif.unread
+                                                                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                                                                            : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                                                                        }
+                                                                    `}
+                                                                >
+                                                                    {notif.unread ? "UNREAD" : "READ"}
+                                                                </span>
                                                             </div>
-                                                            <p className={`text-[11px] mt-0.5 leading-relaxed line-clamp-2 ${notif.unread
-                                                                ? 'text-slate-500 dark:text-slate-400'
-                                                                : 'text-slate-400 dark:text-slate-500'
-                                                                }`}>
-                                                                {notif.desc || notif.data?.RequestDescription || notif.data?.message}
-                                                            </p>
+
+                                                            <div className="mt-2 flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                                                View details
+                                                                <ChevronRight size={13} />
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
+                                                </button>
                                             );
                                         })
                                     )}
                                 </div>
 
-                                <div className="px-4 pt-2 border-t border-slate-100 dark:border-slate-700 text-center shrink-0 flex justify-between items-center">
-                                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                                        {notifications.length} total · {unreadCount} unread
+                                {/* FOOTER */}
+                                <div className="px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900 shrink-0 flex items-center justify-between gap-3">
+                                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                                        {notifications.length} total notifications
                                     </span>
                                     <button
                                         onClick={() => setShowNotifications(false)}
-                                        className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                                        className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     >
                                         Close
                                     </button>
@@ -568,7 +664,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
                         )}
                     </div>
 
-                    {/* ✅ Profile Section — One-line greeting */}
+                    {/* Profile */}
                     <div className="flex items-center gap-x-3 pl-2 border-l border-slate-200 dark:border-slate-700">
                         <span className="hidden md:block text-sm font-semibold text-slate-800 dark:text-slate-200">
                             {getGreeting()}
@@ -588,15 +684,9 @@ export const Header = ({ collapsed, setCollapsed }) => {
                 onClose={closeDetailView}
                 technicians={techniciansToUse}
                 isLoadingTechnicians={isLoadingTechnicians}
-                onAssignSuccess={() => {
-                    console.log("Technician assigned successfully");
-                }}
-                onAssignError={(error) => {
-                    console.error("Assignment error:", error);
-                }}
-                onApprove={(requestId) => {
-                    console.log("Request approved:", requestId);
-                }}
+                onAssignSuccess={() => {}}
+                onAssignError={(error) => console.error("Assignment error:", error)}
+                onApprove={(requestId) => {}}
             />
         </>
     );

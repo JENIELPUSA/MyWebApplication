@@ -323,35 +323,39 @@ export const EquipmentProvider = ({ children }) => {
                 }
             );
 
-            if (response?.data.status === "success") {
-                setModalStatus("success");
-                setShowModal(true);
+            if (response?.data?.status === "success") {
                 await fetchEquipmentData();
-                return { success: true, data: response?.data.data };
-            } else {
-                setModalStatus("failed");
-                setShowModal(true);
-                return {
-                    success: false,
-                    error: "Unexpected response from server.",
-                };
+                return { success: true, data: response?.data?.data };
             }
+
+            // Server responded 2xx but not "success"
+            const message =
+                response?.data?.message || "Unexpected response from server.";
+            setCustomError(message);
+            return { success: false, error: message };
         } catch (error) {
-            if (error.response && error.response.data) {
+            let message = "Something went wrong.";
+
+            if (error.response?.data) {
                 const errorData = error.response.data;
-                const message =
+                message =
                     typeof errorData === "string"
                         ? errorData
                         : errorData?.message ||
-                        errorData.error ||
+                        errorData?.error ||
                         "Something went wrong.";
-                setCustomError(message);
             } else if (error.request) {
-                setCustomError("No response from the server.");
+                message = "No response from the server.";
             } else {
-                setCustomError(error.message || "Unexpected error occurred.");
+                message = error.message || "Unexpected error occurred.";
             }
-            return { success: false, error: customError };
+
+            // ✅ setCustomError is async state — do NOT read customError right after
+            setModalStatus("failed");
+            setCustomError(message);
+            setShowModal(true);
+
+            return { success: false, error: message };
         }
     };
 

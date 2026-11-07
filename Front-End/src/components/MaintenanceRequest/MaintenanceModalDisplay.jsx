@@ -88,29 +88,6 @@ const MaintenanceModalDisplay = ({ Lab, Equip, onClose }) => {
             ×
           </button>
         </div>
-
-        {/* Device Info */}
-        <div className="bg-gray-50 border-b border-gray-200 px-6 py-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm flex-shrink-0">
-          <div>
-            <p className="text-gray-500 font-semibold text-xs uppercase">Equipment</p>
-            <p className="text-gray-800 font-medium">
-              {getDisplayValue(equipment?.Brand)} / {getDisplayValue(equipment?.categoryName)}
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-500 font-semibold text-xs uppercase">Serial Number</p>
-            <p className="text-gray-800 font-mono">{equipment?.SerialNumber || "---"}</p>
-          </div>
-          <div>
-            <p className="text-gray-500 font-semibold text-xs uppercase">Laboratory</p>
-            <p className="text-gray-800 font-medium">{getDisplayValue(lab?.departmentName)}</p>
-          </div>
-          <div>
-            <p className="text-gray-500 font-semibold text-xs uppercase">In-Charge</p>
-            <p className="text-gray-800 font-medium">{getDisplayValue(lab?.encharge)}</p>
-          </div>
-        </div>
-
         {/* Table */}
         <div className="p-6 flex-grow overflow-hidden flex flex-col">
           <div className="flex-grow overflow-auto border border-gray-200 rounded">

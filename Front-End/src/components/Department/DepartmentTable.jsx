@@ -84,6 +84,7 @@ const DepartmentTable = ({
                                                 >
                                                     <i className="fas fa-edit"></i> {/* Font Awesome edit icon */}
                                                 </button>
+                                        
                                                 <button
                                                     onClick={() => onDeleteDepartment(department._id)}
                                                     className="px-3 py-1 text-white bg-red-500 rounded hover:bg-red-600 transition"
