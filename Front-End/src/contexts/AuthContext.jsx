@@ -324,10 +324,10 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem("Designatedzone");
         localStorage.removeItem("authToken");
         localStorage.removeItem("jobToApply");
-        localStorage.removeItem("theme");
+        // ❌ localStorage.removeItem("theme");  ← hindi na tinatanggal
         localStorage.removeItem("isUpdatedInfo");
 
-        //  NEW: Clear role status fields
+        // NEW: Clear role status fields
         localStorage.removeItem("isApprover");
         localStorage.removeItem("approverStatus");
         localStorage.removeItem("isHr");
@@ -346,11 +346,11 @@ export const AuthProvider = ({ children }) => {
         setlinkId(null);
         setDesignatedzone(null);
         setJobToApply(null);
-        setTheme("light");
+        // ❌ setTheme("light");  ← hindi na nire-reset
         setIsUpdatedInfo(false);
         setProfile("");
 
-        //  NEW: Reset role status state
+        // NEW: Reset role status state
         setIsApprover(false);
         setApproverStatus("Available");
         setIsHr(false);

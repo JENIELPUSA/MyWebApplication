@@ -1,85 +1,95 @@
-// src/components/PMS/BiPSUPMS002App.jsx
+// src/components/PMSComponent/PMSComponent.jsx
 import React, {
     useState,
+    useEffect,
+    useContext,
+    useMemo,
     useRef,
     useCallback,
-    useContext,
-    useEffect,
 } from "react";
-
+import {
+    FlaskConical,
+    Settings,
+    Stethoscope,
+    ChevronRight,
+    AlertCircle,
+    FileText,
+    ArrowLeft,
+    Search,
+    FolderOpen,
+    GraduationCap,
+    Wrench,
+    Building2,
+    Download,
+    Loader2,
+    ChevronDown,
+    X,
+} from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import bispulogo from "../../assets/bipsulogo.png";
 
-import { EquipmentDataContext } from "../../contexts/EquipmentContext/EquipmentContext";
+// ✅ SEPARATE CONTEXTS
+import { PMSContext } from "../../contexts/PMS/pmsContext";
 import { PMS002Context } from "../../contexts/PMS/pmsContext002";
 
-import {
-    Plus,
-    Printer,
-    FileText,
-    Building2,
-    AlertCircle,
-    Loader2,
-    Download,
-    Trash2,
-    Save,
-    X,
-    Filter,
-    CalendarDays,
-} from "lucide-react";
+import bispulogo from "../../assets/bipsulogo.png";
 
 // ============================================================
-// CONSTANTS — LANDSCAPE A4
+// CONSTANTS — PMS001 = PORTRAIT, PMS002 = LANDSCAPE
 // ============================================================
-const A4_WIDTH_PX = 1123;
-const A4_HEIGHT_PX = 794;
+// PMS001 — Portrait A4
+const A4P_WIDTH_PX = 794;
+const A4P_HEIGHT_PX = 1123;
+const A4P_WIDTH_MM = 210;
+const A4P_HEIGHT_MM = 297;
 
-const A4_WIDTH_MM = 297;
-const A4_HEIGHT_MM = 210;
+// PMS002 — Landscape A4
+const A4L_WIDTH_PX = 1123;
+const A4L_HEIGHT_PX = 794;
+const A4L_WIDTH_MM = 297;
+const A4L_HEIGHT_MM = 210;
 
-// Fixed height ng isang data row (px) — base sa CSS (h-[32px])
 const ROW_HEIGHT_PX = 32;
+const A4L_CONTENT_HEIGHT = A4L_HEIGHT_PX - 80;
 
-// A4 content height (minus 35px top + 35px bottom padding)
-const A4_CONTENT_HEIGHT = A4_HEIGHT_PX - 80;
-
-// Fallback rows per page (dynamic ang actual computation)
 const DEFAULT_ROWS_PER_PAGE = 10;
 
 // ============================================================
-// DEFAULT OFFICE + SIGNATURES (EMPTY)
+// Helper — map PMS001 record → table row
 // ============================================================
-const DEFAULT_OFFICE_NAME = "";
-
-const DEFAULT_SIGNATURES = {
-    prepared: "",
-    attested: "",
-    approved: "",
-};
-
-// ============================================================
-// HELPER — Map isang PMS002 record → table row
-// ============================================================
-const mapPms002RecordToRow = (record, index) => {
+const mapPmsRecordToRow = (record, index) => {
     const eq = record?.equipmentId || {};
-
-    const year = eq?.DateAcquired
-        ? String(eq.DateAcquired).slice(0, 4)
-        : "";
+    const year = eq?.DateAcquired ? String(eq.DateAcquired).slice(0, 4) : "";
 
     return {
-        id: record?._id || `row-${index}`,
-        rowIndex: index + 1,
-
-        pmsId: record?._id || null,
-        equipmentId: eq?._id || null,
-        laboratoryId: record?.laboratoryId || null,
-
+        id: record?._id || `pms-fallback-${index}`,
         codeNo: eq?.code || "",
         name: eq?.Brand || "",
         dateAcquired: year,
+        serviceable: !!record?.serviceable,
+        nonServiceable: !!record?.nonServiceable,
+        type: record?.type || "",
+        breakdownNo: record?.breakdownNo ?? "0",
+        breakdownDuration: record?.breakdownDuration ?? "N/A",
+        availYes: !!record?.availYes,
+        availNo: !!record?.availNo,
+        remarks: record?.remarks || "",
+    };
+};
 
+// ============================================================
+// Helper — map PMS002 record → table row (MAINTENANCE ACTIVITY)
+// ============================================================
+const mapPms002RecordToRow = (record, index) => {
+    const eq = record?.equipmentId || {};
+    const year = eq?.DateAcquired ? String(eq.DateAcquired).slice(0, 4) : "";
+
+    return {
+        id: record?._id || `pms002-fallback-${index}`,
+        pmsNo: record?.pmsNo ?? "",
+        codeNo: eq?.code || "",
+        name: eq?.Brand || "",
+        dateAcquired: year,
         remarks: record?.remarks || "",
 
         routineInspection: record?.routineInspection || "",
@@ -90,23 +100,14 @@ const mapPms002RecordToRow = (record, index) => {
         repair: !!record?.repair,
         generalRecondition: !!record?.generalRecondition,
         repairPart: !!record?.repairPart,
-
-        isNew: false,
-        autoFilled: true,
     };
 };
 
 // ============================================================
-// PAGE CHUNKING HELPER
+// Page chunking
 // ============================================================
-const chunkItemsIntoPages = (
-    allItems,
-    rowsPerPage = DEFAULT_ROWS_PER_PAGE
-) => {
-    if (!Array.isArray(allItems) || allItems.length === 0) {
-        return [[]];
-    }
-
+const chunkItemsIntoPages = (allItems, rowsPerPage = DEFAULT_ROWS_PER_PAGE) => {
+    if (!Array.isArray(allItems) || allItems.length === 0) return [[]];
     const pages = [];
     for (let i = 0; i < allItems.length; i += rowsPerPage) {
         pages.push(allItems.slice(i, i + rowsPerPage));
@@ -115,26 +116,70 @@ const chunkItemsIntoPages = (
 };
 
 // ============================================================
-// PDF PAGE COMPONENT (STATIC RENDER) — LANDSCAPE
+// Normalize PMS002 response
 // ============================================================
-function PMS002PdfPage({
+const normalizePms002Response = (result) => {
+    if (!result) {
+        return { records: [], performedBy: null, total: 0 };
+    }
+
+    let records = [];
+
+    if (Array.isArray(result?.pmsRecord002) && result.pmsRecord002.length > 0) {
+        records = result.pmsRecord002;
+    } else if (Array.isArray(result?.data) && result.data.length > 0) {
+        records = result.data;
+    } else if (Array.isArray(result?.data?.pmsRecord002)) {
+        records = result.data.pmsRecord002;
+    } else if (Array.isArray(result?.laboratory) && result.laboratory.length > 0) {
+        records = result.laboratory;
+    } else if (Array.isArray(result?.pmsRecord)) {
+        records = result.pmsRecord;
+    } else {
+        records = [];
+    }
+
+    const performedBy =
+        (result?.laboratory && !Array.isArray(result.laboratory)
+            ? result.laboratory.performedBy
+            : null) ||
+        result?.data?.performedBy ||
+        result?.performedBy ||
+        null;
+
+    const totalCandidates = [
+        result?.totalPMS002,
+        result?.total,
+        result?.data?.totalPMS002,
+        result?.data?.total,
+    ].filter((n) => typeof n === "number" && n > 0);
+
+    const total =
+        totalCandidates.length > 0 ? totalCandidates[0] : records.length;
+
+    return { records, performedBy, total };
+};
+
+// ============================================================
+// PDF PAGE COMPONENT — PMS001 (PORTRAIT — unchanged)
+// ============================================================
+function PMS001PdfPage({
     pageItems,
     pageNumber,
     totalPages,
     officeName,
-    signatures,
     emptyRowCount = 0,
 }) {
     return (
         <div
-            className="pdf-page bg-white"
+            className="pdf-page pdf-page-pms001 bg-white"
             style={{
-                width: `${A4_WIDTH_PX}px`,
-                height: `${A4_HEIGHT_PX}px`,
-                minWidth: `${A4_WIDTH_PX}px`,
-                maxWidth: `${A4_WIDTH_PX}px`,
-                minHeight: `${A4_HEIGHT_PX}px`,
-                maxHeight: `${A4_HEIGHT_PX}px`,
+                width: `${A4P_WIDTH_PX}px`,
+                height: `${A4P_HEIGHT_PX}px`,
+                minWidth: `${A4P_WIDTH_PX}px`,
+                maxWidth: `${A4P_WIDTH_PX}px`,
+                minHeight: `${A4P_HEIGHT_PX}px`,
+                maxHeight: `${A4P_HEIGHT_PX}px`,
                 padding: "35px",
                 overflow: "hidden",
                 boxSizing: "border-box",
@@ -144,85 +189,47 @@ function PMS002PdfPage({
                 background: "#ffffff",
             }}
         >
-            {/* HEADER */}
             <header className="border border-black grid grid-cols-12 min-h-[100px]">
                 <div className="col-span-3 border-r border-black flex flex-col items-center justify-center text-center px-2 py-2">
-                    <img
-                        src={bispulogo}
-                        alt="BiPSU Logo"
-                        crossOrigin="anonymous"
-                        className="w-[80px] h-[80px] object-contain mb-1"
-                    />
+                    <img src={bispulogo} alt="BiPSU Logo" crossOrigin="anonymous" className="w-[80px] h-[80px] object-contain mb-1" />
                 </div>
-
                 <div className="col-span-6 border-r border-black flex flex-col">
                     <div className="flex-1 border-b border-black px-2 py-1 flex flex-col justify-center">
-                        <div className="text-[8px] leading-tight mb-0.5">
-                            Type:
-                        </div>
-                        <div className="text-center text-[11px] font-bold leading-tight break-words">
-                            QUALITY MANAGEMENT SYSTEM
-                        </div>
-                        <div className="text-center text-[11px] font-bold leading-tight break-words">
-                            PERIODIC MAINTENANCE SYSTEM - FORM
-                        </div>
+                        <div className="text-[8px] leading-tight mb-0.5">Type:</div>
+                        <div className="text-center text-[11px] font-bold leading-tight break-words">QUALITY MANAGEMENT SYSTEM</div>
+                        <div className="text-center text-[11px] font-bold leading-tight break-words">PERIODIC MAINTENANCE SYSTEM - FORM</div>
                     </div>
                     <div className="flex-1 px-2 py-1 flex flex-col justify-center">
-                        <div className="text-[8px] leading-tight mb-0.5">
-                            Title:
-                        </div>
-                        <div className="text-center text-[11px] font-bold leading-tight break-words">
-                            EQUIPMENT/TOOL HISTORY FILE
-                        </div>
+                        <div className="text-[8px] leading-tight mb-0.5">Title:</div>
+                        <div className="text-center text-[11px] font-bold leading-tight break-words">EQUIPMENT/TOOL HISTORY FILE</div>
                     </div>
                 </div>
-
                 <div className="col-span-3 flex flex-col text-[9px]">
                     <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
-                        <span className="leading-tight">
-                            Document No.:
-                        </span>
-                        <span className="block text-center font-bold text-[10px] leading-tight break-words">
-                            BiPSU-QAA-PMS-002
-                        </span>
+                        <span className="leading-tight">Document No.:</span>
+                        <span className="block text-center font-bold text-[10px] leading-tight break-words">BiPSU-QAA-PMS-001</span>
                     </div>
                     <div className="flex-1 border-b border-black px-1.5 py-1 flex items-center justify-between leading-tight">
                         <span>Page:</span>
-                        <span className="font-bold">
-                            {pageNumber} of {totalPages}
-                        </span>
+                        <span className="font-bold">{pageNumber} of {totalPages}</span>
                     </div>
                     <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
-                        <span className="leading-tight">
-                            Effective Date:
-                        </span>
-                        <span className="block text-center font-bold leading-tight">
-                            October 09, 2020
-                        </span>
+                        <span className="leading-tight">Effective Date:</span>
+                        <span className="block text-center font-bold leading-tight">October 09, 2020</span>
                     </div>
                     <div className="flex-1 px-1.5 py-1 flex flex-col justify-center">
-                        <span className="leading-tight">
-                            Issuance/Revision:
-                        </span>
-                        <span className="block text-center font-bold leading-tight">
-                            02/01
-                        </span>
+                        <span className="leading-tight">Issuance/Revision:</span>
+                        <span className="block text-center font-bold leading-tight">02/01</span>
                     </div>
                 </div>
             </header>
 
-            {/* SCHOOL/OFFICE */}
             <div className="mt-5 mb-3 flex items-center justify-center gap-1">
-                <span className="text-[12px] font-bold">
-                    SCHOOL/OFFICE OF
-                </span>
+                <span className="text-[12px] font-bold">SCHOOL/OFFICE OF</span>
                 <span
                     className="border-b border-black text-center font-bold text-[12px] px-2"
                     style={{
-                        width: `${Math.max(
-                            260,
-                            (officeName?.length || 0) * 7 + 20
-                        )}px`,
+                        width: `${Math.max(260, (officeName?.length || 0) * 7 + 20)}px`,
                         display: "inline-block",
                         paddingBottom: "4px",
                         minHeight: "16px",
@@ -232,211 +239,51 @@ function PMS002PdfPage({
                 </span>
             </div>
 
-            {/* MAIN TABLE */}
             <table className="w-full border-collapse border border-black table-fixed">
                 <thead>
                     <tr className="text-[9px] font-bold text-center">
-                        <th
-                            rowSpan="2"
-                            className="border border-black px-1 py-1 w-[8%]"
-                        >
-                            Code
-                            <br />
-                            No.
-                        </th>
-                        <th
-                            rowSpan="2"
-                            className="border border-black px-1 py-1 w-[18%]"
-                        >
-                            Name of
-                            <br />
-                            Equipment/Tools
-                        </th>
-                        <th
-                            colSpan="8"
-                            className="border border-black px-1 py-1"
-                        >
-                            MAINTENANCE ACTIVITY
-                        </th>
-                        <th
-                            rowSpan="2"
-                            className="border border-black px-1 py-1 w-[10%]"
-                        >
-                            Remarks
-                        </th>
+                        <th rowSpan="2" className="border border-black px-1 py-1 w-[7%]">Code<br />No.</th>
+                        <th rowSpan="2" className="border border-black px-1 py-1 w-[18%]">Name of<br />Equipment/Tools</th>
+                        <th rowSpan="2" className="border border-black px-1 py-1 w-[11%]">Date<br />Acquired</th>
+                        <th colSpan="2" className="border border-black px-1 py-1 w-[15%]">Status</th>
+                        <th rowSpan="2" className="border border-black px-1 py-1 w-[14%]">Type of<br />Equipment/tools</th>
+                        <th colSpan="2" className="border border-black px-1 py-1 w-[14%]">Breakdown</th>
+                        <th colSpan="2" className="border border-black px-1 py-1 w-[11%]">Availability<br />&amp;<br />Utilization</th>
+                        <th rowSpan="2" className="border border-black px-1 py-1 w-[10%]">Remarks</th>
                     </tr>
                     <tr className="text-[8px] font-bold text-center">
-                        <th className="border border-black px-0.5 py-1 w-[7%]">
-                            Routine
-                            <br />
-                            Inspection
-                            <br />
-                            &amp;
-                            <br />
-                            Cleaning
-                        </th>
-                        <th className="border border-black px-0.5 py-1 w-[7%]">
-                            Lubrication
-                        </th>
-                        <th className="border border-black px-0.5 py-1 w-[7%]">
-                            Overhauling
-                        </th>
-                        <th className="border border-black px-0.5 py-1 w-[7%]">
-                            Minor
-                            <br />
-                            Adjustment
-                        </th>
-                        <th className="border border-black px-0.5 py-1 w-[7%]">
-                            Replace
-                            <br />
-                            Worn
-                            <br />
-                            out
-                            <br />
-                            Parts
-                        </th>
-                        <th className="border border-black px-0.5 py-1 w-[7%]">
-                            Repair
-                        </th>
-                        <th className="border border-black px-0.5 py-1 w-[7%]">
-                            General
-                            <br />
-                            Recondition
-                        </th>
-                        <th className="border border-black px-0.5 py-1 w-[7%]">
-                            Repair
-                            <br />
-                            Part
-                        </th>
+                        <th className="border border-black px-1 py-1">Serviceable</th>
+                        <th className="border border-black px-1 py-1">Non<br />Serviceable</th>
+                        <th className="border border-black px-1 py-1">No.</th>
+                        <th className="border border-black px-1 py-1">Duration</th>
+                        <th className="border border-black px-1 py-1">Yes</th>
+                        <th className="border border-black px-1 py-1">No</th>
                     </tr>
                 </thead>
-
                 <tbody>
                     {pageItems.map((item, idx) => (
-                        <tr
-                            key={item.id || `row-${idx}`}
-                            className="text-[9px] text-center h-[32px]"
-                        >
-                            <td className="border border-black px-1 py-1 text-[9px]">
-                                {item.codeNo || ""}
-                            </td>
-                            <td className="border border-black px-1 py-1 text-[9px]">
-                                {item.name || ""}
-                            </td>
-                            <td className="border border-black px-1 py-1 text-[9px]">
-                                {item.routineInspection || ""}
+                        <tr key={item.id || `row-${idx}`} className="text-[9px] text-center h-[32px]">
+                            <td className="border border-black px-1 py-1 text-[9px]">{item.codeNo?.trim() || ""}</td>
+                            <td className="border border-black px-1 py-1 text-[9px]">{item.name || ""}</td>
+                            <td className="border border-black px-1 py-1 text-[9px]">{item.dateAcquired || ""}</td>
+                            <td className="border border-black text-center align-middle">
+                                {item.serviceable ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
                             </td>
                             <td className="border border-black text-center align-middle">
-                                {item.lubrication ? (
-                                    <span
-                                        style={{
-                                            fontSize: "12px",
-                                            fontWeight: "bold",
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        &#10003;
-                                    </span>
-                                ) : (
-                                    ""
-                                )}
+                                {item.nonServiceable ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                            </td>
+                            <td className="border border-black px-1 py-1 text-[9px]">{item.type || ""}</td>
+                            <td className="border border-black px-1 py-1 text-[9px]">{item.breakdownNo || ""}</td>
+                            <td className="border border-black px-1 py-1 text-[8px]">{item.breakdownDuration || ""}</td>
+                            <td className="border border-black text-center align-middle">
+                                {item.availYes ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
                             </td>
                             <td className="border border-black text-center align-middle">
-                                {item.overhauling ? (
-                                    <span
-                                        style={{
-                                            fontSize: "12px",
-                                            fontWeight: "bold",
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        &#10003;
-                                    </span>
-                                ) : (
-                                    ""
-                                )}
+                                {item.availNo ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
                             </td>
-                            <td className="border border-black text-center align-middle">
-                                {item.minorAdjustment ? (
-                                    <span
-                                        style={{
-                                            fontSize: "12px",
-                                            fontWeight: "bold",
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        &#10003;
-                                    </span>
-                                ) : (
-                                    ""
-                                )}
-                            </td>
-                            <td className="border border-black text-center align-middle">
-                                {item.replaceWornOutParts ? (
-                                    <span
-                                        style={{
-                                            fontSize: "12px",
-                                            fontWeight: "bold",
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        &#10003;
-                                    </span>
-                                ) : (
-                                    ""
-                                )}
-                            </td>
-                            <td className="border border-black text-center align-middle">
-                                {item.repair ? (
-                                    <span
-                                        style={{
-                                            fontSize: "12px",
-                                            fontWeight: "bold",
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        &#10003;
-                                    </span>
-                                ) : (
-                                    ""
-                                )}
-                            </td>
-                            <td className="border border-black text-center align-middle">
-                                {item.generalRecondition ? (
-                                    <span
-                                        style={{
-                                            fontSize: "12px",
-                                            fontWeight: "bold",
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        &#10003;
-                                    </span>
-                                ) : (
-                                    ""
-                                )}
-                            </td>
-                            <td className="border border-black text-center align-middle">
-                                {item.repairPart ? (
-                                    <span
-                                        style={{
-                                            fontSize: "12px",
-                                            fontWeight: "bold",
-                                            lineHeight: 1,
-                                        }}
-                                    >
-                                        &#10003;
-                                    </span>
-                                ) : (
-                                    ""
-                                )}
-                            </td>
-                            <td className="border border-black px-1 py-1 text-[9px]">
-                                {item.remarks || ""}
-                            </td>
+                            <td className="border border-black px-1 py-1 text-[9px]">{item.remarks || ""}</td>
                         </tr>
                     ))}
-
                     {Array.from({ length: emptyRowCount }).map((_, index) => (
                         <tr key={`empty-${index}`} className="h-[32px]">
                             {Array.from({ length: 11 }).map((_, i) => (
@@ -447,197 +294,346 @@ function PMS002PdfPage({
                 </tbody>
             </table>
 
-            {/* FREQUENCY CODE */}
-            <div className="border-x border-b border-black p-2 text-[10px] font-semibold bg-white">
-                <div className="mb-1 font-bold">FREQUENCY CODE</div>
-                <div className="grid grid-cols-2 gap-x-4">
-                    <div>
-                        <span className="font-bold">D</span> – Daily
-                    </div>
-                    <div>
-                        <span className="font-bold">SM</span> – Semi-Monthly
-                    </div>
-                    <div>
-                        <span className="font-bold">M</span> – Monthly
-                    </div>
-                    <div>
-                        <span className="font-bold">SA</span> – Semi Annually
-                    </div>
-                    <div>
-                        <span className="font-bold">W</span> – Weekly
-                    </div>
-                    <div>
-                        <span className="font-bold">Q</span> – Quarterly
-                    </div>
-                    <div className="col-span-2">
-                        <span className="font-bold">A</span> – Annually
-                    </div>
-                </div>
-            </div>
-
-            {/* SIGNATURES */}
             <div className="mt-6 grid grid-cols-3 gap-8 text-[10px]">
-                <div>
-                    <div className="mb-6 font-medium">Prepared:</div>
-                    <div className="border-b border-black text-center font-bold text-[10px] min-h-[20px]">
-                        {signatures.prepared || "\u00A0"}
+                {["Prepared", "Attested", "Approved"].map((label) => (
+                    <div key={label}>
+                        <div className="mb-6 font-medium">{label}:</div>
+                        <div className="border-b border-black text-center font-bold text-[10px] min-h-[20px]">{"\u00A0"}</div>
                     </div>
-                </div>
-                <div>
-                    <div className="mb-6 font-medium">Attested:</div>
-                    <div className="border-b border-black text-center font-bold text-[10px] min-h-[20px]">
-                        {signatures.attested || "\u00A0"}
-                    </div>
-                </div>
-                <div>
-                    <div className="mb-6 font-medium">Approved:</div>
-                    <div className="border-b border-black text-center font-bold text-[10px] min-h-[20px]">
-                        {signatures.approved || "\u00A0"}
-                    </div>
-                </div>
+                ))}
             </div>
         </div>
     );
 }
 
 // ============================================================
-// MAIN COMPONENT
+// PDF PAGE COMPONENT — PMS002 (LANDSCAPE — gaya ng BiPSUPMS002App)
 // ============================================================
-export default function BiPSUPMS002App() {
-    // ========================================================
-    // CONTEXT
-    // ========================================================
-    const { fetchEquipmentByCode } = useContext(EquipmentDataContext);
+function PMS002PdfPage({
+    pageItems,
+    pageNumber,
+    totalPages,
+    officeName,
+    emptyRowCount = 0,
+}) {
+    return (
+        <div
+            className="pdf-page pdf-page-pms002 bg-white"
+            style={{
+                width: `${A4L_WIDTH_PX}px`,
+                height: `${A4L_HEIGHT_PX}px`,
+                minWidth: `${A4L_WIDTH_PX}px`,
+                maxWidth: `${A4L_WIDTH_PX}px`,
+                minHeight: `${A4L_HEIGHT_PX}px`,
+                maxHeight: `${A4L_HEIGHT_PX}px`,
+                padding: "35px",
+                overflow: "hidden",
+                boxSizing: "border-box",
+                color: "#000",
+                fontFamily:
+                    'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                background: "#ffffff",
+                display: "flex",
+                flexDirection: "column",
+            }}
+        >
+            {/* HEADER */}
+            <header className="border border-black grid grid-cols-12 min-h-[100px] shrink-0">
+                <div className="col-span-3 border-r border-black flex flex-col items-center justify-center text-center px-2 py-2">
+                    <img src={bispulogo} alt="BiPSU Logo" crossOrigin="anonymous" className="w-[80px] h-[80px] object-contain mb-1" />
+                </div>
+                <div className="col-span-6 border-r border-black flex flex-col">
+                    <div className="flex-1 border-b border-black px-2 py-1 flex flex-col justify-center">
+                        <div className="text-[8px] leading-tight mb-0.5">Type:</div>
+                        <div className="text-center text-[11px] font-bold leading-tight break-words">QUALITY MANAGEMENT SYSTEM</div>
+                        <div className="text-center text-[11px] font-bold leading-tight break-words">PERIODIC MAINTENANCE SYSTEM - FORM</div>
+                    </div>
+                    <div className="flex-1 px-2 py-1 flex flex-col justify-center">
+                        <div className="text-[8px] leading-tight mb-0.5">Title:</div>
+                        <div className="text-center text-[11px] font-bold leading-tight break-words">EQUIPMENT/TOOL HISTORY FILE</div>
+                    </div>
+                </div>
+                <div className="col-span-3 flex flex-col text-[9px]">
+                    <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
+                        <span className="leading-tight">Document No.:</span>
+                        <span className="block text-center font-bold text-[10px] leading-tight break-words">BiPSU-QAA-PMS-002</span>
+                    </div>
+                    <div className="flex-1 border-b border-black px-1.5 py-1 flex items-center justify-between leading-tight">
+                        <span>Page:</span>
+                        <span className="font-bold">{pageNumber} of {totalPages}</span>
+                    </div>
+                    <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
+                        <span className="leading-tight">Effective Date:</span>
+                        <span className="block text-center font-bold leading-tight">October 09, 2020</span>
+                    </div>
+                    <div className="flex-1 px-1.5 py-1 flex flex-col justify-center">
+                        <span className="leading-tight">Issuance/Revision:</span>
+                        <span className="block text-center font-bold leading-tight">02/01</span>
+                    </div>
+                </div>
+            </header>
 
+            {/* SCHOOL/OFFICE */}
+            <div className="mt-5 mb-3 flex items-center justify-center gap-1 shrink-0">
+                <span className="text-[12px] font-bold">SCHOOL/OFFICE OF</span>
+                <span
+                    className="border-b border-black text-center font-bold text-[12px] px-2"
+                    style={{
+                        width: `${Math.max(260, (officeName?.length || 0) * 7 + 20)}px`,
+                        display: "inline-block",
+                        paddingBottom: "4px",
+                        minHeight: "16px",
+                    }}
+                >
+                    {officeName || "\u00A0"}
+                </span>
+            </div>
+
+            {/* MAIN TABLE — MAINTENANCE ACTIVITY */}
+            <div className="flex-1 min-h-0">
+                <table className="w-full border-collapse border border-black table-fixed">
+                    <thead>
+                        <tr className="text-[9px] font-bold text-center">
+                            <th rowSpan="2" className="border border-black px-1 py-1 w-[8%]">Code<br />No.</th>
+                            <th rowSpan="2" className="border border-black px-1 py-1 w-[18%]">Name of<br />Equipment/Tools</th>
+                            <th colSpan="8" className="border border-black px-1 py-1">MAINTENANCE ACTIVITY</th>
+                            <th rowSpan="2" className="border border-black px-1 py-1 w-[10%]">Remarks</th>
+                        </tr>
+                        <tr className="text-[8px] font-bold text-center">
+                            <th className="border border-black px-0.5 py-1 w-[7%]">Routine<br />Inspection<br />&amp;<br />Cleaning</th>
+                            <th className="border border-black px-0.5 py-1 w-[7%]">Lubrication</th>
+                            <th className="border border-black px-0.5 py-1 w-[7%]">Overhauling</th>
+                            <th className="border border-black px-0.5 py-1 w-[7%]">Minor<br />Adjustment</th>
+                            <th className="border border-black px-0.5 py-1 w-[7%]">Replace<br />Worn<br />out<br />Parts</th>
+                            <th className="border border-black px-0.5 py-1 w-[7%]">Repair</th>
+                            <th className="border border-black px-0.5 py-1 w-[7%]">General<br />Recondition</th>
+                            <th className="border border-black px-0.5 py-1 w-[7%]">Repair<br />Part</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {pageItems.map((item, idx) => (
+                            <tr key={item.id || `row-${idx}`} className="text-[9px] text-center h-[32px]">
+                                <td className="border border-black px-1 py-1 text-[9px]">{item.codeNo || ""}</td>
+                                <td className="border border-black px-1 py-1 text-[9px]">{item.name || ""}</td>
+                                <td className="border border-black px-1 py-1 text-[9px]">{item.routineInspection || ""}</td>
+                                <td className="border border-black text-center align-middle">
+                                    {item.lubrication ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                </td>
+                                <td className="border border-black text-center align-middle">
+                                    {item.overhauling ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                </td>
+                                <td className="border border-black text-center align-middle">
+                                    {item.minorAdjustment ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                </td>
+                                <td className="border border-black text-center align-middle">
+                                    {item.replaceWornOutParts ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                </td>
+                                <td className="border border-black text-center align-middle">
+                                    {item.repair ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                </td>
+                                <td className="border border-black text-center align-middle">
+                                    {item.generalRecondition ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                </td>
+                                <td className="border border-black text-center align-middle">
+                                    {item.repairPart ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                </td>
+                                <td className="border border-black px-1 py-1 text-[9px]">{item.remarks || ""}</td>
+                            </tr>
+                        ))}
+                        {Array.from({ length: emptyRowCount }).map((_, index) => (
+                            <tr key={`empty-${index}`} className="h-[32px]">
+                                {Array.from({ length: 11 }).map((_, i) => (
+                                    <td key={i} className="border border-black" />
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* FREQUENCY CODE */}
+            <div className="border-x border-b border-black p-2 text-[10px] font-semibold bg-white shrink-0">
+                <div className="mb-1 font-bold">FREQUENCY CODE</div>
+                <div className="grid grid-cols-2 gap-x-4">
+                    <div><span className="font-bold">D</span> – Daily</div>
+                    <div><span className="font-bold">SM</span> – Semi-Monthly</div>
+                    <div><span className="font-bold">M</span> – Monthly</div>
+                    <div><span className="font-bold">SA</span> – Semi Annually</div>
+                    <div><span className="font-bold">W</span> – Weekly</div>
+                    <div><span className="font-bold">Q</span> – Quarterly</div>
+                    <div className="col-span-2"><span className="font-bold">A</span> – Annually</div>
+                </div>
+            </div>
+
+            {/* SIGNATURES */}
+            <div className="mt-6 grid grid-cols-3 gap-8 text-[10px] shrink-0">
+                {["Prepared", "Attested", "Approved"].map((label) => (
+                    <div key={label}>
+                        <div className="mb-6 font-medium">{label}:</div>
+                        <div className="border-b border-black text-center font-bold text-[10px] min-h-[20px]">{"\u00A0"}</div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ============================================================
+// Animated Folder Card
+// ============================================================
+function AnimatedFolderCard({
+    title,
+    code,
+    count,
+    icon: Icon,
+    textColor,
+    desc,
+    onClick,
+    status,
+}) {
+    return (
+        <div
+            onClick={onClick}
+            className="group relative cursor-pointer flex flex-col items-center justify-end h-64 w-full p-4 transition-transform duration-300 hover:-translate-y-2 select-none"
+        >
+            <div className="relative w-full h-full max-w-[240px] flex items-end justify-center">
+                <div className="absolute inset-0 bg-blue-400 dark:bg-blue-700 rounded-2xl shadow-sm overflow-hidden">
+                    <div className="absolute top-0 left-0 w-28 h-6 bg-blue-500 dark:bg-blue-800 rounded-br-xl rounded-tl-2xl"></div>
+                </div>
+
+                <div className="absolute bottom-3 w-[88%] h-[82%] bg-white dark:bg-slate-800 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 p-4 transition-all duration-300 ease-out transform group-hover:-translate-y-12 group-hover:shadow-xl flex flex-col justify-between z-10">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            {status ? "Status" : "Laboratory"}
+                        </span>
+                        <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-900/50 px-2 py-0.5 rounded-full">
+                            {status ? status : `${count || 0} PMS`}
+                        </span>
+                    </div>
+
+                    <div className="my-auto py-1">
+                        <div className="flex items-center gap-1.5 mb-1">
+                            {Icon && <Icon className={`w-4 h-4 ${textColor || "text-blue-600"}`} />}
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-100 tracking-wide uppercase truncate">
+                                {code}
+                            </span>
+                        </div>
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-snug line-clamp-2">
+                            {title}
+                        </p>
+                        {desc && (
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 truncate">
+                                {desc}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        <span>{status ? "View Details" : "PMS Records"}</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-blue-500 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                </div>
+
+                <div className="relative w-full h-[70%] bg-gradient-to-t from-blue-400 to-blue-400/95 dark:from-blue-600 dark:to-blue-600/95 rounded-b-2xl rounded-tr-2xl shadow-lg z-20 transition-all duration-300 group-hover:bg-blue-400 dark:group-hover:bg-blue-600 flex flex-col justify-end p-4 border-t border-blue-300/50 dark:border-blue-500/50">
+                    <div className="bg-blue-500/80 dark:bg-blue-800/80 backdrop-blur-sm border border-blue-300/40 dark:border-blue-700/40 rounded-xl p-2.5 flex items-center justify-between text-blue-950 dark:text-blue-100 font-bold text-xs shadow-inner">
+                        <span className="truncate">{code}</span>
+                        <span className="w-2 h-2 rounded-full bg-blue-200 dark:bg-blue-300 animate-pulse"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-3 text-center">
+                <h3 className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 text-sm transition-colors truncate max-w-[200px]">
+                    {title}
+                </h3>
+                <p className="text-xs text-slate-500">Click to open</p>
+            </div>
+        </div>
+    );
+}
+
+// ============================================================
+// Main Component
+// ============================================================
+export default function PMSComponent() {
+    // ---------------- CONTEXT: PMS001 ----------------
     const {
-        createPMS002,
-        updatePMS002,
-        deletePMS002,
-        fetchMyLaboratory,
-        myLaboratory,
+        departmentsWithLabs,
+        fetchDepartmentsWithLabEquipments,
+        displayAllPMS001,
+        loading: pms001Loading,
+        error: pms001Error,
+        user,
+    } = useContext(PMSContext);
+
+    // ---------------- CONTEXT: PMS002 ----------------
+    const pms002Context = useContext(PMS002Context);
+    const {
+        displayAllPMS002,
+        fetchAllPMS002,
         pms002Records,
         loading: pms002Loading,
-    } = useContext(PMS002Context);
+        error: pms002Error,
+    } = pms002Context || {};
 
-    // ========================================================
-    // STATE
-    // ========================================================
-    const [officeName, setOfficeName] = useState(DEFAULT_OFFICE_NAME);
-    const [items, setItems] = useState([]);
-    const [signatures, setSignatures] = useState(DEFAULT_SIGNATURES);
+    const fetchPms002 = useMemo(
+        () => displayAllPMS002 || fetchAllPMS002 || null,
+        [displayAllPMS002, fetchAllPMS002]
+    );
 
-    const [notification, setNotification] = useState(null);
+    // ---------------- STATE ----------------
+    const [selectedDept, setSelectedDept] = useState(null);
+    const [selectedLab, setSelectedLab] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeTab, setActiveTab] = useState("PMS001");
+    const [miniExpanded, setMiniExpanded] = useState(false);
+
+    const [labPmsRecords, setLabPmsRecords] = useState([]);
+    const [labPms002Records, setLabPms002Records] = useState([]);
+    const [labPmsLoading, setLabPmsLoading] = useState(false);
+    const [labPms002Loading, setLabPms002Loading] = useState(false);
+
+    const [pms002PerformedBy, setPms002PerformedBy] = useState(null);
+    const [pms002Total, setPms002Total] = useState(0);
+
     const [isGenerating, setIsGenerating] = useState(false);
-    const [fetchingRowId, setFetchingRowId] = useState(null);
+    const [notification, setNotification] = useState(null);
 
-    // ✅ DYNAMIC rows-per-page (kinokompute via DOM measurement)
+    // ✅ Dynamic rows-per-page (PMS002 landscape measurement)
     const [computedRowsPerPage, setComputedRowsPerPage] = useState(
         DEFAULT_ROWS_PER_PAGE
     );
 
-    // 🔹 DATE FILTER STATE
-    const [dateFrom, setDateFrom] = useState("");
-    const [dateTo, setDateTo] = useState("");
-    const [showAll, setShowAll] = useState(false);
-    const [isFiltering, setIsFiltering] = useState(false);
-
-    const [confirmState, setConfirmState] = useState({
-        isOpen: false,
-        title: "",
-        message: "",
-        confirmText: "Confirm",
-        cancelText: "Cancel",
-        onConfirm: null,
-        variant: "default",
-    });
-
-    const debounceRef = useRef({});
-    const formRef = useRef(null);
     const pdfContainerRef = useRef(null);
-    const didFetchLabRef = useRef(false);
     const toastTimerRef = useRef(null);
+    const fullFormRef = useRef(null);
 
-    // ========================================================
-    // CONFIRMATION HELPER
-    // ========================================================
-    const confirm = ({
-        title = "Confirm",
-        message = "Are you sure?",
-        confirmText = "Confirm",
-        cancelText = "Cancel",
-        variant = "default",
-    } = {}) => {
-        return new Promise((resolve) => {
-            setConfirmState({
-                isOpen: true,
-                title,
-                message,
-                confirmText,
-                cancelText,
-                variant,
-                onConfirm: (result) => {
-                    setConfirmState((prev) => ({ ...prev, isOpen: false }));
-                    resolve(result);
-                },
-            });
-        });
-    };
-
-    // ========================================================
-    // FETCH LABORATORY ON MOUNT
-    // ========================================================
+    // ---------------- FETCH ON MOUNT ----------------
     useEffect(() => {
-        if (didFetchLabRef.current) return;
-        didFetchLabRef.current = true;
-
-        if (typeof fetchMyLaboratory === "function") {
-            fetchMyLaboratory();
-        }
+        fetchDepartmentsWithLabEquipments();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ========================================================
-    // SYNC OFFICE NAME
-    // ========================================================
     useEffect(() => {
-        if (myLaboratory?.LaboratoryName) {
-            setOfficeName(myLaboratory.LaboratoryName);
-        }
-    }, [myLaboratory]);
-
-    // ========================================================
-    // LOAD PMS002 RECORDS → TABLE ROWS
-    // ========================================================
-    useEffect(() => {
-        if (!Array.isArray(pms002Records) || pms002Records.length === 0) {
-            setItems([]);
-            return;
-        }
-
-        const rows = pms002Records.map((rec, idx) =>
-            mapPms002RecordToRow(rec, idx)
-        );
-        setItems(rows);
-    }, [pms002Records]);
-
-    // ========================================================
-    // CLEANUP DEBOUNCE TIMERS + TOAST TIMER
-    // ========================================================
-    useEffect(() => {
-        const timers = debounceRef.current;
         return () => {
-            Object.values(timers).forEach((t) => clearTimeout(t));
             if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         };
     }, []);
 
-    // ========================================================
-    // DYNAMIC ROWS-PER-PAGE MEASUREMENT
-    // ========================================================
+    // ---------------- TOAST ----------------
+    const showToast = useCallback((message) => {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        setNotification(message);
+        toastTimerRef.current = setTimeout(() => setNotification(null), 3000);
+    }, []);
+
+    // ============================================================
+    // ✅ DYNAMIC ROWS-PER-PAGE MEASUREMENT (PMS002 LANDSCAPE)
+    // ============================================================
     useEffect(() => {
         const measureRowsPerPage = () => {
             const firstPage = pdfContainerRef.current?.querySelector(
-                ".pdf-page"
+                ".pdf-page-pms002"
             );
             if (!firstPage) return;
 
@@ -650,9 +646,7 @@ export default function BiPSUPMS002App() {
                 ".mt-6.grid.grid-cols-3"
             );
 
-            if (!header || !mainTable || !freqBlock || !signatureBlock) {
-                return;
-            }
+            if (!header || !mainTable || !freqBlock || !signatureBlock) return;
 
             const headerH = header.getBoundingClientRect().height;
             const freqH = freqBlock.getBoundingClientRect().height;
@@ -679,22 +673,17 @@ export default function BiPSUPMS002App() {
                 if (measured > 0) rowH = measured;
             }
 
-            const gaps =
-                20 + // mt-5 sa office section
-                12 + // mb-3
-                24; // mt-6 sa signature
+            const gaps = 20 + 12 + 24; // mt-5 + mb-3 + mt-6
 
-            const totalFixed =
-                headerH + theadH + freqH + signatureH + gaps;
-
-            const availableForRows = A4_CONTENT_HEIGHT - totalFixed;
+            const totalFixed = headerH + theadH + freqH + signatureH + gaps;
+            const availableForRows = A4L_CONTENT_HEIGHT - totalFixed;
             const rowsFit = Math.max(
                 1,
                 Math.floor(availableForRows / rowH)
             );
 
             if (import.meta.env.DEV) {
-                console.log("📐 A4 measurement (PMS002):", {
+                console.log("📐 A4 measurement (PMS002 landscape):", {
                     headerH,
                     theadH,
                     freqH,
@@ -712,373 +701,168 @@ export default function BiPSUPMS002App() {
 
         const timer = setTimeout(measureRowsPerPage, 150);
         return () => clearTimeout(timer);
-    }, [items.length, officeName, signatures]);
+    }, [labPms002Records.length, activeTab]);
 
-    // ========================================================
-    // NOTIFICATION
-    // ========================================================
-    const showToast = useCallback((message) => {
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        setNotification(message);
-        toastTimerRef.current = setTimeout(
-            () => setNotification(null),
-            3000
-        );
-    }, []);
-
-    // ========================================================
-    // 🗓️ DATE FILTER HANDLERS
-    // ========================================================
-    const handleApplyFilter = async () => {
-        if (!dateFrom && !dateTo && !showAll) {
-            setIsFiltering(true);
-            await fetchMyLaboratory();
-            setIsFiltering(false);
-            showToast("No date range selected — no records displayed.");
-            return;
-        }
-
-        if (showAll) {
-            setIsFiltering(true);
-            await fetchMyLaboratory({ all: true });
-            setIsFiltering(false);
-            showToast("Showing all records.");
-            return;
-        }
-
-        setIsFiltering(true);
-        const res = await fetchMyLaboratory({
-            from: dateFrom || undefined,
-            to: dateTo || undefined,
-        });
-        setIsFiltering(false);
-
-        if (res?.success) {
-            showToast(
-                `Filtered: ${dateFrom || "..."} → ${dateTo || "..."}`
-            );
-        }
-    };
-
-    const handleShowAll = async () => {
-        setShowAll(true);
-        setDateFrom("");
-        setDateTo("");
-        setIsFiltering(true);
-        await fetchMyLaboratory({ all: true });
-        setIsFiltering(false);
-        showToast("Showing all records.");
-    };
-
-    const handleClearFilter = async () => {
-        setDateFrom("");
-        setDateTo("");
-        setShowAll(false);
-        setIsFiltering(true);
-        await fetchMyLaboratory();
-        setIsFiltering(false);
-        showToast("Filter cleared.");
-    };
-
-    // ========================================================
-    // AUTO-FETCH EQUIPMENT BY CODE
-    // ========================================================
-    const lookupEquipmentByCode = useCallback(
-        async (rowId, code) => {
-            const trimmed = (code || "").trim();
-            if (trimmed.length < 3) return;
-
-            if (typeof fetchEquipmentByCode !== "function") {
+    // ============================================================
+    // ✅ HELPER — fetch PMS002 records
+    // ============================================================
+    const loadPms002 = useCallback(
+        async (lab) => {
+            if (!fetchPms002) {
                 console.warn(
-                    "fetchEquipmentByCode is not available in context."
+                    "⚠️ PMS002 fetch method not available in PMS002Context."
                 );
                 return;
             }
+            if (!lab) return;
 
-            setFetchingRowId(rowId);
+            const labId = lab.laboratoryId || lab._id;
 
+            setLabPms002Loading(true);
             try {
-                const result = await fetchEquipmentByCode(trimmed);
+                const options = { laboratoryId: labId };
+                const result002 = await fetchPms002(options);
 
-                const found =
-                    result?.success === true
-                        ? result.data
-                        : result?.data ?? result;
+                const { records, performedBy, total } =
+                    normalizePms002Response(result002);
 
-                if (found && (found.code || found.Brand)) {
-                    setItems((prev) =>
-                        prev.map((item) => {
-                            if (item.id !== rowId) return item;
-
-                            return {
-                                ...item,
-                                equipmentId: found._id || item.equipmentId,
-                                pmsId: item.pmsId,
-                                codeNo: found.code || item.codeNo,
-                                name:
-                                    found.Brand ||
-                                    found.name ||
-                                    item.name,
-                                dateAcquired: found.DateAcquired
-                                    ? String(found.DateAcquired).slice(0, 4)
-                                    : item.dateAcquired,
-                                autoFilled: true,
-                            };
-                        })
-                    );
-
-                    showToast(`Equipment found: ${found.code || trimmed}`);
-                } else {
-                    showToast(`No equipment found with code: ${trimmed}`);
-                }
+                setLabPms002Records(records);
+                setPms002PerformedBy(performedBy);
+                setPms002Total(total);
             } catch (err) {
-                console.error("Error fetching equipment by code:", err);
-                showToast("Failed to fetch equipment by code.");
+                console.error("❌ Error fetching PMS002 records:", err);
+                setLabPms002Records([]);
+                setPms002PerformedBy(null);
+                setPms002Total(0);
             } finally {
-                setFetchingRowId(null);
+                setLabPms002Loading(false);
             }
         },
-        [fetchEquipmentByCode, showToast]
+        [fetchPms002]
     );
 
-    // ========================================================
-    // HANDLE CODE CHANGE (debounced)
-    // ========================================================
-    const handleCodeChange = (rowId, value) => {
-        handleItemChange(rowId, "codeNo", value);
+    // ============================================================
+    // HANDLE LAB CLICK — fetch PMS001 + PMS002
+    // ============================================================
+    const handleLabClick = async (lab) => {
+        const labId = lab.laboratoryId || lab._id;
 
-        setItems((prev) =>
-            prev.map((item) =>
-                item.id === rowId ? { ...item, autoFilled: false } : item
-            )
-        );
-
-        if (debounceRef.current[rowId]) {
-            clearTimeout(debounceRef.current[rowId]);
-        }
-
-        debounceRef.current[rowId] = setTimeout(() => {
-            lookupEquipmentByCode(rowId, value);
-        }, 500);
-    };
-
-    // ========================================================
-    // HANDLE CODE BLUR (immediate)
-    // ========================================================
-    const handleCodeBlur = (rowId, value) => {
-        if (debounceRef.current[rowId]) {
-            clearTimeout(debounceRef.current[rowId]);
-            delete debounceRef.current[rowId];
-        }
-        lookupEquipmentByCode(rowId, value);
-    };
-
-    // ========================================================
-    // ADD ROW
-    // ========================================================
-    const handleAddRow = () => {
-        const newId =
-            items.length > 0
-                ? Math.max(
-                    ...items.map((item) =>
-                        typeof item.id === "number" ? item.id : 0
-                    )
-                ) + 1
-                : 1;
-
-        const newItem = {
-            id: newId,
-            pmsId: null,
-            equipmentId: null,
-            laboratoryId: null,
-            codeNo: "",
-            name: "",
-            dateAcquired: "",
-            remarks: "",
-
-            routineInspection: "",
-            lubrication: false,
-            overhauling: false,
-            minorAdjustment: false,
-            replaceWornOutParts: false,
-            repair: false,
-            generalRecondition: false,
-            repairPart: false,
-
-            isNew: true,
-            autoFilled: false,
-        };
-
-        setItems((prev) => [...prev, newItem]);
-        showToast("New equipment row added. Fill in and press Save.");
-    };
-
-    // ========================================================
-    // DELETE ROW
-    // ========================================================
-    const handleDeleteRow = async (id) => {
-        const target = items.find((item) => item.id === id);
-        if (!target) return;
-
-        const confirmed = await confirm({
-            title: target.pmsId ? "Delete Record" : "Remove Row",
-            message: target.pmsId
-                ? "Are you sure you want to delete this record? This action cannot be undone."
-                : "Are you sure you want to remove this row?",
-            confirmText: "Delete",
-            cancelText: "Cancel",
-            variant: "danger",
-        });
-
-        if (!confirmed) return;
-
-        if (target.pmsId) {
-            try {
-                const res = await deletePMS002(target.pmsId);
-                if (!res?.success) {
-                    showToast(
-                        res?.error || "Failed to delete PMS002 record."
-                    );
-                    return;
-                }
-            } catch (err) {
-                console.error("deletePMS002 error:", err);
-                showToast("Failed to delete PMS002 record.");
-                return;
-            }
-        }
-
-        setItems((prev) => prev.filter((item) => item.id !== id));
-        showToast("Equipment row removed.");
-    };
-
-    // ========================================================
-    // SAVE ROW
-    // ========================================================
-    const handleSaveRow = async (id) => {
-        const itemToSave = items.find((item) => item.id === id);
-
-        if (!itemToSave) {
-            showToast("Row not found.");
-            return;
-        }
-
-        const equipmentId = itemToSave.equipmentId || null;
-
-        if (!equipmentId) {
-            showToast(
-                "Missing equipmentId. Please enter a valid Code No. first."
-            );
-            return;
-        }
-
-        const laboratoryId =
-            myLaboratory?.LaboratoryId ??
-            myLaboratory?._id ??
-            myLaboratory?.laboratoryId ??
-            null;
-
-        if (!laboratoryId) {
-            showToast(
-                "Missing laboratoryId. Please make sure you are assigned to a laboratory."
-            );
-            return;
-        }
-
-        const payload = {
-            equipmentId,
-            laboratoryId,
-
-            routineInspection: itemToSave.routineInspection || "",
-            lubrication: !!itemToSave.lubrication,
-            overhauling: !!itemToSave.overhauling,
-            minorAdjustment: !!itemToSave.minorAdjustment,
-            replaceWornOutParts: !!itemToSave.replaceWornOutParts,
-            repair: !!itemToSave.repair,
-            generalRecondition: !!itemToSave.generalRecondition,
-            repairPart: !!itemToSave.repairPart,
-            remarks: itemToSave.remarks || "",
-        };
-
-        if (import.meta.env.DEV) {
-            console.log("💾 handleSaveRow (PMS002) PAYLOAD:", payload);
-        }
+        setSelectedLab(lab);
+        setActiveTab("PMS001");
+        setLabPmsRecords([]);
+        setLabPms002Records([]);
+        setPms002PerformedBy(null);
+        setPms002Total(0);
+        setMiniExpanded(false);
 
         try {
-            let res;
-
-            if (itemToSave.pmsId) {
-                res = await updatePMS002(itemToSave.pmsId, payload);
-            } else {
-                res = await createPMS002(payload);
-            }
-
-            if (res?.success) {
-                setItems((prev) =>
-                    prev.map((item) =>
-                        item.id === id
-                            ? {
-                                ...item,
-                                isNew: false,
-                                equipmentId,
-                                laboratoryId,
-                                pmsId: res?.data?._id || item.pmsId,
-                            }
-                            : item
-                    )
-                );
-                showToast(
-                    itemToSave.pmsId
-                        ? "Row updated successfully."
-                        : "Row saved successfully."
-                );
-            } else {
-                showToast(res?.error || "Failed to save row.");
-            }
+            setLabPmsLoading(true);
+            const result = await displayAllPMS001({ laboratoryId: labId });
+            const records =
+                result?.pmsRecord ||
+                result?.data?.pmsRecord ||
+                result?.laboratory ||
+                [];
+            setLabPmsRecords(records);
         } catch (err) {
-            console.error("handleSaveRow error:", err);
-            showToast("Failed to save row.");
+            console.error("❌ Error fetching PMS001 records:", err);
+            setLabPmsRecords([]);
+        } finally {
+            setLabPmsLoading(false);
         }
+
+        await loadPms002(lab);
     };
 
-    // ========================================================
-    // ITEM CHANGE
-    // ========================================================
-    const handleItemChange = (id, field, value) => {
-        setItems((prev) =>
-            prev.map((item) => {
-                if (item.id !== id) return item;
-                return { ...item, [field]: value };
-            })
+    // ============================================================
+    // AUTO-FETCH PMS002 kapag nag-switch sa tab
+    // ============================================================
+    useEffect(() => {
+        if (activeTab !== "PMS002") return;
+        if (!selectedLab) return;
+        if (labPms002Loading) return;
+        if (labPms002Records.length > 0) return;
+        if (!fetchPms002) return;
+
+        loadPms002(selectedLab);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, selectedLab]);
+
+    const openFullForm = () => {
+        setMiniExpanded(true);
+        setTimeout(() => {
+            fullFormRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
+        }, 100);
+    };
+
+    const closeFullForm = () => {
+        setMiniExpanded(false);
+    };
+
+    // ---------------- DERIVED DATA ----------------
+    const getDeptIcon = (deptName = "") => {
+        const name = deptName.toUpperCase();
+        if (name.includes("LAB")) return FlaskConical;
+        if (name.includes("NURS")) return Stethoscope;
+        if (name.includes("STCS") || name.includes("TECH") || name.includes("COMPUTER"))
+            return GraduationCap;
+        if (name.includes("ENG") || name.includes("FACIL")) return Settings;
+        return FolderOpen;
+    };
+
+    const getDeptTextColor = (deptName = "") => {
+        const name = deptName.toUpperCase();
+        if (name.includes("NURS")) return "text-rose-600";
+        if (name.includes("STCS") || name.includes("TECH")) return "text-purple-600";
+        return "text-blue-600";
+    };
+
+    const selectedDeptLabs = useMemo(() => {
+        if (!selectedDept) return [];
+        return selectedDept.laboratories || [];
+    }, [selectedDept]);
+
+    const filteredLabs = useMemo(() => {
+        return selectedDeptLabs.filter((lab) =>
+            (lab.LaboratoryName || "")
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase())
         );
-    };
+    }, [selectedDeptLabs, searchQuery]);
 
-    // ========================================================
-    // SIGNATURE CHANGE
-    // ========================================================
-    const handleSignatureChange = (field, value) => {
-        setSignatures((prev) => ({ ...prev, [field]: value }));
-    };
+    const allRows = useMemo(
+        () => labPmsRecords.map((rec, idx) => mapPmsRecordToRow(rec, idx)),
+        [labPmsRecords]
+    );
 
-    // ========================================================
-    // PRINT
-    // ========================================================
-    const handlePrint = () => {
-        window.print();
-    };
+    const allRows002 = useMemo(
+        () => labPms002Records.map((rec, idx) => mapPms002RecordToRow(rec, idx)),
+        [labPms002Records]
+    );
 
-    // ========================================================
-    // WAIT FOR IMAGES
-    // ========================================================
+    const officeName = selectedLab?.LaboratoryName || "";
+
+    const pdfPages = useMemo(
+        () => chunkItemsIntoPages(allRows, computedRowsPerPage),
+        [allRows, computedRowsPerPage]
+    );
+    const totalPdfPages = pdfPages.length || 1;
+
+    const pdfPages002 = useMemo(
+        () => chunkItemsIntoPages(allRows002, computedRowsPerPage),
+        [allRows002, computedRowsPerPage]
+    );
+    const totalPdfPages002 = pdfPages002.length || 1;
+
+    // ---------------- WAIT FOR IMAGES ----------------
     const waitForImages = (root) => {
         const images = Array.from(root.querySelectorAll("img"));
-
         return Promise.all(
             images.map((img) => {
-                if (img.complete && img.naturalWidth > 0) {
-                    return Promise.resolve();
-                }
-
+                if (img.complete && img.naturalWidth > 0) return Promise.resolve();
                 return new Promise((resolve) => {
                     const done = () => resolve();
                     img.addEventListener("load", done, { once: true });
@@ -1089,20 +873,29 @@ export default function BiPSUPMS002App() {
         );
     };
 
-    // ========================================================
-    // PDF — MULTI-PAGE (LANDSCAPE)
-    // ========================================================
+    // ============================================================
+    // DOWNLOAD PDF — tab-aware (orientation depende sa tab)
+    // ============================================================
     const handleDownloadPDF = useCallback(async () => {
         if (!pdfContainerRef.current) {
             showToast("PDF container not found.");
             return;
         }
 
+        const isPMS002 = activeTab === "PMS002";
+        const rowsCount = isPMS002 ? allRows002.length : allRows.length;
+
+        if (rowsCount === 0) {
+            showToast("Walang records para i-download.");
+            return;
+        }
+
         setIsGenerating(true);
 
         try {
+            const selector = isPMS002 ? ".pdf-page-pms002" : ".pdf-page-pms001";
             const pageNodes = Array.from(
-                pdfContainerRef.current.querySelectorAll(".pdf-page")
+                pdfContainerRef.current.querySelectorAll(selector)
             );
 
             if (pageNodes.length === 0) {
@@ -1121,22 +914,27 @@ export default function BiPSUPMS002App() {
                 });
             });
 
+            // ✅ Orientation: PMS001 = portrait, PMS002 = landscape
             const pdf = new jsPDF({
-                orientation: "landscape",
+                orientation: isPMS002 ? "landscape" : "portrait",
                 unit: "mm",
                 format: "a4",
                 compress: true,
             });
 
+            const widthPx = isPMS002 ? A4L_WIDTH_PX : A4P_WIDTH_PX;
+            const heightPx = isPMS002 ? A4L_HEIGHT_PX : A4P_HEIGHT_PX;
+            const widthMm = isPMS002 ? A4L_WIDTH_MM : A4P_WIDTH_MM;
+            const heightMm = isPMS002 ? A4L_HEIGHT_MM : A4P_HEIGHT_MM;
+
             for (let i = 0; i < pageNodes.length; i++) {
                 const node = pageNodes[i];
-
                 const canvas = await html2canvas(node, {
                     scale: 2,
-                    width: A4_WIDTH_PX,
-                    height: A4_HEIGHT_PX,
-                    windowWidth: A4_WIDTH_PX,
-                    windowHeight: A4_HEIGHT_PX,
+                    width: widthPx,
+                    height: heightPx,
+                    windowWidth: widthPx,
+                    windowHeight: heightPx,
                     x: 0,
                     y: 0,
                     scrollX: 0,
@@ -1149,74 +947,71 @@ export default function BiPSUPMS002App() {
                 });
 
                 const image = canvas.toDataURL("image/png", 1.0);
-
-                if (i > 0) {
-                    pdf.addPage();
-                }
-
-                pdf.addImage(
-                    image,
-                    "PNG",
-                    0,
-                    0,
-                    A4_WIDTH_MM,
-                    A4_HEIGHT_MM,
-                    undefined,
-                    "FAST"
-                );
+                if (i > 0) pdf.addPage();
+                pdf.addImage(image, "PNG", 0, 0, widthMm, heightMm, undefined, "FAST");
             }
 
-            const safeOffice = (officeName || "PMS002")
+            const safeOffice = (officeName || "PMS")
                 .trim()
                 .replace(/[^a-zA-Z0-9_-]/g, "_");
-
-            const fileName = `PMS002_${safeOffice}_${Date.now()}.pdf`;
-
-            pdf.save(fileName);
+            const formTag = isPMS002 ? "PMS002" : "PMS001";
+            pdf.save(`${formTag}_${safeOffice}_${Date.now()}.pdf`);
 
             showToast(
                 `PDF generated successfully (${pageNodes.length} page${pageNodes.length > 1 ? "s" : ""
                 }).`
             );
-        } catch (error) {
-            console.error("PDF generation error:", error);
+        } catch (err) {
+            console.error("PDF generation error:", err);
             showToast("Failed to generate PDF.");
         } finally {
             setIsGenerating(false);
         }
-    }, [officeName, showToast]);
+    }, [activeTab, allRows.length, allRows002.length, officeName, showToast]);
 
-    // ========================================================
-    // COMPUTE PAGES — gamit ang DYNAMIC rowsPerPage
-    // ========================================================
-    const pdfPages = chunkItemsIntoPages(items, computedRowsPerPage);
-    const totalPdfPages = pdfPages.length;
+    // ---------------- LOADING / ERROR ----------------
+    if (pms001Loading && departmentsWithLabs.length === 0) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Loading departments...
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
-    // ========================================================
-    // JSX
-    // ========================================================
+    if (pms001Error) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
+                <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-6 max-w-md text-center">
+                    <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+                    <h3 className="font-bold text-red-700 dark:text-red-300 mb-1">
+                        Error Loading PMS001 Data
+                    </h3>
+                    <p className="text-sm text-red-600 dark:text-red-400">{pms001Error}</p>
+                </div>
+            </div>
+        );
+    }
+
+    // ---------------- RENDER ----------------
     return (
         <>
             <style>{`
-                @page { size: A4 landscape; margin: 0; }
-                html, body { margin: 0; padding: 0; }
-                * { box-sizing: border-box; }
-                body { background: #f1f5f9; }
-
                 @keyframes slideUp {
-                    from {
-                        opacity: 0;
-                        transform: translateY(20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
+                .animate-slide-up { animation: slideUp 0.3s ease-out; }
 
-                .animate-slide-up {
-                    animation: slideUp 0.3s ease-out;
+                @keyframes fadeInScale {
+                    from { opacity: 0; transform: scale(0.96); }
+                    to { opacity: 1; transform: scale(1); }
                 }
+                .animate-fade-in-scale { animation: fadeInScale 0.25s ease-out; }
 
                 .pdf-render-container {
                     position: fixed;
@@ -1226,949 +1021,855 @@ export default function BiPSUPMS002App() {
                     z-index: -1;
                 }
 
-                /* ============================================
-                   SCROLLABLE TABLE
-                   ============================================ */
-                .history-table-scroll {
-                    overflow-y: auto;
-                    overflow-x: hidden;
-                }
-
-                .history-table-scroll::-webkit-scrollbar {
-                    width: 8px;
-                }
-
-                .history-table-scroll::-webkit-scrollbar-track {
-                    background: #f1f5f9;
-                    border-radius: 4px;
-                }
-
-                .history-table-scroll::-webkit-scrollbar-thumb {
-                    background: #cbd5e1;
-                    border-radius: 4px;
-                }
-
-                .history-table-scroll::-webkit-scrollbar-thumb:hover {
-                    background: #94a3b8;
-                }
-
-                .history-table-scroll table {
+                .pms-view-table {
                     border-collapse: separate !important;
                     border-spacing: 0 !important;
                 }
-
-                .history-table-scroll th,
-                .history-table-scroll td {
+                .pms-view-table th,
+                .pms-view-table td {
                     border: 1px solid #000 !important;
                 }
-
-                .history-table-scroll thead th {
+                .pms-view-table thead th {
                     background-color: #ffffff !important;
                     position: sticky;
-                    border: 1px solid #000 !important;
-                    box-shadow: 0 1px 0 0 #000;
+                    z-index: 20;
                 }
+                .pms-view-table thead tr:first-child th { top: 0; }
+                .pms-view-table thead tr:last-child th { top: 26px; }
 
-                .history-table-scroll thead tr:first-child th {
-                    top: 0;
-                    z-index: 22;
+                .pms-view-scroll {
+                    overflow-y: auto;
+                    overflow-x: hidden;
                 }
-
-                .history-table-scroll thead tr:last-child th {
-                    top: 26px;
-                    z-index: 21;
+                .pms-view-scroll::-webkit-scrollbar { width: 8px; }
+                .pms-view-scroll::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                    border-radius: 4px;
                 }
-
-                .history-table-scroll thead tr:first-child th[rowspan="2"] {
-                    z-index: 23;
+                .pms-view-scroll::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 4px;
                 }
-
-                /* ============================================
-                   PRINT STYLES
-                   ============================================ */
-                @media print {
-                    html, body {
-                        width: 297mm;
-                        height: 210mm;
-                        margin: 0;
-                        padding: 0;
-                        background: white !important;
-                    }
-                    body {
-                        -webkit-print-color-adjust: exact;
-                        print-color-adjust: exact;
-                    }
-                    .no-print { display: none !important; }
-                    .print-wrapper {
-                        width: 297mm !important;
-                        height: 210mm !important;
-                        min-height: 210mm !important;
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        display: block !important;
-                        background: white !important;
-                    }
-                    .print-form {
-                        width: 297mm !important;
-                        height: 210mm !important;
-                        min-height: 210mm !important;
-                        max-height: 210mm !important;
-                        margin: 0 !important;
-                        padding: 10mm !important;
-                        border: none !important;
-                        box-shadow: none !important;
-                        overflow: hidden !important;
-                        display: block !important;
-                    }
-                    .no-print-column { display: none !important; }
-                    input {
-                        color: #000 !important;
-                        background: transparent !important;
-                        font-size: 9px !important;
-                    }
-                    .history-table-scroll {
-                        max-height: none !important;
-                        overflow: visible !important;
-                    }
-                    .history-table-scroll table {
-                        border-collapse: collapse !important;
-                    }
-                    .history-table-scroll thead th {
-                        position: static !important;
-                    }
+                .pms-view-scroll::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
                 }
             `}</style>
 
-            {/* HIDDEN PDF RENDER CONTAINER */}
+            {/* ✅ TOAST */}
+            {notification && (
+                <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 animate-slide-up">
+                    <AlertCircle className="w-5 h-5 text-blue-400" />
+                    <span className="text-xs font-medium">{notification}</span>
+                </div>
+            )}
+
+            {/* ✅ HIDDEN PDF RENDER CONTAINER */}
             <div ref={pdfContainerRef} className="pdf-render-container">
                 {pdfPages.map((pageItems, idx) => {
-                    const emptyRowCount = Math.max(
-                        0,
-                        computedRowsPerPage - pageItems.length
-                    );
-
+                    const emptyRowCount = Math.max(0, computedRowsPerPage - pageItems.length);
                     return (
-                        <PMS002PdfPage
-                            key={`pdf-page-${idx}`}
+                        <PMS001PdfPage
+                            key={`pdf-page-001-${idx}`}
                             pageItems={pageItems}
                             pageNumber={idx + 1}
                             totalPages={totalPdfPages}
                             officeName={officeName}
-                            signatures={signatures}
                             emptyRowCount={emptyRowCount}
                         />
                     );
                 })}
+
+                {allRows002.length > 0 &&
+                    pdfPages002.map((pageItems, idx) => {
+                        const emptyRowCount = Math.max(0, computedRowsPerPage - pageItems.length);
+                        return (
+                            <PMS002PdfPage
+                                key={`pdf-page-002-${idx}`}
+                                pageItems={pageItems}
+                                pageNumber={idx + 1}
+                                totalPages={totalPdfPages002}
+                                officeName={officeName}
+                                emptyRowCount={emptyRowCount}
+                            />
+                        );
+                    })}
             </div>
 
-            <div className="print-wrapper min-h-screen bg-slate-100 py-8 px-4 flex flex-col items-center font-sans">
-                {notification && (
-                    <div className="no-print fixed bottom-5 right-5 z-50 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 animate-slide-up">
-                        <AlertCircle className="w-5 h-5 text-blue-200" />
-                        <span className="text-xs font-medium">
-                            {notification}
-                        </span>
-                    </div>
-                )}
+            <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300">
+                <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    {/* Breadcrumb */}
+                    <nav className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-8 flex-wrap">
+                        <button
+                            onClick={() => {
+                                setSelectedDept(null);
+                                setSelectedLab(null);
+                                setLabPmsRecords([]);
+                                setLabPms002Records([]);
+                                setMiniExpanded(false);
+                            }}
+                            className={`flex items-center gap-1.5 hover:text-blue-500 transition-colors ${!selectedDept ? "font-semibold text-slate-900 dark:text-white" : ""
+                                }`}
+                        >
+                            <FolderOpen className="w-4 h-4 text-blue-500" />
+                            <span>Department Folders</span>
+                        </button>
+                        {selectedDept && (
+                            <>
+                                <ChevronRight className="w-4 h-4 text-slate-400" />
+                                <button
+                                    onClick={() => {
+                                        setSelectedLab(null);
+                                        setLabPmsRecords([]);
+                                        setLabPms002Records([]);
+                                        setMiniExpanded(false);
+                                    }}
+                                    className={`hover:text-blue-500 transition-colors ${!selectedLab ? "font-semibold text-slate-900 dark:text-white" : ""
+                                        }`}
+                                >
+                                    {selectedDept.DepartmentName}
+                                </button>
+                            </>
+                        )}
+                        {selectedLab && (
+                            <>
+                                <ChevronRight className="w-4 h-4 text-slate-400" />
+                                <span className="font-semibold text-slate-900 dark:text-white">
+                                    {selectedLab.LaboratoryName}
+                                </span>
+                            </>
+                        )}
+                    </nav>
 
-                {/* ============================================ */}
-                {/* TOOLBAR — Actions + Filter                  */}
-                {/* ============================================ */}
-                <div className="no-print mb-6 w-full max-w-[1123px] bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col gap-3">
-                    {/* Row 1: Title + Action buttons */}
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700">
-                                <FileText className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h2 className="text-sm font-bold text-slate-800">
-                                    Periodic Maintenance System (PMS-002)
+                    {/* STEP 1 — DEPARTMENTS */}
+                    {!selectedDept && (
+                        <section className="space-y-8">
+                            <div className="border-b border-slate-200 dark:border-slate-700 pb-4">
+                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                                    Select a Department Folder
                                 </h2>
-                                <p className="text-[11px] text-slate-500">
-                                    Equipment & Tool History File — Landscape
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                    Hover over a folder to reveal the department details.
                                 </p>
                             </div>
-                        </div>
 
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                onClick={handleAddRow}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Add Row
-                            </button>
+                            {departmentsWithLabs.length === 0 ? (
+                                <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                    <FolderOpen className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium">
+                                        No departments found.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 pt-4">
+                                    {departmentsWithLabs.map((dept) => {
+                                        const totalPms = (dept.laboratories || []).reduce(
+                                            (sum, lab) => sum + (lab.pmsRecords?.length || 0),
+                                            0
+                                        );
+                                        return (
+                                            <AnimatedFolderCard
+                                                key={dept._id}
+                                                title={dept.DepartmentName}
+                                                code={dept.DepartmentName?.split(" ")[0] || "DEPT"}
+                                                count={totalPms}
+                                                icon={getDeptIcon(dept.DepartmentName)}
+                                                textColor={getDeptTextColor(dept.DepartmentName)}
+                                                desc={`${dept.laboratories?.length || 0} Laboratories`}
+                                                onClick={() => setSelectedDept(dept)}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </section>
+                    )}
 
-                            <button
-                                type="button"
-                                onClick={handleDownloadPDF}
-                                disabled={isGenerating}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 disabled:opacity-50"
-                            >
-                                {isGenerating ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Generating...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Download className="w-4 h-4" />
-                                        Download PDF
-                                        {totalPdfPages > 1 && (
-                                            <span className="ml-1 bg-emerald-800 text-white text-[10px] px-1.5 py-0.5 rounded">
-                                                {totalPdfPages}p
-                                            </span>
+                    {/* STEP 2 — LABORATORIES */}
+                    {selectedDept && !selectedLab && (
+                        <section className="space-y-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={() => setSelectedDept(null)}
+                                        className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 transition-colors"
+                                    >
+                                        <ArrowLeft className="w-5 h-5" />
+                                    </button>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <FlaskConical className="w-6 h-6 text-blue-500" />
+                                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                                                {selectedDept.DepartmentName}
+                                            </h2>
+                                        </div>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                                            Click a laboratory folder to view PMS records
+                                        </p>
+                                    </div>
+                                </div>
+                                <span className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-bold px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 self-start sm:self-auto">
+                                    {selectedDeptLabs.length} Laboratories
+                                </span>
+                            </div>
+
+                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                                <div className="relative w-full md:w-80">
+                                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search Laboratory..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                    />
+                                </div>
+                            </div>
+
+                            {filteredLabs.length === 0 ? (
+                                <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                    <FlaskConical className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium">
+                                        No laboratories found.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 pt-4">
+                                    {filteredLabs.map((lab) => (
+                                        <AnimatedFolderCard
+                                            key={lab._id}
+                                            title={lab.LaboratoryName}
+                                            code={lab.LaboratoryName?.split(" ").slice(0, 2).join(" ") || "LAB"}
+                                            count={lab.pmsRecords?.length || 0}
+                                            icon={Wrench}
+                                            textColor="text-blue-600"
+                                            desc={lab.Encharge?.FullName || "No Encharge"}
+                                            onClick={() => handleLabClick(lab)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    )}
+
+                    {/* STEP 3 — PMS RECORDS */}
+                    {selectedLab && (
+                        <section className="space-y-6">
+                            {/* HEADER CARD */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={() => {
+                                            setSelectedLab(null);
+                                            setLabPmsRecords([]);
+                                            setLabPms002Records([]);
+                                            setMiniExpanded(false);
+                                        }}
+                                        className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 transition-colors"
+                                    >
+                                        <ArrowLeft className="w-5 h-5" />
+                                    </button>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <Wrench className="w-6 h-6 text-blue-500" />
+                                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                                                {selectedLab.LaboratoryName}
+                                            </h2>
+                                        </div>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                                            Encharge: {selectedLab.Encharge?.FullName || "N/A"}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 self-start sm:self-auto">
+                                    <span className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-bold px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800">
+                                        {activeTab === "PMS002"
+                                            ? `${pms002Total} PMS002`
+                                            : `${allRows.length} PMS001`}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadPDF}
+                                        disabled={
+                                            isGenerating ||
+                                            (activeTab === "PMS002"
+                                                ? allRows002.length === 0
+                                                : allRows.length === 0)
+                                        }
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 disabled:opacity-50 transition-colors"
+                                        title="Download PDF"
+                                    >
+                                        {isGenerating ? (
+                                            <>
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                Generating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="w-3.5 h-3.5" />
+                                                Download {activeTab} PDF
+                                            </>
                                         )}
-                                    </>
-                                )}
-                            </button>
+                                    </button>
+                                </div>
+                            </div>
 
-                            <button
-                                type="button"
-                                onClick={handlePrint}
-                                className="bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5"
-                            >
-                                <Printer className="w-4 h-4" />
-                                Print
-                            </button>
-                        </div>
-                    </div>
+                            {/* ✅ TAB SWITCHER */}
+                            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700">
+                                <button
+                                    onClick={() => {
+                                        setActiveTab("PMS001");
+                                        setMiniExpanded(false);
+                                    }}
+                                    className={`px-4 py-2 text-sm font-bold rounded-t-lg transition-colors ${activeTab === "PMS001"
+                                            ? "bg-blue-600 text-white"
+                                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                        }`}
+                                >
+                                    PMS001 ({allRows.length})
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setActiveTab("PMS002");
+                                        setMiniExpanded(false);
+                                        if (
+                                            labPms002Records.length === 0 &&
+                                            !labPms002Loading
+                                        ) {
+                                            loadPms002(selectedLab);
+                                        }
+                                    }}
+                                    className={`px-4 py-2 text-sm font-bold rounded-t-lg transition-colors ${activeTab === "PMS002"
+                                            ? "bg-emerald-600 text-white"
+                                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                        }`}
+                                >
+                                    PMS002 ({pms002Total})
+                                </button>
+                            </div>
 
-                    {/* Row 2: Date Filter */}
-                    <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                        <div className="flex items-center gap-1.5 text-slate-600">
-                            <Filter className="w-3.5 h-3.5" />
-                            <span className="text-[11px] font-semibold">
-                                Filter by Date:
-                            </span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                            <label className="text-[11px] text-slate-600">
-                                From:
-                            </label>
-                            <input
-                                type="date"
-                                value={dateFrom}
-                                onChange={(e) => {
-                                    setDateFrom(e.target.value);
-                                    setShowAll(false);
-                                }}
-                                className="text-[11px] border border-slate-300 rounded-md px-2 py-1"
-                            />
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                            <label className="text-[11px] text-slate-600">
-                                To:
-                            </label>
-                            <input
-                                type="date"
-                                value={dateTo}
-                                onChange={(e) => {
-                                    setDateTo(e.target.value);
-                                    setShowAll(false);
-                                }}
-                                className="text-[11px] border border-slate-300 rounded-md px-2 py-1"
-                            />
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={handleApplyFilter}
-                            disabled={isFiltering || pms002Loading}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md text-[11px] font-medium flex items-center gap-1 disabled:opacity-50"
-                        >
-                            {isFiltering ? (
+                            {/* TAB CONTENT — PMS001 */}
+                            {activeTab === "PMS001" && (
                                 <>
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    Filtering...
-                                </>
-                            ) : (
-                                <>
-                                    <CalendarDays className="w-3 h-3" />
-                                    Apply
-                                </>
-                            )}
-                        </button>
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md bg-blue-600 text-white shadow-sm">
+                                                PMS001
+                                            </span>
+                                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                                Equipment/Tool History File
+                                            </span>
+                                        </div>
 
-                        <button
-                            type="button"
-                            onClick={handleShowAll}
-                            disabled={isFiltering || pms002Loading}
-                            className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition disabled:opacity-50 ${showAll
-                                    ? "bg-amber-600 text-white"
-                                    : "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                                }`}
-                        >
-                            Show All
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={handleClearFilter}
-                            disabled={isFiltering || pms002Loading}
-                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-md text-[11px] font-medium flex items-center gap-1 disabled:opacity-50"
-                        >
-                            <X className="w-3 h-3" />
-                            Clear
-                        </button>
-
-                        <span className="text-[10px] text-slate-500 ml-auto">
-                            {showAll
-                                ? "📋 Showing all records"
-                                : dateFrom || dateTo
-                                    ? `🔎 ${dateFrom || "..."} → ${dateTo || "..."}`
-                                    : "⏳ No filter applied"}
-                        </span>
-                    </div>
-
-                    {/* Row 3: Page Info */}
-                    <div className="text-[11px] text-slate-500 border-t border-slate-100 pt-2 flex items-center justify-between flex-wrap gap-2">
-                        <span>
-                            📄 {items.length} row{items.length !== 1 ? "s" : ""} sa table
-                            <span className="text-slate-400 ml-1">
-                                (max {computedRowsPerPage}/page)
-                            </span>
-                        </span>
-                        <span>
-                            {totalPdfPages > 1 ? (
-                                <>
-                                    <span className="font-semibold text-emerald-700">
-                                        {totalPdfPages} pages
-                                    </span>{" "}
-                                    kapag na-download ang PDF
-                                </>
-                            ) : (
-                                <span className="font-semibold text-slate-700">
-                                    1 page lang
-                                </span>
-                            )}
-                        </span>
-                    </div>
-                </div>
-
-                {/* ============================================ */}
-                {/* VISIBLE FORM — LANDSCAPE                     */}
-                {/* ============================================ */}
-                <div
-                    ref={formRef}
-                    className="print-form bg-white w-[1123px] h-[794px] min-h-[794px] max-h-[794px] p-[35px] border border-slate-400 shadow-xl text-black flex flex-col"
-                >
-                    {/* HEADER — fixed */}
-                    <header className="border border-black grid grid-cols-12 min-h-[100px] shrink-0">
-                        <div className="col-span-3 border-r border-black flex flex-col items-center justify-center text-center px-2 py-2">
-                            <img
-                                src={bispulogo}
-                                alt="BiPSU Logo"
-                                crossOrigin="anonymous"
-                                className="w-[80px] h-[80px] object-contain mb-1"
-                            />
-                        </div>
-
-                        <div className="col-span-6 border-r border-black flex flex-col">
-                            <div className="flex-1 border-b border-black px-2 py-1 flex flex-col justify-center">
-                                <div className="text-[8px] leading-tight mb-0.5">
-                                    Type:
-                                </div>
-                                <div className="text-center text-[11px] font-bold leading-tight break-words">
-                                    QUALITY MANAGEMENT SYSTEM
-                                </div>
-                                <div className="text-center text-[11px] font-bold leading-tight break-words">
-                                    PERIODIC MAINTENANCE SYSTEM - FORM
-                                </div>
-                            </div>
-                            <div className="flex-1 px-2 py-1 flex flex-col justify-center">
-                                <div className="text-[8px] leading-tight mb-0.5">
-                                    Title:
-                                </div>
-                                <div className="text-center text-[11px] font-bold leading-tight break-words">
-                                    EQUIPMENT/TOOL HISTORY FILE
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="col-span-3 flex flex-col text-[9px]">
-                            <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
-                                <span className="leading-tight">
-                                    Document No.:
-                                </span>
-                                <span className="block text-center font-bold text-[10px] leading-tight break-words">
-                                    BiPSU-QAA-PMS-002
-                                </span>
-                            </div>
-                            <div className="flex-1 border-b border-black px-1.5 py-1 flex items-center justify-between leading-tight">
-                                <span>Page:</span>
-                                <span className="font-bold">
-                                    {totalPdfPages > 1
-                                        ? `1 of ${totalPdfPages} (view)`
-                                        : `1 of ${totalPdfPages}`}
-                                </span>
-                            </div>
-                            <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
-                                <span className="leading-tight">
-                                    Effective Date:
-                                </span>
-                                <span className="block text-center font-bold leading-tight">
-                                    October 09, 2020
-                                </span>
-                            </div>
-                            <div className="flex-1 px-1.5 py-1 flex flex-col justify-center">
-                                <span className="leading-tight">
-                                    Issuance/Revision:
-                                </span>
-                                <span className="block text-center font-bold leading-tight">
-                                    02/01
-                                </span>
-                            </div>
-                        </div>
-                    </header>
-
-                    {/* SCHOOL/OFFICE — fixed */}
-                    <div className="mt-5 mb-3 flex items-center justify-center gap-1 shrink-0">
-                        <Building2 className="no-print w-3 h-3" />
-                        <span className="text-[12px] font-bold">
-                            SCHOOL/OFFICE OF
-                        </span>
-                        <input
-                            type="text"
-                            value={officeName}
-                            onChange={(e) => setOfficeName(e.target.value)}
-                            style={{
-                                width: `${Math.max(
-                                    260,
-                                    (officeName?.length || 0) * 7 + 20
-                                )}px`,
-                                paddingBottom: "4px",
-                            }}
-                            className="border-b border-black outline-none text-center font-bold text-[12px] px-2 bg-transparent"
-                        />
-                    </div>
-
-                    {/* ============================================ */}
-                    {/* SCROLLABLE TABLE                             */}
-                    {/* ============================================ */}
-                    <div className="history-table-scroll flex-1 min-h-0">
-                        <table className="w-full table-fixed">
-                            <thead>
-                                {/* FIRST HEADER ROW */}
-                                <tr className="text-[9px] font-bold text-center">
-                                    <th
-                                        rowSpan="2"
-                                        className="border border-black px-1 py-1 w-[8%] sticky top-0 bg-white z-[23]"
-                                    >
-                                        Code
-                                        <br />
-                                        No.
-                                    </th>
-                                    <th
-                                        rowSpan="2"
-                                        className="border border-black px-1 py-1 w-[18%] sticky top-0 bg-white z-[23]"
-                                    >
-                                        Name of
-                                        <br />
-                                        Equipment/Tools
-                                    </th>
-                                    <th
-                                        colSpan="8"
-                                        className="border border-black px-1 py-1 sticky top-0 bg-white z-[22]"
-                                    >
-                                        MAINTENANCE ACTIVITY
-                                    </th>
-                                    <th
-                                        rowSpan="2"
-                                        className="border border-black px-1 py-1 w-[10%] sticky top-0 bg-white z-[23]"
-                                    >
-                                        Remarks
-                                    </th>
-                                    <th
-                                        rowSpan="2"
-                                        className="no-print-column border border-black px-1 py-1 w-[6%] sticky top-0 bg-white z-[23]"
-                                    >
-                                        Action
-                                    </th>
-                                </tr>
-
-                                {/* SECOND HEADER ROW */}
-                                <tr className="text-[8px] font-bold text-center">
-                                    <th className="border border-black px-0.5 py-1 w-[7%] sticky top-[26px] bg-white z-[21]">
-                                        Routine
-                                        <br />
-                                        Inspection
-                                        <br />
-                                        &amp;
-                                        <br />
-                                        Cleaning
-                                    </th>
-                                    <th className="border border-black px-0.5 py-1 w-[7%] sticky top-[26px] bg-white z-[21]">
-                                        Lubrication
-                                    </th>
-                                    <th className="border border-black px-0.5 py-1 w-[7%] sticky top-[26px] bg-white z-[21]">
-                                        Overhauling
-                                    </th>
-                                    <th className="border border-black px-0.5 py-1 w-[7%] sticky top-[26px] bg-white z-[21]">
-                                        Minor
-                                        <br />
-                                        Adjustment
-                                    </th>
-                                    <th className="border border-black px-0.5 py-1 w-[7%] sticky top-[26px] bg-white z-[21]">
-                                        Replace
-                                        <br />
-                                        Worn
-                                        <br />
-                                        out
-                                        <br />
-                                        Parts
-                                    </th>
-                                    <th className="border border-black px-0.5 py-1 w-[7%] sticky top-[26px] bg-white z-[21]">
-                                        Repair
-                                    </th>
-                                    <th className="border border-black px-0.5 py-1 w-[7%] sticky top-[26px] bg-white z-[21]">
-                                        General
-                                        <br />
-                                        Recondition
-                                    </th>
-                                    <th className="border border-black px-0.5 py-1 w-[7%] sticky top-[26px] bg-white z-[21]">
-                                        Repair
-                                        <br />
-                                        Part
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                {/* EMPTY STATE */}
-                                {items.length === 0 && (
-                                    <tr>
-                                        <td
-                                            colSpan={12}
-                                            className="border border-black text-center text-[10px] italic text-slate-500 h-[32px]"
+                                        <div
+                                            onClick={miniExpanded ? closeFullForm : openFullForm}
+                                            className={`cursor-pointer transition-all duration-300 hover:scale-[1.03] active:scale-[0.99] ${miniExpanded ? "ring-2 ring-blue-500 rounded-md" : ""
+                                                }`}
+                                            title={
+                                                miniExpanded
+                                                    ? "Click to close full form"
+                                                    : "Click to open PMS001 full form"
+                                            }
                                         >
-                                            {showAll
-                                                ? "No records found."
-                                                : dateFrom || dateTo
-                                                    ? "No records found for the selected date range."
-                                                    : 'Select a date range (From/To) or click "Show All" to display records.'}
-                                        </td>
-                                    </tr>
-                                )}
+                                            <div
+                                                className="bg-white border border-slate-300 shadow-lg"
+                                                style={{
+                                                    width: "260px",
+                                                    height: "340px",
+                                                    padding: "14px",
+                                                    transform: miniExpanded ? "rotate(0deg)" : "rotate(-1deg)",
+                                                }}
+                                            >
+                                                <div className="border border-black grid grid-cols-12 h-[52px] mb-1.5">
+                                                    <div className="col-span-3 border-r border-black flex items-center justify-center">
+                                                        <img src={bispulogo} alt="logo" className="w-9 h-9 object-contain" />
+                                                    </div>
+                                                    <div className="col-span-6 border-r border-black flex flex-col justify-center px-0.5">
+                                                        <div className="text-[4px] font-bold text-center leading-tight">
+                                                            QUALITY MANAGEMENT SYSTEM
+                                                        </div>
+                                                        <div className="text-[4px] font-bold text-center leading-tight">
+                                                            PERIODIC MAINTENANCE SYSTEM - FORM
+                                                        </div>
+                                                        <div className="text-[4px] font-bold text-center leading-tight mt-0.5">
+                                                            EQUIPMENT/TOOL HISTORY FILE
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-3 flex flex-col text-[3.5px] px-0.5">
+                                                        <div className="border-b border-black flex-1 flex items-center justify-center font-bold">
+                                                            BiPSU-QAA-PMS-001
+                                                        </div>
+                                                        <div className="border-b border-black flex-1 flex items-center justify-center">
+                                                            Page: 1 of 1
+                                                        </div>
+                                                        <div className="border-b border-black flex-1 flex items-center justify-center">
+                                                            October 09, 2020
+                                                        </div>
+                                                        <div className="flex-1 flex items-center justify-center font-bold">
+                                                            02/01
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-                                {items.map((item) => (
-                                    <tr
-                                        key={item.id}
-                                        className="text-[9px] text-center h-[32px]"
-                                    >
-                                        {/* CODE */}
-                                        <td className="border border-black p-0 relative">
-                                            <input
-                                                type="text"
-                                                value={item.codeNo}
-                                                onChange={(e) =>
-                                                    handleCodeChange(
-                                                        item.id,
-                                                        e.target.value
-                                                    )
-                                                }
-                                                onBlur={(e) =>
-                                                    handleCodeBlur(
-                                                        item.id,
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="w-full h-[32px] text-center text-[9px] outline-none bg-transparent px-1"
-                                            />
-                                            {fetchingRowId === item.id && (
-                                                <span className="absolute right-0.5 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
-                                                    <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
-                                                </span>
-                                            )}
-                                        </td>
+                                                <div className="text-[5px] text-center font-bold mb-1.5 truncate">
+                                                    SCHOOL/OFFICE OF{" "}
+                                                    <span className="border-b border-black inline-block px-0.5">
+                                                        {officeName || "—"}
+                                                    </span>
+                                                </div>
 
-                                        {/* NAME */}
-                                        <td className="border border-black p-0">
-                                            <input
-                                                type="text"
-                                                value={item.name}
-                                                onChange={(e) =>
-                                                    handleItemChange(
-                                                        item.id,
-                                                        "name",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                readOnly={item.autoFilled}
-                                                title={
-                                                    item.autoFilled
-                                                        ? "Auto-filled from equipment database"
-                                                        : ""
-                                                }
-                                                className={`w-full h-[32px] text-center text-[9px] outline-none bg-transparent px-1 ${item.autoFilled
-                                                        ? "cursor-not-allowed text-slate-700"
-                                                        : ""
-                                                    }`}
-                                            />
-                                        </td>
-
-                                        {/* ROUTINE INSPECTION */}
-                                        <td className="border border-black p-0">
-                                            <input
-                                                type="text"
-                                                value={
-                                                    item.routineInspection ||
-                                                    ""
-                                                }
-                                                onChange={(e) =>
-                                                    handleItemChange(
-                                                        item.id,
-                                                        "routineInspection",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="w-full h-[32px] text-center text-[9px] outline-none bg-transparent"
-                                            />
-                                        </td>
-
-                                        {/* LUBRICATION */}
-                                        <td className="border border-black p-0">
-                                            <input
-                                                type="checkbox"
-                                                checked={!!item.lubrication}
-                                                onChange={(e) =>
-                                                    handleItemChange(
-                                                        item.id,
-                                                        "lubrication",
-                                                        e.target.checked
-                                                    )
-                                                }
-                                                className="w-4 h-4"
-                                            />
-                                        </td>
-
-                                        {/* OVERHAULING */}
-                                        <td className="border border-black p-0">
-                                            <input
-                                                type="checkbox"
-                                                checked={!!item.overhauling}
-                                                onChange={(e) =>
-                                                    handleItemChange(
-                                                        item.id,
-                                                        "overhauling",
-                                                        e.target.checked
-                                                    )
-                                                }
-                                                className="w-4 h-4"
-                                            />
-                                        </td>
-
-                                        {/* MINOR ADJUSTMENT */}
-                                        <td className="border border-black p-0">
-                                            <input
-                                                type="checkbox"
-                                                checked={
-                                                    !!item.minorAdjustment
-                                                }
-                                                onChange={(e) =>
-                                                    handleItemChange(
-                                                        item.id,
-                                                        "minorAdjustment",
-                                                        e.target.checked
-                                                    )
-                                                }
-                                                className="w-4 h-4"
-                                            />
-                                        </td>
-
-                                        {/* REPLACE WORN OUT PARTS */}
-                                        <td className="border border-black p-0">
-                                            <input
-                                                type="checkbox"
-                                                checked={
-                                                    !!item.replaceWornOutParts
-                                                }
-                                                onChange={(e) =>
-                                                    handleItemChange(
-                                                        item.id,
-                                                        "replaceWornOutParts",
-                                                        e.target.checked
-                                                    )
-                                                }
-                                                className="w-4 h-4"
-                                            />
-                                        </td>
-
-                                        {/* REPAIR */}
-                                        <td className="border border-black p-0">
-                                            <input
-                                                type="checkbox"
-                                                checked={!!item.repair}
-                                                onChange={(e) =>
-                                                    handleItemChange(
-                                                        item.id,
-                                                        "repair",
-                                                        e.target.checked
-                                                    )
-                                                }
-                                                className="w-4 h-4"
-                                            />
-                                        </td>
-
-                                        {/* GENERAL RECONDITION */}
-                                        <td className="border border-black p-0">
-                                            <input
-                                                type="checkbox"
-                                                checked={
-                                                    !!item.generalRecondition
-                                                }
-                                                onChange={(e) =>
-                                                    handleItemChange(
-                                                        item.id,
-                                                        "generalRecondition",
-                                                        e.target.checked
-                                                    )
-                                                }
-                                                className="w-4 h-4"
-                                            />
-                                        </td>
-
-                                        {/* REPAIR PART */}
-                                        <td className="border border-black p-0">
-                                            <input
-                                                type="checkbox"
-                                                checked={!!item.repairPart}
-                                                onChange={(e) =>
-                                                    handleItemChange(
-                                                        item.id,
-                                                        "repairPart",
-                                                        e.target.checked
-                                                    )
-                                                }
-                                                className="w-4 h-4"
-                                            />
-                                        </td>
-
-                                        {/* REMARKS */}
-                                        <td className="border border-black p-0">
-                                            <input
-                                                type="text"
-                                                value={item.remarks}
-                                                onChange={(e) =>
-                                                    handleItemChange(
-                                                        item.id,
-                                                        "remarks",
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="w-full h-[32px] text-center text-[9px] outline-none bg-transparent px-1"
-                                            />
-                                        </td>
-
-                                        {/* ACTION */}
-                                        <td className="no-print-column border border-black p-0 text-center">
-                                            <div className="flex items-center justify-center gap-0.5">
-                                                {item.isNew && (
-                                                    <button
-                                                        type="button"
-                                                        title="Save"
-                                                        onClick={() =>
-                                                            handleSaveRow(
-                                                                item.id
+                                                <div className="border border-black">
+                                                    <div className="grid grid-cols-11 h-[14px] border-b border-black bg-slate-100">
+                                                        {["Code", "Name", "Date", "Svc", "NSvc", "Type", "BD", "Dur", "Y", "N", "Rem"].map(
+                                                            (h, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="border-r border-black last:border-r-0 text-[3.5px] font-bold flex items-center justify-center text-center"
+                                                                >
+                                                                    {h}
+                                                                </div>
                                                             )
-                                                        }
-                                                        className="text-emerald-600 hover:text-emerald-800 p-0.5"
-                                                    >
-                                                        <Save className="w-3.5 h-3.5 mx-auto" />
-                                                    </button>
-                                                )}
+                                                        )}
+                                                    </div>
+                                                    {Array.from({ length: 7 }).map((_, rowIdx) => (
+                                                        <div
+                                                            key={rowIdx}
+                                                            className="grid grid-cols-11 h-[14px] border-b border-black last:border-b-0"
+                                                        >
+                                                            {Array.from({ length: 11 }).map((_, colIdx) => (
+                                                                <div
+                                                                    key={colIdx}
+                                                                    className="border-r border-black last:border-r-0"
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                <div className="grid grid-cols-3 gap-1.5 mt-3">
+                                                    {["Prepared", "Attested", "Approved"].map((label) => (
+                                                        <div key={label} className="text-center">
+                                                            <div className="text-[3.5px] mb-1.5">{label}:</div>
+                                                            <div className="border-b border-black h-1.5" />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={miniExpanded ? closeFullForm : openFullForm}
+                                            className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                        >
+                                            {miniExpanded ? (
+                                                <>
+                                                    <X className="w-3.5 h-3.5" />
+                                                    Close PMS001 form
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <ChevronDown className="w-3.5 h-3.5" />
+                                                    Open PMS001 form
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    {miniExpanded && (
+                                        <div
+                                            ref={fullFormRef}
+                                            className="flex flex-col items-center gap-3 animate-fade-in-scale"
+                                        >
+                                            <div className="flex items-center gap-2 w-[794px] max-w-full">
+                                                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md bg-blue-600 text-white shadow-sm">
+                                                    PMS001
+                                                </span>
+                                                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                                    Full Form — {officeName || "PMS"}
+                                                </span>
                                                 <button
                                                     type="button"
-                                                    title="Delete"
-                                                    onClick={() =>
-                                                        handleDeleteRow(
-                                                            item.id
-                                                        )
-                                                    }
-                                                    className="text-red-600 hover:text-red-800 p-0.5"
+                                                    onClick={closeFullForm}
+                                                    className="ml-auto p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
+                                                    title="Close full form"
                                                 >
-                                                    <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                                                    <X className="w-4 h-4" />
                                                 </button>
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))}
 
-                                {/* DEFAULT EMPTY ROWS */}
-                                {items.length < computedRowsPerPage &&
-                                    Array.from({
-                                        length:
-                                            computedRowsPerPage -
-                                            items.length,
-                                    }).map((_, index) => (
-                                        <tr
-                                            key={`empty-${index}`}
-                                            className="h-[32px]"
+                                            <div
+                                                className="bg-white w-[794px] max-w-full p-[35px] border border-slate-400 shadow-xl text-black flex flex-col"
+                                                style={{ minHeight: `${A4P_HEIGHT_PX}px` }}
+                                            >
+                                                <header className="border border-black grid grid-cols-12 min-h-[100px] shrink-0">
+                                                    <div className="col-span-3 border-r border-black flex flex-col items-center justify-center text-center px-2 py-2">
+                                                        <img
+                                                            src={bispulogo}
+                                                            alt="BiPSU Logo"
+                                                            crossOrigin="anonymous"
+                                                            className="w-[80px] h-[80px] object-contain mb-1"
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-6 border-r border-black flex flex-col">
+                                                        <div className="flex-1 border-b border-black px-2 py-1 flex flex-col justify-center">
+                                                            <div className="text-[8px] leading-tight mb-0.5">Type:</div>
+                                                            <div className="text-center text-[11px] font-bold leading-tight break-words">
+                                                                QUALITY MANAGEMENT SYSTEM
+                                                            </div>
+                                                            <div className="text-center text-[11px] font-bold leading-tight break-words">
+                                                                PERIODIC MAINTENANCE SYSTEM - FORM
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex-1 px-2 py-1 flex flex-col justify-center">
+                                                            <div className="text-[8px] leading-tight mb-0.5">Title:</div>
+                                                            <div className="text-center text-[11px] font-bold leading-tight break-words">
+                                                                EQUIPMENT/TOOL HISTORY FILE
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-3 flex flex-col text-[9px]">
+                                                        <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
+                                                            <span className="leading-tight">Document No.:</span>
+                                                            <span className="block text-center font-bold text-[10px] leading-tight break-words">
+                                                                BiPSU-QAA-PMS-001
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex-1 border-b border-black px-1.5 py-1 flex items-center justify-between leading-tight">
+                                                            <span>Page:</span>
+                                                            <span className="font-bold">1 of 1</span>
+                                                        </div>
+                                                        <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
+                                                            <span className="leading-tight">Effective Date:</span>
+                                                            <span className="block text-center font-bold leading-tight">
+                                                                October 09, 2020
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex-1 px-1.5 py-1 flex flex-col justify-center">
+                                                            <span className="leading-tight">Issuance/Revision:</span>
+                                                            <span className="block text-center font-bold leading-tight">
+                                                                02/01
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </header>
+
+                                                <div className="mt-5 mb-3 flex items-center justify-center gap-1 shrink-0">
+                                                    <Building2 className="w-3 h-3" />
+                                                    <span className="text-[12px] font-bold">SCHOOL/OFFICE OF</span>
+                                                    <span
+                                                        className="border-b border-black text-center font-bold text-[12px] px-2 inline-block"
+                                                        style={{
+                                                            width: `${Math.max(
+                                                                260,
+                                                                (officeName?.length || 0) * 7 + 20
+                                                            )}px`,
+                                                            paddingBottom: "4px",
+                                                            minHeight: "16px",
+                                                        }}
+                                                    >
+                                                        {officeName || "\u00A0"}
+                                                    </span>
+                                                </div>
+
+                                                {labPmsLoading ? (
+                                                    <div className="text-center py-16 border border-black">
+                                                        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                                        <p className="text-sm text-slate-500 mt-3">
+                                                            Loading PMS001 records...
+                                                        </p>
+                                                    </div>
+                                                ) : allRows.length === 0 ? (
+                                                    <div className="text-center py-16 border border-black">
+                                                        <FileText className="w-16 h-16 text-slate-300 mx-auto mb-3" />
+                                                        <p className="text-slate-500 font-medium">
+                                                            No PMS001 records found.
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="pms-view-scroll flex-1 min-h-0 max-h-[600px]">
+                                                        <table className="pms-view-table w-full table-fixed">
+                                                            <thead>
+                                                                <tr className="text-[9px] font-bold text-center">
+                                                                    <th rowSpan="2" className="border border-black px-1 py-1 w-[7%] sticky top-0 bg-white z-20">Code<br />No.</th>
+                                                                    <th rowSpan="2" className="border border-black px-1 py-1 w-[18%] sticky top-0 bg-white z-20">Name of<br />Equipment/Tools</th>
+                                                                    <th rowSpan="2" className="border border-black px-1 py-1 w-[11%] sticky top-0 bg-white z-20">Date<br />Acquired</th>
+                                                                    <th colSpan="2" className="border border-black px-1 py-1 w-[15%] sticky top-0 bg-white z-20">Status</th>
+                                                                    <th rowSpan="2" className="border border-black px-1 py-1 w-[14%] sticky top-0 bg-white z-20">Type of<br />Equipment/tools</th>
+                                                                    <th colSpan="2" className="border border-black px-1 py-1 w-[14%] sticky top-0 bg-white z-20">Breakdown</th>
+                                                                    <th colSpan="2" className="border border-black px-1 py-1 w-[11%] sticky top-0 bg-white z-20">Availability<br />&amp;<br />Utilization</th>
+                                                                    <th rowSpan="2" className="border border-black px-1 py-1 w-[10%] sticky top-0 bg-white z-20">Remarks</th>
+                                                                </tr>
+                                                                <tr className="text-[8px] font-bold text-center">
+                                                                    <th className="border border-black px-1 py-1 sticky top-[26px] bg-white z-20">Serviceable</th>
+                                                                    <th className="border border-black px-1 py-1 sticky top-[26px] bg-white z-20">Non<br />Serviceable</th>
+                                                                    <th className="border border-black px-1 py-1 sticky top-[26px] bg-white z-20">No.</th>
+                                                                    <th className="border border-black px-1 py-1 sticky top-[26px] bg-white z-20">Duration</th>
+                                                                    <th className="border border-black px-1 py-1 sticky top-[26px] bg-white z-20">Yes</th>
+                                                                    <th className="border border-black px-1 py-1 sticky top-[26px] bg-white z-20">No</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {allRows.map((item) => (
+                                                                    <tr key={item.id} className="text-[9px] text-center h-[32px]">
+                                                                        <td className="border border-black px-1 py-1">{item.codeNo?.trim() || ""}</td>
+                                                                        <td className="border border-black px-1 py-1">{item.name || ""}</td>
+                                                                        <td className="border border-black px-1 py-1">{item.dateAcquired || ""}</td>
+                                                                        <td className="border border-black text-center align-middle">
+                                                                            {item.serviceable ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                        </td>
+                                                                        <td className="border border-black text-center align-middle">
+                                                                            {item.nonServiceable ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                        </td>
+                                                                        <td className="border border-black px-1 py-1">{item.type || ""}</td>
+                                                                        <td className="border border-black px-1 py-1">{item.breakdownNo || ""}</td>
+                                                                        <td className="border border-black px-1 py-1 text-[8px]">{item.breakdownDuration || ""}</td>
+                                                                        <td className="border border-black text-center align-middle">
+                                                                            {item.availYes ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                        </td>
+                                                                        <td className="border border-black text-center align-middle">
+                                                                            {item.availNo ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                        </td>
+                                                                        <td className="border border-black px-1 py-1">{item.remarks || ""}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )}
+
+                                                <div className="mt-6 grid grid-cols-3 gap-8 text-[10px] shrink-0">
+                                                    {["Prepared", "Attested", "Approved"].map((label) => (
+                                                        <div key={label}>
+                                                            <div className="mb-6 font-medium">{label}:</div>
+                                                            <div className="border-b border-black text-center font-bold text-[10px] min-h-[20px]">{"\u00A0"}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {/* TAB CONTENT — PMS002 (LANDSCAPE gaya ng BiPSUPMS002App) */}
+                            {activeTab === "PMS002" && (
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="flex items-center gap-2 w-full max-w-[1123px]">
+                                        <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md bg-emerald-600 text-white shadow-sm">
+                                            PMS002
+                                        </span>
+                                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                            Maintenance Activity — {officeName || "PMS"} (Landscape)
+                                        </span>
+                                        {pms002PerformedBy && (
+                                            <span className="ml-auto text-[11px] text-slate-500 dark:text-slate-400">
+                                                Performed by:{" "}
+                                                <strong>
+                                                    {[pms002PerformedBy.FirstName, pms002PerformedBy.Middle, pms002PerformedBy.LastName]
+                                                        .filter(Boolean)
+                                                        .join(" ") || pms002PerformedBy.username || "N/A"}
+                                                </strong>
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {pms002Error && (
+                                        <div className="w-full max-w-[1123px] bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-300">
+                                            <AlertCircle className="w-4 h-4 inline mr-1" />
+                                            {pms002Error}
+                                        </div>
+                                    )}
+
+                                    {labPms002Loading || pms002Loading ? (
+                                        <div className="w-full max-w-[1123px] text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                            <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                            <p className="text-sm text-slate-500 mt-3">
+                                                Loading PMS002 records...
+                                            </p>
+                                        </div>
+                                    ) : allRows002.length === 0 ? (
+                                        <div className="w-full max-w-[1123px] text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                            <FileText className="w-16 h-16 text-slate-300 mx-auto mb-3" />
+                                            <p className="text-slate-500 font-medium">
+                                                No PMS002 records found.
+                                            </p>
+                                            <button
+                                                onClick={() => loadPms002(selectedLab)}
+                                                className="mt-3 text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                                            >
+                                                Retry
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="bg-white w-[1123px] max-w-full border border-slate-400 shadow-xl text-black flex flex-col"
+                                            style={{ minHeight: `${A4L_HEIGHT_PX}px` }}
                                         >
-                                            {Array.from({
-                                                length: 11,
-                                            }).map((_, i) => (
-                                                <td
-                                                    key={i}
-                                                    className="border border-black"
-                                                />
-                                            ))}
-                                            <td className="no-print-column border border-black" />
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                            <div className="p-[35px] flex flex-col" style={{ minHeight: `${A4L_HEIGHT_PX}px` }}>
+                                                {/* HEADER */}
+                                                <header className="border border-black grid grid-cols-12 min-h-[100px] shrink-0">
+                                                    <div className="col-span-3 border-r border-black flex flex-col items-center justify-center text-center px-2 py-2">
+                                                        <img
+                                                            src={bispulogo}
+                                                            alt="BiPSU Logo"
+                                                            crossOrigin="anonymous"
+                                                            className="w-[80px] h-[80px] object-contain mb-1"
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-6 border-r border-black flex flex-col">
+                                                        <div className="flex-1 border-b border-black px-2 py-1 flex flex-col justify-center">
+                                                            <div className="text-[8px] leading-tight mb-0.5">Type:</div>
+                                                            <div className="text-center text-[11px] font-bold leading-tight break-words">
+                                                                QUALITY MANAGEMENT SYSTEM
+                                                            </div>
+                                                            <div className="text-center text-[11px] font-bold leading-tight break-words">
+                                                                PERIODIC MAINTENANCE SYSTEM - FORM
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex-1 px-2 py-1 flex flex-col justify-center">
+                                                            <div className="text-[8px] leading-tight mb-0.5">Title:</div>
+                                                            <div className="text-center text-[11px] font-bold leading-tight break-words">
+                                                                EQUIPMENT/TOOL HISTORY FILE
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-3 flex flex-col text-[9px]">
+                                                        <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
+                                                            <span className="leading-tight">Document No.:</span>
+                                                            <span className="block text-center font-bold text-[10px] leading-tight break-words">
+                                                                BiPSU-QAA-PMS-002
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex-1 border-b border-black px-1.5 py-1 flex items-center justify-between leading-tight">
+                                                            <span>Page:</span>
+                                                            <span className="font-bold">
+                                                                {totalPdfPages002 > 1
+                                                                    ? `1 of ${totalPdfPages002} (view)`
+                                                                    : `1 of ${totalPdfPages002}`}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex-1 border-b border-black px-1.5 py-1 flex flex-col justify-center">
+                                                            <span className="leading-tight">Effective Date:</span>
+                                                            <span className="block text-center font-bold leading-tight">
+                                                                October 09, 2020
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex-1 px-1.5 py-1 flex flex-col justify-center">
+                                                            <span className="leading-tight">Issuance/Revision:</span>
+                                                            <span className="block text-center font-bold leading-tight">
+                                                                02/01
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </header>
 
-                    {/* ============================================ */}
-                    {/* FREQUENCY CODE — fixed sa ibaba             */}
-                    {/* ============================================ */}
-                    <div className="border-x border-b border-black p-2 text-[10px] font-semibold bg-white shrink-0">
-                        <div className="mb-1 font-bold">FREQUENCY CODE</div>
-                        <div className="grid grid-cols-2 gap-x-4">
-                            <div>
-                                <span className="font-bold">D</span> – Daily
-                            </div>
-                            <div>
-                                <span className="font-bold">SM</span> – Semi-Monthly
-                            </div>
-                            <div>
-                                <span className="font-bold">M</span> – Monthly
-                            </div>
-                            <div>
-                                <span className="font-bold">SA</span> – Semi Annually
-                            </div>
-                            <div>
-                                <span className="font-bold">W</span> – Weekly
-                            </div>
-                            <div>
-                                <span className="font-bold">Q</span> – Quarterly
-                            </div>
-                            <div className="col-span-2">
-                                <span className="font-bold">A</span> – Annually
-                            </div>
-                        </div>
-                    </div>
+                                                {/* SCHOOL/OFFICE */}
+                                                <div className="mt-5 mb-3 flex items-center justify-center gap-1 shrink-0">
+                                                    <Building2 className="w-3 h-3" />
+                                                    <span className="text-[12px] font-bold">SCHOOL/OFFICE OF</span>
+                                                    <span
+                                                        className="border-b border-black text-center font-bold text-[12px] px-2 inline-block"
+                                                        style={{
+                                                            width: `${Math.max(
+                                                                260,
+                                                                (officeName?.length || 0) * 7 + 20
+                                                            )}px`,
+                                                            paddingBottom: "4px",
+                                                            minHeight: "16px",
+                                                        }}
+                                                    >
+                                                        {officeName || "\u00A0"}
+                                                    </span>
+                                                </div>
 
-                    {/* ============================================ */}
-                    {/* SIGNATURES — fixed sa ibaba                 */}
-                    {/* ============================================ */}
-                    <div className="mt-6 grid grid-cols-3 gap-8 text-[10px] shrink-0">
-                        <div>
-                            <div className="mb-6 font-medium">Prepared:</div>
-                            <input
-                                type="text"
-                                value={signatures.prepared}
-                                onChange={(e) =>
-                                    handleSignatureChange(
-                                        "prepared",
-                                        e.target.value
-                                    )
-                                }
-                                className="w-full border-b border-black text-center outline-none bg-transparent text-[10px] font-bold h-5"
-                            />
-                        </div>
-                        <div>
-                            <div className="mb-6 font-medium">Attested:</div>
-                            <input
-                                type="text"
-                                value={signatures.attested}
-                                onChange={(e) =>
-                                    handleSignatureChange(
-                                        "attested",
-                                        e.target.value
-                                    )
-                                }
-                                className="w-full border-b border-black text-center outline-none bg-transparent text-[10px] font-bold h-5"
-                            />
-                        </div>
-                        <div>
-                            <div className="mb-6 font-medium">Approved:</div>
-                            <input
-                                type="text"
-                                value={signatures.approved}
-                                onChange={(e) =>
-                                    handleSignatureChange(
-                                        "approved",
-                                        e.target.value
-                                    )
-                                }
-                                className="w-full border-b border-black text-center outline-none bg-transparent text-[10px] font-bold h-5"
-                            />
-                        </div>
-                    </div>
-                </div>
+                                                {/* TABLE */}
+                                                <div className="flex-1 min-h-0 overflow-auto">
+                                                    <table className="w-full border-collapse border border-black table-fixed">
+                                                        <thead>
+                                                            <tr className="text-[9px] font-bold text-center bg-white">
+                                                                <th rowSpan="2" className="border border-black px-1 py-1 w-[8%]">Code<br />No.</th>
+                                                                <th rowSpan="2" className="border border-black px-1 py-1 w-[18%]">Name of<br />Equipment/Tools</th>
+                                                                <th colSpan="8" className="border border-black px-1 py-1">MAINTENANCE ACTIVITY</th>
+                                                                <th rowSpan="2" className="border border-black px-1 py-1 w-[10%]">Remarks</th>
+                                                            </tr>
+                                                            <tr className="text-[8px] font-bold text-center bg-white">
+                                                                <th className="border border-black px-0.5 py-1 w-[7%]">Routine<br />Inspection<br />&amp;<br />Cleaning</th>
+                                                                <th className="border border-black px-0.5 py-1 w-[7%]">Lubrication</th>
+                                                                <th className="border border-black px-0.5 py-1 w-[7%]">Overhauling</th>
+                                                                <th className="border border-black px-0.5 py-1 w-[7%]">Minor<br />Adjustment</th>
+                                                                <th className="border border-black px-0.5 py-1 w-[7%]">Replace<br />Worn<br />out<br />Parts</th>
+                                                                <th className="border border-black px-0.5 py-1 w-[7%]">Repair</th>
+                                                                <th className="border border-black px-0.5 py-1 w-[7%]">General<br />Recondition</th>
+                                                                <th className="border border-black px-0.5 py-1 w-[7%]">Repair<br />Part</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {allRows002.map((item) => (
+                                                                <tr key={item.id} className="text-[9px] text-center h-[32px]">
+                                                                    <td className="border border-black px-1 py-1">{item.codeNo || ""}</td>
+                                                                    <td className="border border-black px-1 py-1">{item.name || ""}</td>
+                                                                    <td className="border border-black px-1 py-1">{item.routineInspection || ""}</td>
+                                                                    <td className="border border-black text-center align-middle">
+                                                                        {item.lubrication ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                    </td>
+                                                                    <td className="border border-black text-center align-middle">
+                                                                        {item.overhauling ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                    </td>
+                                                                    <td className="border border-black text-center align-middle">
+                                                                        {item.minorAdjustment ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                    </td>
+                                                                    <td className="border border-black text-center align-middle">
+                                                                        {item.replaceWornOutParts ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                    </td>
+                                                                    <td className="border border-black text-center align-middle">
+                                                                        {item.repair ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                    </td>
+                                                                    <td className="border border-black text-center align-middle">
+                                                                        {item.generalRecondition ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                    </td>
+                                                                    <td className="border border-black text-center align-middle">
+                                                                        {item.repairPart ? <span style={{ fontSize: "12px", fontWeight: "bold", lineHeight: 1 }}>&#10003;</span> : ""}
+                                                                    </td>
+                                                                    <td className="border border-black px-1 py-1">{item.remarks || ""}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+
+                                                {/* FREQUENCY CODE */}
+                                                <div className="border-x border-b border-black p-2 text-[10px] font-semibold bg-white shrink-0">
+                                                    <div className="mb-1 font-bold">FREQUENCY CODE</div>
+                                                    <div className="grid grid-cols-2 gap-x-4">
+                                                        <div><span className="font-bold">D</span> – Daily</div>
+                                                        <div><span className="font-bold">SM</span> – Semi-Monthly</div>
+                                                        <div><span className="font-bold">M</span> – Monthly</div>
+                                                        <div><span className="font-bold">SA</span> – Semi Annually</div>
+                                                        <div><span className="font-bold">W</span> – Weekly</div>
+                                                        <div><span className="font-bold">Q</span> – Quarterly</div>
+                                                        <div className="col-span-2"><span className="font-bold">A</span> – Annually</div>
+                                                    </div>
+                                                </div>
+
+                                                {/* SIGNATURES */}
+                                                <div className="mt-6 grid grid-cols-3 gap-8 text-[10px] shrink-0">
+                                                    {["Prepared", "Attested", "Approved"].map((label) => (
+                                                        <div key={label}>
+                                                            <div className="mb-6 font-medium">{label}:</div>
+                                                            <div className="border-b border-black text-center font-bold text-[10px] min-h-[20px]">{"\u00A0"}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </section>
+                    )}
+                </main>
             </div>
-
-            {/* CONFIRMATION MODAL */}
-            {confirmState.isOpen && (
-                <div
-                    className="no-print fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-                    onClick={() => {
-                        if (confirmState.onConfirm) {
-                            confirmState.onConfirm(false);
-                        }
-                    }}
-                >
-                    <div
-                        className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div
-                            className={`px-5 py-4 border-b border-slate-100 flex items-center gap-3 ${confirmState.variant === "danger"
-                                    ? "bg-red-50"
-                                    : "bg-blue-50"
-                                }`}
-                        >
-                            <div
-                                className={`w-9 h-9 rounded-full flex items-center justify-center ${confirmState.variant === "danger"
-                                        ? "bg-red-100 text-red-600"
-                                        : "bg-blue-100 text-blue-600"
-                                    }`}
-                            >
-                                <AlertCircle className="w-5 h-5" />
-                            </div>
-                            <h3 className="text-sm font-bold text-slate-800">
-                                {confirmState.title}
-                            </h3>
-                        </div>
-
-                        <div className="px-5 py-5">
-                            <p className="text-sm text-slate-600 leading-relaxed">
-                                {confirmState.message}
-                            </p>
-                        </div>
-
-                        <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    confirmState.onConfirm?.(false)
-                                }
-                                className="px-4 py-2 rounded-lg text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 transition"
-                            >
-                                {confirmState.cancelText}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    confirmState.onConfirm?.(true)
-                                }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium text-white transition ${confirmState.variant === "danger"
-                                        ? "bg-red-600 hover:bg-red-700"
-                                        : "bg-blue-600 hover:bg-blue-700"
-                                    }`}
-                            >
-                                {confirmState.confirmText}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </>
     );
 }

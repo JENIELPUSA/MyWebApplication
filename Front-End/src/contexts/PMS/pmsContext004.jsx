@@ -46,12 +46,39 @@ const normalizeBooleans = (values = {}) => {
     return normalized;
 };
 
+// ============================================================
+// 🔧 HELPER — Build query params for GET requests
+// ============================================================
+const buildQueryParams = (filters = {}) => {
+    const params = {};
+
+    // ✅ Show All — override date filter
+    if (filters.all) {
+        params.all = "true";
+        return params;
+    }
+
+    // ✅ Laboratory scope (para sa PMSComponent folder navigation)
+    if (filters.laboratoryId) {
+        params.laboratoryId = filters.laboratoryId;
+    }
+
+    // ✅ Date range filter
+    if (filters.from) params.from = filters.from;
+    if (filters.to) params.to = filters.to;
+
+    return params;
+};
+
 export const PMS004Provider = ({ children }) => {
     // ---------------- STATE ----------------
     const [pms004Records, setPms004Records] = useState([]);
     const [pms004Record, setPms004Record] = useState(null);
-    const [myLaboratory, setMyLaboratory] = useState(null); // ✅ added
-    const [performedBy, setPerformedBy] = useState(null); // ✅ NEW — Encharge info
+    const [myLaboratory, setMyLaboratory] = useState(null);
+    const [performedBy, setPerformedBy] = useState(null);
+
+    // ✅ total from backend (kung available) — fallback sa records.length
+    const [serverTotal, setServerTotal] = useState(0);
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -93,7 +120,6 @@ export const PMS004Provider = ({ children }) => {
         if (!authToken) return { success: false, error: "Not authenticated." };
         setLoading(true);
         try {
-            // ✅ Normalize booleans bago ipadala
             const payload = {
                 equipmentId: values.equipmentId,
                 laboratoryId: values.laboratoryId,
@@ -135,25 +161,63 @@ export const PMS004Provider = ({ children }) => {
     };
 
     // ============================================================
-    // GET ALL
+    // GET ALL — supports ?laboratoryId, ?from, ?to, ?all
     // GET /api/v1/Pms004
     // ============================================================
-    const fetchAllPMS004 = async () => {
+    const fetchAllPMS004 = async (filters = {}) => {
         if (!authToken) return null;
         setLoading(true);
         try {
+            const params = buildQueryParams(filters);
+
             const res = await axiosInstance.get(`${PMS004_BASE}`, {
+                params,
                 withCredentials: true,
                 headers: { Authorization: `Bearer ${authToken}` },
             });
 
-            const data = res?.data?.data || [];
-            setPms004Records(data);
-            setError(null);
-            return { success: true, data };
+            if (res?.data?.status === "success") {
+                const records = Array.isArray(res.data.pmsRecord)
+                    ? res.data.pmsRecord
+                    : Array.isArray(res.data.data)
+                    ? res.data.data
+                    : [];
+
+                const total =
+                    typeof res.data.total === "number"
+                        ? res.data.total
+                        : records.length;
+
+                const labData =
+                    res.data.data && !Array.isArray(res.data.data)
+                        ? res.data.data
+                        : null;
+
+                setPms004Records(records);
+                setServerTotal(total);
+                if (labData) setMyLaboratory(labData);
+                setError(null);
+
+                return {
+                    success: true,
+                    data: records,
+                    pmsRecord: records,
+                    total,
+                    laboratory: labData,
+                };
+            } else {
+                setPms004Records([]);
+                setServerTotal(0);
+                return {
+                    success: false,
+                    error: res?.data?.message || "No records found.",
+                };
+            }
         } catch (error) {
             const message = handleApiError(error);
             setError(message);
+            setPms004Records([]);
+            setServerTotal(0);
             return { success: false, error: message };
         } finally {
             setLoading(false);
@@ -212,33 +276,25 @@ export const PMS004Provider = ({ children }) => {
 
     // ============================================================
     // FETCH MY LABORATORY
-    // GET /api/v1/Pms004/FindByEquipment?from=&to=&all=
+    // GET /api/v1/Pms004/FindByEquipment?from=&to=&all=&laboratoryId=
     // ============================================================
     const fetchMyLaboratory = async (filters = {}) => {
         if (!authToken) return null;
         setLoading(true);
         try {
-            // ✅ Buuin ang query params
-            const params = {};
-
-            if (filters.all) {
-                params.all = "true";
-            } else {
-                if (filters.from) params.from = filters.from;
-                if (filters.to) params.to = filters.to;
-            }
+            const params = buildQueryParams(filters);
 
             const res = await axiosInstance.get(
                 `${PMS004_BASE}/FindByEquipment`,
                 {
-                    params, // ✅ axios automatic mag-a-append sa URL
+                    params,
                     withCredentials: true,
                     headers: { Authorization: `Bearer ${authToken}` },
                 }
             );
 
             if (res?.data?.status === "success") {
-                // ✅ Laboratory info (may kasama nang performedBy)
+                // ✅ Lab info (may kasama nang performedBy)
                 const labData = Array.isArray(res.data.data)
                     ? res.data.data[0]
                     : res.data.data || null;
@@ -248,23 +304,32 @@ export const PMS004Provider = ({ children }) => {
                     ? res.data.pmsRecord
                     : [];
 
-                // ✅ Kunin ang performedBy mula sa labData
+                // ✅ Total — mula sa backend kung available
+                const total =
+                    typeof res.data.total === "number"
+                        ? res.data.total
+                        : pmsRecords.length;
+
+                // ✅ Encharge info
                 const encharge = labData?.performedBy || null;
 
                 setMyLaboratory(labData);
                 setPms004Records(pmsRecords);
-                setPerformedBy(encharge); // ✅ i-save sa state
+                setServerTotal(total);
+                setPerformedBy(encharge);
 
                 return {
                     success: true,
                     data: labData,
                     pmsRecord: pmsRecords,
-                    performedBy: encharge, // ✅ convenient access
+                    performedBy: encharge,
+                    total,
                 };
             } else {
                 setMyLaboratory(null);
                 setPms004Records([]);
-                setPerformedBy(null); // ✅ clear
+                setServerTotal(0);
+                setPerformedBy(null);
                 return {
                     success: false,
                     error: res?.data?.message || "No laboratory found.",
@@ -273,31 +338,11 @@ export const PMS004Provider = ({ children }) => {
         } catch (error) {
             setMyLaboratory(null);
             setPms004Records([]);
-            setPerformedBy(null); // ✅ clear
+            setServerTotal(0);
+            setPerformedBy(null);
 
-            if (error.response && error.response.data) {
-                const errorData = error.response.data;
-                const message =
-                    typeof errorData === "string"
-                        ? errorData
-                        : errorData?.message ||
-                        errorData.error ||
-                        "Something went wrong.";
-                setCustomError(message);
-                return { success: false, error: message };
-            } else if (error.request) {
-                setCustomError("No response from the server.");
-                return {
-                    success: false,
-                    error: "No response from the server.",
-                };
-            } else {
-                setCustomError(error.message || "Unexpected error occurred.");
-                return {
-                    success: false,
-                    error: error.message || "Unexpected error occurred.",
-                };
-            }
+            const message = handleApiError(error);
+            return { success: false, error: message };
         } finally {
             setLoading(false);
         }
@@ -312,7 +357,6 @@ export const PMS004Provider = ({ children }) => {
             return { success: false, error: "Not authenticated." };
         setLoading(true);
         try {
-            // ✅ Normalize booleans bago ipadala
             const payload = {
                 equipmentId: values.equipmentId,
                 laboratoryId: values.laboratoryId,
@@ -400,11 +444,14 @@ export const PMS004Provider = ({ children }) => {
     };
 
     // ============================================================
-    // DERIVED — total records
+    // DERIVED — total records (server total kung available)
     // ============================================================
     const totalPMS004 = useMemo(
-        () => pms004Records?.length || 0,
-        [pms004Records]
+        () =>
+            typeof serverTotal === "number" && serverTotal >= 0
+                ? serverTotal
+                : pms004Records?.length || 0,
+        [serverTotal, pms004Records]
     );
 
     // ============================================================
@@ -429,11 +476,11 @@ export const PMS004Provider = ({ children }) => {
                 setPms004Records,
                 pms004Record,
                 setPms004Record,
-                myLaboratory, // ✅ added
-                setMyLaboratory, // ✅ added
-                performedBy, // ✅ NEW — Encharge user info
-                setPerformedBy, // ✅ NEW
-                performedByFullName, // ✅ NEW — "FirstName Middle LastName"
+                myLaboratory,
+                setMyLaboratory,
+                performedBy,
+                setPerformedBy,
+                performedByFullName,
 
                 loading,
                 error,

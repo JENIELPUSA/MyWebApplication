@@ -6,8 +6,8 @@ const authController = require('./../Controller/authController')
 router.route('/')
     .post(authController.protect,PMScontroller.createPMS001)
     .get(authController.protect,PMScontroller.getAllPMS001)
-
-
+router.route('/getDepartmentsWithLabEquipments')
+    .get(authController.protect,PMScontroller.getDepartmentsWithLabEquipments)
 
 router.route('/:id')
     .patch(authController.protect,PMScontroller.updatePMS001)

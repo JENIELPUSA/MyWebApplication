@@ -48,8 +48,8 @@ export const PMS005Provider = ({ children }) => {
                 typeof errorData === "string"
                     ? errorData
                     : errorData?.message ||
-                    errorData.error ||
-                    "Something went wrong.";
+                      errorData.error ||
+                      "Something went wrong.";
             setCustomError(message);
             return message;
         } else if (error.request) {
@@ -76,7 +76,6 @@ export const PMS005Provider = ({ children }) => {
         setLoading(true);
         setCustomError("");
         try {
-            // ✅ Buuin ang payload
             const payload = {
                 equipmentId: values.equipmentId,
                 laboratoryId: values.laboratoryId,
@@ -126,23 +125,62 @@ export const PMS005Provider = ({ children }) => {
     };
 
     // ============================================================
-    // GET ALL
-    // GET /api/v1/Pms005
+    // ✅ GET ALL — may laboratoryId support (para sa PMSComponent)
+    // GET /api/v1/Pms005?laboratoryId=...
     // ============================================================
-    const fetchAllPMS005 = async () => {
+    const fetchAllPMS005 = async (filters = {}) => {
         if (!authToken) return null;
         setLoading(true);
         setCustomError("");
         try {
+            const params = {};
+            if (filters.laboratoryId) {
+                params.laboratoryId = filters.laboratoryId;
+            }
+
+            if (import.meta.env.DEV) {
+                console.log("📤 fetchAllPMS005 params:", params);
+            }
+
             const res = await axiosInstance.get(`${PMS005_BASE}`, {
+                params,
                 withCredentials: true,
                 headers: { Authorization: `Bearer ${authToken}` },
             });
 
-            const data = res?.data?.data || [];
-            setPms005Records(data);
-            setError(null);
-            return { success: true, data };
+            if (res?.data?.status === "success") {
+                // ✅ Controller shape: { status, role, totalRecords, data, laboratory }
+                const records = Array.isArray(res.data.data)
+                    ? res.data.data
+                    : [];
+
+                const labInfo = res.data.laboratory || null;
+
+                setPms005Records(records);
+                setMyLaboratory(labInfo);
+                setPerformedBy(labInfo?.performedBy || null);
+                setError(null);
+
+                return {
+                    success: true,
+                    data: records,
+                    totalRecords:
+                        res.data.totalRecords ?? records.length,
+                    laboratory: labInfo,
+                    role: res.data.role,
+                };
+            } else {
+                setPms005Records([]);
+                setError(
+                    res?.data?.message || "Unexpected response from server."
+                );
+                return {
+                    success: false,
+                    error:
+                        res?.data?.message ||
+                        "Unexpected response from server.",
+                };
+            }
         } catch (error) {
             const message = handleApiError(error);
             setError(message);
@@ -184,7 +222,7 @@ export const PMS005Provider = ({ children }) => {
 
     // ============================================================
     // GET BY EQUIPMENT ID
-    // GET /api/v1/Pms005/equipment/:equipmentId
+    // GET /api/v1/Pms005?equipmentId=...
     // ============================================================
     const fetchPMS005ByEquipmentId = async (equipmentId) => {
         if (!authToken || !equipmentId) return null;
@@ -211,15 +249,19 @@ export const PMS005Provider = ({ children }) => {
     };
 
     // ============================================================
-    // FETCH MY LABORATORY
+    // ✅ FETCH MY LABORATORY
     // GET /api/v1/Pms005/FindByEquipment?from=&to=&all=
+    //
+    // Base sa getAllPMS005 controller:
+    //   { status, role, totalRecords, data, laboratory }
+    // ✅ data = PMS005 records (array)
+    // ✅ laboratory = lab info (may performedBy kung kasama)
     // ============================================================
     const fetchMyLaboratory = async (filters = {}) => {
         if (!authToken) return null;
         setLoading(true);
         setCustomError("");
         try {
-            // ✅ Buuin ang query params
             const params = {};
 
             if (filters.all) {
@@ -239,17 +281,15 @@ export const PMS005Provider = ({ children }) => {
             );
 
             if (res?.data?.status === "success") {
-                // ✅ Laboratory info (may kasama nang performedBy)
-                const labData = Array.isArray(res.data.data)
-                    ? res.data.data[0]
-                    : res.data.data || null;
-
-                // ✅ PMS005 records (top-level array sa response)
-                const pmsRecords = Array.isArray(res.data.pmsRecord)
-                    ? res.data.pmsRecord
+                // ✅ data = PMS005 records (array)
+                const pmsRecords = Array.isArray(res.data.data)
+                    ? res.data.data
                     : [];
 
-                // ✅ Kunin ang performedBy mula sa labData
+                // ✅ laboratory = lab info (object)
+                const labData = res.data.laboratory || null;
+
+                // ✅ performedBy mula sa labData (kung available)
                 const encharge = labData?.performedBy || null;
 
                 setMyLaboratory(labData);
@@ -258,9 +298,12 @@ export const PMS005Provider = ({ children }) => {
 
                 return {
                     success: true,
-                    data: labData,
-                    pmsRecord: pmsRecords,
+                    data: pmsRecords,
+                    pmsRecord: pmsRecords, // backward compat
+                    laboratory: labData,
                     performedBy: encharge,
+                    totalRecords:
+                        res.data.totalRecords ?? pmsRecords.length,
                 };
             } else {
                 setMyLaboratory(null);
@@ -391,7 +434,7 @@ export const PMS005Provider = ({ children }) => {
     };
 
     // ============================================================
-    // CLEAR — i-reset lahat ng state
+    // CLEAR
     // ============================================================
     const clearPMS005 = () => {
         setPms005Records([]);
@@ -403,16 +446,13 @@ export const PMS005Provider = ({ children }) => {
     };
 
     // ============================================================
-    // DERIVED — total records
+    // DERIVED
     // ============================================================
     const totalPMS005 = useMemo(
         () => pms005Records?.length || 0,
         [pms005Records]
     );
 
-    // ============================================================
-    // DERIVED — full name ng performedBy
-    // ============================================================
     const performedByFullName = useMemo(() => {
         if (!performedBy) return "";
         if (typeof performedBy === "string") return performedBy;

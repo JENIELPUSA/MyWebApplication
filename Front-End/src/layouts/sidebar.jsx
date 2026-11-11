@@ -59,7 +59,7 @@ export const Sidebar = forwardRef(({ collapsed }, ref) => {
                 "/dashboard/department",
                 "/dashboard/laboratory",
                 "/dashboard/report",
-                "/dashboard/assign",
+                "/dashboard/assign", "/dashboard/pmsmain",
                 "/dashboard/maintenance",
                 "/dashboard/problem", "/dashboard/category", "/dashboard/updatepassword"
             ],

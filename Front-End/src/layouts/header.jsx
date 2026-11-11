@@ -31,9 +31,6 @@ import { UserDataContext } from "../contexts/UserContext/UserContext";
 import { MessageDetailModal } from "./MessageDetailModal";
 import { AuthContext } from "../contexts/AuthContext";
 
-// ==========================================
-// ✅ PROFESSIONAL LABEL MAP
-// ==========================================
 const NOTIFICATION_LABELS = {
     AssignedTechnician: {
         label: "Technician Assigned",
@@ -160,11 +157,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
     const [localTechnicians] = useState([]);
     const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
     const [isSavingTheme, setIsSavingTheme] = useState(false);
-
-    // ✅ Optimistic "read" override set
     const [locallyReadIds, setLocallyReadIds] = useState(() => new Set());
-
-    // ✅ Auth — theme at saveTheme galing sa AuthContext
     const {
         first_name,
         role,
@@ -172,6 +165,8 @@ export const Header = ({ collapsed, setCollapsed }) => {
         theme,
         saveTheme,
     } = useContext(AuthContext);
+
+    console.log("theme",theme)
 
     const displayFirstName = first_name || Firstname || "";
 

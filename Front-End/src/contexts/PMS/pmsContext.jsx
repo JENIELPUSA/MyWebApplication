@@ -22,6 +22,12 @@ export const PMSProvider = ({ children }) => {
     const [pmsRecord, setPmsRecord] = useState(null);
     const [myLaboratory, setMyLaboratory] = useState(null);
 
+    //  BAGONG STATE para sa displayAllPMS001
+    const [displayAllRecords, setDisplayAllRecords] = useState([]);
+
+    // ✅ BAGONG STATE para sa Departments → Labs → PMS001
+    const [departmentsWithLabs, setDepartmentsWithLabs] = useState([]);
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [customError, setCustomError] = useState("");
@@ -39,8 +45,8 @@ export const PMSProvider = ({ children }) => {
                 typeof errorData === "string"
                     ? errorData
                     : errorData?.message ||
-                      errorData.error ||
-                      "Something went wrong.";
+                    errorData.error ||
+                    "Something went wrong.";
             setCustomError(message);
             return message;
         } else if (error.request) {
@@ -68,7 +74,7 @@ export const PMSProvider = ({ children }) => {
                 `${PMS_BASE}`,
                 {
                     equipmentId: values.equipmentId,
-                    laboratoryId:values.laboratoryId,
+                    laboratoryId: values.laboratoryId,
                     serviceable: values.serviceable,
                     nonServiceable: values.nonServiceable,
                     type: values.type,
@@ -84,7 +90,9 @@ export const PMSProvider = ({ children }) => {
                 }
             );
 
-            if (response?.data?.status === "success") {
+            console.log("response", response);
+
+            if (response?.status === "success" || 207) {
                 setModalStatus("success");
                 setShowModal(true);
                 setPmsRecords((prev) => [response.data.data, ...prev]);
@@ -108,22 +116,154 @@ export const PMSProvider = ({ children }) => {
     };
 
     // ============================================================
-    // GET ALL
-    // GET /api/v1/Pms
+    // Helper — Build query params for GET requests
     // ============================================================
-    const fetchAllPMS = async () => {
+    const buildQueryParams = (filters = {}) => {
+        const params = {};
+
+        // ✅ Show All — override date filter
+        if (filters.all) {
+            params.all = "true";
+        } else {
+            if (filters.from) params.from = filters.from;
+            if (filters.to) params.to = filters.to;
+        }
+
+        // ✅ Laboratory scope (para sa Admin)
+        if (filters.laboratoryId) {
+            params.laboratoryId = filters.laboratoryId;
+        }
+
+        return params;
+    };
+
+    // ============================================================
+    // GET ALL — PMS001
+    // GET /api/v1/Pms?laboratoryId=xxx&from=...&to=...&all=true
+    // ============================================================
+    const fetchAllPMS = async (filters = {}) => {
         if (!authToken) return null;
         setLoading(true);
         try {
+            const params = buildQueryParams(filters);
+
             const res = await axiosInstance.get(`${PMS_BASE}`, {
+                params, // ✅ axios automatic mag-a-append sa URL
                 withCredentials: true,
                 headers: { Authorization: `Bearer ${authToken}` },
             });
 
-            const data = res?.data?.data || [];
-            setPmsRecords(data);
+            if (res?.data?.status === "success") {
+                // ✅ Records — array
+                const records = Array.isArray(res.data.data)
+                    ? res.data.data
+                    : [];
+
+                // ✅ totalRecords — mula sa backend kung available
+                const total =
+                    typeof res.data.totalRecords === "number"
+                        ? res.data.totalRecords
+                        : records.length;
+
+                // ✅ Laboratory info (may `_id`, `LaboratoryName`, optional `performedBy`)
+                const laboratory = res.data.laboratory || null;
+
+                // ✅ Role (kung ibinalik ng backend)
+                const role = res.data.role || null;
+
+                setPmsRecords(records);
+                setError(null);
+
+                return {
+                    success: true,
+                    data: records,
+                    pmsRecord: records, // alias
+                    total,
+                    laboratory,
+                    role,
+                };
+            } else {
+                setPmsRecords([]);
+                return {
+                    success: false,
+                    error: res?.data?.message || "No records found.",
+                };
+            }
+        } catch (error) {
+            const message = handleApiError(error);
+            setError(message);
+            setPmsRecords([]);
+            return { success: false, error: message };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const displayAllPMS001 = async ({ from, to, laboratoryId } = {}) => {
+        if (!authToken) return { success: false, error: "Not authenticated." };
+        setLoading(true);
+        try {
+            const params = {};
+            if (from) params.from = from;
+            if (to) params.to = to;
+            if (laboratoryId) params.laboratoryId = laboratoryId;   // ✅ Idinagdag
+
+            const res = await axiosInstance.get(
+                `${PMS_BASE}`,
+                {
+                    params,
+                    withCredentials: true,
+                    headers: { Authorization: `Bearer ${authToken}` },
+                }
+            );
+
+            const data = res?.data?.pmsRecord || [];
+
+            //SARILING SETTER — hindi ginagalaw ang pmsRecords
+            setDisplayAllRecords(data);
+
             setError(null);
-            return { success: true, data };
+            return {
+                success: true,
+                data,
+                laboratory: res?.data?.data || null,
+                role: res?.data?.role || null,   // ✅ Ibalik ang role para reference
+            };
+        } catch (error) {
+            const message = handleApiError(error);
+            setError(message);
+            return { success: false, error: message };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ============================================================
+    // ✅ GET DEPARTMENTS → LABORATORIES → PMS001
+    // GET /api/v1/Pms/getDepartmentsWithLabEquipments
+    // (walang param — lahat ng departments)
+    // ============================================================
+    const fetchDepartmentsWithLabEquipments = async () => {
+        if (!authToken) return { success: false, error: "Not authenticated." };
+        setLoading(true);
+        try {
+            const res = await axiosInstance.get(
+                `${PMS_BASE}/getDepartmentsWithLabEquipments`,
+                {
+                    withCredentials: true,
+                    headers: { Authorization: `Bearer ${authToken}` },
+                }
+            );
+
+            const data = res?.data?.data || [];
+            setDepartmentsWithLabs(data);
+            setError(null);
+
+            return {
+                success: true,
+                data,
+                totalDepartments: res?.data?.totalDepartments || data.length,
+            };
         } catch (error) {
             const message = handleApiError(error);
             setError(message);
@@ -321,10 +461,18 @@ export const PMSProvider = ({ children }) => {
         }
     };
 
-    // ============================================================
-    // DERIVED — total records
-    // ============================================================
     const totalPMS = useMemo(() => pmsRecords?.length || 0, [pmsRecords]);
+
+    const totalDisplayAll = useMemo(
+        () => displayAllRecords?.length || 0,
+        [displayAllRecords]
+    );
+
+    // ✅ Total ng departments na may labs
+    const totalDepartmentsWithLabs = useMemo(
+        () => departmentsWithLabs?.length || 0,
+        [departmentsWithLabs]
+    );
 
     // ============================================================
     // PROVIDER VALUE
@@ -339,6 +487,15 @@ export const PMSProvider = ({ children }) => {
                 setPmsRecord,
                 myLaboratory,
                 setMyLaboratory,
+                displayAllRecords,
+                setDisplayAllRecords,
+                totalDisplayAll,
+
+                // ✅ BAGONG STATE
+                departmentsWithLabs,
+                setDepartmentsWithLabs,
+                totalDepartmentsWithLabs,
+
                 loading,
                 error,
                 customError,
@@ -348,6 +505,8 @@ export const PMSProvider = ({ children }) => {
                 // methods
                 createPMS,
                 fetchAllPMS,
+                displayAllPMS001,
+                fetchDepartmentsWithLabEquipments, // ✅ BAGONG METHOD
                 fetchPMSById,
                 fetchPMSByEquipmentId,
                 updatePMS,

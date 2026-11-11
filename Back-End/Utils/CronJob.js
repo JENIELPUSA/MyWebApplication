@@ -25,8 +25,6 @@ cron.schedule("*/1 * * * *", async () => {
       .populate("equipmentType");
 
     for (const schedule of schedules) {
-      console.log("Found schedule:", schedule._id);
-
       const laboratory = schedule.Laboratory;
       const department = schedule.Department;
       const equipment = schedule.equipmentType;

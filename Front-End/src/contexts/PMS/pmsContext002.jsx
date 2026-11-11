@@ -4,6 +4,7 @@ import React, {
     useState,
     useContext,
     useMemo,
+    useCallback,
 } from "react";
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../components/ReusableComponent/SuccessandFailedModal";
@@ -20,7 +21,7 @@ export const PMS002Provider = ({ children }) => {
     // ---------------- STATE ----------------
     const [pms002Records, setPms002Records] = useState([]);
     const [pms002Record, setPms002Record] = useState(null);
-    const [myLaboratory, setMyLaboratory] = useState(null); // ✅ added
+    const [myLaboratory, setMyLaboratory] = useState(null);
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -29,7 +30,8 @@ export const PMS002Provider = ({ children }) => {
     const [showModal, setShowModal] = useState(false);
     const [modalStatus, setModalStatus] = useState("success");
 
-    const { authToken } = useContext(AuthContext);
+    // ✅ FIX: kunin din ang `user` mula sa AuthContext
+    const { authToken, user } = useContext(AuthContext);
 
     // ---------------- HELPERS ----------------
     const handleApiError = (error) => {
@@ -85,6 +87,8 @@ export const PMS002Provider = ({ children }) => {
                 }
             );
 
+            console.log("response",response)
+
             if (response?.data?.status === "success") {
                 setModalStatus("success");
                 setShowModal(true);
@@ -109,31 +113,83 @@ export const PMS002Provider = ({ children }) => {
     };
 
     // ============================================================
-    // GET ALL
+    // GET ALL PMS002
     // GET /api/v1/Pms002
     // ============================================================
-    const fetchAllPMS002 = async () => {
-        if (!authToken) return null;
-        setLoading(true);
-        try {
-            const res = await axiosInstance.get(`${PMS002_BASE}`, {
-                withCredentials: true,
-                headers: { Authorization: `Bearer ${authToken}` },
-            });
+    const fetchAllPMS002 = useCallback(
+        async (options = {}) => {
+            const {
+                laboratoryId: explicitLaboratoryId,
+                from,
+                to,
+                forceLaboratoryId,
+            } = options;
 
-            const data = res?.data?.data || [];
-            setPms002Records(data);
-            setError(null);
-            return { success: true, data };
-        } catch (error) {
-            const message = handleApiError(error);
-            setError(message);
-            return { success: false, error: message };
-        } finally {
-            setLoading(false);
-        }
-    };
+            if (!authToken) return null;
 
+            const role = user?.role;
+
+            // ✅ Resolve laboratoryId — mula sa explicit, force, o wala
+            const resolvedLaboratoryId =
+                explicitLaboratoryId || forceLaboratoryId || null;
+
+            // ✅ Admin must pass laboratoryId
+            if (role === "Admin" && !resolvedLaboratoryId) {
+                const message = "laboratoryId is required for Admin role.";
+                setError(message);
+                setCustomError(message);
+                return { success: false, error: message };
+            }
+
+            setLoading(true);
+
+            try {
+                const params = {};
+
+                if (from) params.from = from;
+                if (to) params.to = to;
+
+                // ✅ PALAGING ipasa ang laboratoryId kung may value
+                // (safe kahit User — backend ang mag-o-override gamit ang Encharge)
+                if (resolvedLaboratoryId) {
+                    params.laboratoryId = resolvedLaboratoryId;
+                }
+
+                const res = await axiosInstance.get(`${PMS002_BASE}`, {
+                    params,
+                    withCredentials: true,
+                    headers: { Authorization: `Bearer ${authToken}` },
+                });
+
+                // ✅ Tamang response shape:
+                // { status, role, pmsRecord002, totalPMS002, data }
+                const records = res?.data?.pmsRecord002 || [];
+                const total = res?.data?.totalPMS002 ?? records.length;
+                const laboratoryInfo = res?.data?.data || null;
+
+                setPms002Records(records);
+                setMyLaboratory(laboratoryInfo);
+                setError(null);
+                setCustomError("");
+
+                return {
+                    success: true,
+                    data: records,
+                    total,
+                    laboratory: laboratoryInfo,
+                    role: res?.data?.role,
+                };
+            } catch (error) {
+                const message = handleApiError(error);
+                setError(message);
+                setPms002Records([]);
+                return { success: false, error: message };
+            } finally {
+                setLoading(false);
+            }
+        },
+        [authToken, user?.role]
+    );
     // ============================================================
     // GET BY ID
     // GET /api/v1/Pms002/:id
@@ -205,25 +261,24 @@ export const PMS002Provider = ({ children }) => {
             const res = await axiosInstance.get(
                 `${PMS002_BASE}/FindByEquipment`,
                 {
-                    params, // ✅ axios automatic mag-a-append sa URL
+                    params,
                     withCredentials: true,
                     headers: { Authorization: `Bearer ${authToken}` },
                 }
             );
 
             if (res?.data?.status === "success") {
-                // ✅ Laboratory info
                 const labData = Array.isArray(res.data.data)
                     ? res.data.data[0]
                     : res.data.data || null;
 
-                // ✅ PMS002 records (top-level array sa response)
                 const pmsRecords = Array.isArray(res.data.pmsRecord)
                     ? res.data.pmsRecord
                     : [];
 
                 setMyLaboratory(labData);
                 setPms002Records(pmsRecords);
+                setError(null);
 
                 return {
                     success: true,
@@ -239,35 +294,10 @@ export const PMS002Provider = ({ children }) => {
                 };
             }
         } catch (error) {
-            if (error.response && error.response.data) {
-                const errorData = error.response.data;
-                const message =
-                    typeof errorData === "string"
-                        ? errorData
-                        : errorData?.message ||
-                        errorData.error ||
-                        "Something went wrong.";
-                setCustomError(message);
-                setMyLaboratory(null);
-                setPms002Records([]);
-                return { success: false, error: message };
-            } else if (error.request) {
-                setCustomError("No response from the server.");
-                setMyLaboratory(null);
-                setPms002Records([]);
-                return {
-                    success: false,
-                    error: "No response from the server.",
-                };
-            } else {
-                setCustomError(error.message || "Unexpected error occurred.");
-                setMyLaboratory(null);
-                setPms002Records([]);
-                return {
-                    success: false,
-                    error: error.message || "Unexpected error occurred.",
-                };
-            }
+            const message = handleApiError(error);
+            setMyLaboratory(null);
+            setPms002Records([]);
+            return { success: false, error: message };
         } finally {
             setLoading(false);
         }
@@ -393,8 +423,8 @@ export const PMS002Provider = ({ children }) => {
                 setPms002Records,
                 pms002Record,
                 setPms002Record,
-                myLaboratory, // ✅ added
-                setMyLaboratory, // ✅ added
+                myLaboratory,
+                setMyLaboratory,
 
                 loading,
                 error,
@@ -402,12 +432,15 @@ export const PMS002Provider = ({ children }) => {
                 setCustomError,
                 totalPMS002,
 
+                // ✅ user (role) — para sa role checks sa component
+                user,
+
                 // methods
                 createPMS002,
                 fetchAllPMS002,
                 fetchPMS002ById,
                 fetchPMS002ByEquipmentId,
-                fetchMyLaboratory, // ✅ added
+                fetchMyLaboratory,
                 updatePMS002,
                 deletePMS002,
 

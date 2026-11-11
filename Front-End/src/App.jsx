@@ -26,6 +26,7 @@ import Pms005 from "./components/PMSForm/Pms005";
 import Pms006 from "./components/PMSForm/Pms006";
 import Category from "./components/Category/CategoryTable";
 import UpdatePassword from "./components/AuthenticationComponents/UpdatePassword";
+import PMSComponent from "./components/PMSExport/PMSComponent"
 
 // Router created ONCE, outside the component
 const router = createBrowserRouter([
@@ -64,6 +65,7 @@ const router = createBrowserRouter([
                     { path: "pms004", element: <Pms004 /> },
                     { path: "pms005", element: <Pms005 /> },
                     { path: "pms006", element: <Pms006 /> },
+                    { path: "pmsmain", element: <PMSComponent /> },
                     { path: "category", element: <Category /> },
                     { path: "updatepassword", element: <UpdatePassword /> },
                 ],

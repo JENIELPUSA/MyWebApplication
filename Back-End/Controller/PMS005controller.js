@@ -30,7 +30,7 @@ exports.FindByEquipment = AsyncErrorHandler(async (req, res) => {
         },
         {
             $lookup: {
-                from: "users", // ✅ collection name (lowercase + pluralized)
+                from: "users", // collection name (lowercase + pluralized)
                 localField: "Encharge",
                 foreignField: "_id",
                 as: "Encharge",
@@ -47,7 +47,7 @@ exports.FindByEquipment = AsyncErrorHandler(async (req, res) => {
                 _id: 1,
                 LaboratoryName: { $ifNull: ["$LaboratoryName", "N/A"] },
 
-                // ✅ Tugma sa User schema field names
+                // Tugma sa User schema field names
                 performedBy: {
                     _id: "$Encharge._id",
                     username: { $ifNull: ["$Encharge.username", ""] },
@@ -78,7 +78,7 @@ exports.FindByEquipment = AsyncErrorHandler(async (req, res) => {
 
     const showAll = all === "true" || all === "1";
 
-    // ✅ Kung walang from, walang to, at hindi 'all' → empty
+    // Kung walang from, walang to, at hindi 'all' → empty
     if (!showAll && !from && !to) {
         return res.status(200).json({
             status: "success",
@@ -86,7 +86,7 @@ exports.FindByEquipment = AsyncErrorHandler(async (req, res) => {
             data: {
                 _id: laboratoryId,
                 LaboratoryName: laboratory[0].LaboratoryName,
-                performedBy, // ✅ isama ang performedBy
+                performedBy, // isama ang performedBy
             },
         });
     }
@@ -146,7 +146,7 @@ exports.FindByEquipment = AsyncErrorHandler(async (req, res) => {
         data: {
             _id: laboratoryId,
             LaboratoryName: laboratory[0].LaboratoryName,
-            performedBy, // ✅ isama ang performedBy
+            performedBy, // isama ang performedBy
         },
     });
 });
@@ -159,7 +159,7 @@ exports.createPMS005 = AsyncErrorHandler(async (req, res, next) => {
 
     console.log("BODY", req.body);
 
-    // ✅ Validate equipmentId
+    // Validate equipmentId
     if (!equipmentId) {
         return next(new CustomError("Equipment ID is required", 400));
     }
@@ -168,7 +168,7 @@ exports.createPMS005 = AsyncErrorHandler(async (req, res, next) => {
         return next(new CustomError("Invalid Equipment ID format", 400));
     }
 
-    // ✅ Validate laboratoryId
+    // Validate laboratoryId
     if (!laboratoryId) {
         return next(new CustomError("Laboratory ID is required", 400));
     }
@@ -177,26 +177,26 @@ exports.createPMS005 = AsyncErrorHandler(async (req, res, next) => {
         return next(new CustomError("Invalid Laboratory ID format", 400));
     }
 
-    // ✅ Check kung existing ang Equipment
+    // Check kung existing ang Equipment
     const equipmentExists = await Equipment.findById(equipmentId);
     if (!equipmentExists) {
         return next(new CustomError("Equipment not found", 404));
     }
 
-    // ✅ Check kung existing ang Laboratory
+    // Check kung existing ang Laboratory
     const laboratoryExists = await Laboratory.findById(laboratoryId);
     if (!laboratoryExists) {
         return next(new CustomError("Laboratory not found", 404));
     }
 
-    // ✅ Create record
+    // Create record
     const newRecord = await PMSMaintenanceController.create(req.body);
 
     if (!newRecord) {
         return next(new CustomError("Failed to create PMS005 record", 400));
     }
 
-    // ✅ Populate equipment details
+    // Populate equipment details
     const populated = await newRecord.populate("equipmentId");
 
     res.status(201).json({
@@ -205,20 +205,155 @@ exports.createPMS005 = AsyncErrorHandler(async (req, res, next) => {
     });
 });
 
-// ============================================================
-// GET ALL — List all PMS005 records
-// ============================================================
 exports.getAllPMS005 = AsyncErrorHandler(async (req, res, next) => {
-    const records = await PMSMaintenanceController.find()
-        .populate("equipmentId")
-        .populate("laboratoryId")
-        .sort({ Date: -1, createdAt: -1 });
+    try {
+        const userID = req.user._id;
+        const role = req.user.role;
 
-    res.status(200).json({
-        status: "success",
-        totalRecords: records.length,
-        data: records,
-    });
+        console.log("triggerrr____ getAllPMS005");
+        console.log("role:", role);
+
+        // ============================================================
+        // STEP 1: Resolve laboratoryId base sa role
+        // ============================================================
+        let laboratoryId = null;
+
+        if (role === "User") {
+            const laboratory = await Laboratory.findOne({ Encharge: userID })
+                .select("_id LaboratoryName")
+                .lean();
+
+            console.log("laboratory (User):", laboratory);
+
+            if (!laboratory) {
+                return res.status(404).json({
+                    status: "fail",
+                    message:
+                        "You are not assigned as Encharge to any laboratory.",
+                });
+            }
+
+            laboratoryId = laboratory._id;
+        } else if (role === "Admin") {
+            const { laboratoryId: queryLabId } = req.query;
+
+            console.log("queryLabId (Admin):", queryLabId);
+
+            if (!queryLabId) {
+                return res.status(400).json({
+                    status: "fail",
+                    message: "laboratoryId is required for Admin role.",
+                });
+            }
+
+            if (!mongoose.Types.ObjectId.isValid(queryLabId)) {
+                return res.status(400).json({
+                    status: "fail",
+                    message: "Invalid laboratoryId format.",
+                });
+            }
+
+            laboratoryId = new mongoose.Types.ObjectId(queryLabId);
+        } else {
+            return res.status(403).json({
+                status: "fail",
+                message: `Role "${role}" is not allowed to access this resource.`,
+            });
+        }
+
+        // ============================================================
+        // STEP 2: Laboratory details
+        // ============================================================
+        const laboratory = await Laboratory.findById(laboratoryId)
+            .select("_id LaboratoryName")
+            .lean();
+
+        if (!laboratory) {
+            return res.status(404).json({
+                status: "fail",
+                message: "No laboratory found.",
+            });
+        }
+
+        // ============================================================
+        // STEP 3: Query — strict lab, may equipment lang
+        // ============================================================
+        const pms005Query = {
+            laboratoryId,
+            equipmentId: { $ne: null, $exists: true },
+        };
+
+        console.log("🔍 [getAllPMS005]");
+        console.log("  - role:", role);
+        console.log("  - laboratoryId:", laboratoryId);
+        console.log("  - query:", JSON.stringify(pms005Query));
+
+        // ✅ TAMANG MODEL — PMS005, hindi PMSMaintenanceController
+        // ✅ WALANG .populate("laboratoryId") — ID lang ang kailangan
+        const rawRecords = await PMSMaintenanceController.find(pms005Query)
+            .populate({
+                path: "equipmentId",
+                select:
+                    "code Brand DateAcquired SerialNumber Specification status remarks Category laboratory laboratoryId lab",
+            })
+            .sort({ Date: -1, createdAt: -1 })
+            .lean();
+
+        console.log("🔍 rawRecords count:", rawRecords.length);
+
+        // ============================================================
+        // STEP 4: Manual filter — valid equipment only
+        // ============================================================
+        const validRecords = rawRecords.filter((r) => {
+            const eq = r.equipmentId;
+            if (!eq || !eq._id) return false;
+
+            // ✅ Try lahat ng possible lab field names
+            const eqLab = eq.laboratory || eq.laboratoryId || eq.lab;
+
+            if (!eqLab) {
+                console.warn(
+                    `⚠️ Equipment ${eq._id} (${eq.code || "no-code"}) has no lab field`
+                );
+                return true; // ← tanggapin muna (backward compat)
+            }
+
+            return String(eqLab) === String(laboratoryId);
+        });
+
+        const invalidCount = rawRecords.length - validRecords.length;
+        console.log("🔍 PMS005 raw count:", rawRecords.length);
+        console.log("🔍 PMS005 valid count:", validRecords.length);
+        console.log("🔍 Filtered out (mismatched lab):", invalidCount);
+
+        // ============================================================
+        // STEP 5: Response
+        // ============================================================
+        res.status(200).json({
+            status: "success",
+            role: role,
+            totalRecords: validRecords.length,
+            data: validRecords,
+            laboratory: {
+                _id: laboratory._id,
+                LaboratoryName: laboratory.LaboratoryName || "N/A",
+            },
+        });
+    } catch (err) {
+        console.error("💥 getAllPMS005 CRASHED");
+        console.error("Message:", err.message);
+        console.error("Name:", err.name);
+        console.error("Stack:", err.stack);
+
+        return res.status(500).json({
+            status: "fail",
+            message: "Internal server error",
+            error: {
+                name: err.name,
+                message: err.message,
+            },
+        });
+    }
 });
 
 // ============================================================
@@ -281,7 +416,7 @@ exports.updatePMS005 = AsyncErrorHandler(async (req, res, next) => {
         return next(new CustomError("Invalid ID format", 400));
     }
 
-    // ✅ Filter out empty values — huwag i-update ang fields na walang value
+    // Filter out empty values — huwag i-update ang fields na walang value
     const filteredBody = {};
     Object.keys(req.body).forEach((key) => {
         const value = req.body[key];
@@ -290,7 +425,7 @@ exports.updatePMS005 = AsyncErrorHandler(async (req, res, next) => {
         }
     });
 
-    // ✅ Validate equipmentId kung binago
+    // Validate equipmentId kung binago
     if (
         filteredBody.equipmentId &&
         !mongoose.Types.ObjectId.isValid(filteredBody.equipmentId)
@@ -298,7 +433,7 @@ exports.updatePMS005 = AsyncErrorHandler(async (req, res, next) => {
         return next(new CustomError("Invalid Equipment ID format", 400));
     }
 
-    // ✅ Validate laboratoryId kung binago
+    // Validate laboratoryId kung binago
     if (
         filteredBody.laboratoryId &&
         !mongoose.Types.ObjectId.isValid(filteredBody.laboratoryId)
@@ -347,4 +482,178 @@ exports.deletePMS005 = AsyncErrorHandler(async (req, res, next) => {
         status: "success",
         data: null,
     });
+});
+
+// ============================================================
+// DISPLAY ALL PMS005 — with Encharge matching + optional date filter
+// ============================================================
+exports.DisplayAllPMS005 = AsyncErrorHandler(async (req, res) => {
+    try {
+        const userID = req.user._id;
+        const role = req.user.role;
+
+        console.log("triggerrr____ DisplayAllPMS005");
+
+        // ============================================================
+        // STEP 1: Base match stage
+        // ============================================================
+        let matchStage = {};
+
+        // ============================================================
+        // STEP 2: Kung role === "User", i-filter base sa Laboratory ng Encharge
+        // ============================================================
+        if (role === "User") {
+            const laboratory = await Laboratory.findOne({ Encharge: userID });
+
+            console.log("laboratory", laboratory);
+
+            if (!laboratory) {
+                return res.status(404).json({
+                    status: "fail",
+                    message: "You are not assigned as Encharge to any laboratory.",
+                });
+            }
+
+            matchStage._id = laboratory._id;
+        }
+
+        // ============================================================
+        // STEP 3: Kunin ang Laboratory gamit ang matchStage
+        //         + populate ang Encharge sa pamamagitan ng $lookup
+        // ============================================================
+        const laboratory = await Laboratory.aggregate([
+            { $match: matchStage },
+            {
+                $lookup: {
+                    from: "users", // collection name (lowercase + pluralized)
+                    localField: "Encharge",
+                    foreignField: "_id",
+                    as: "Encharge",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$Encharge",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $project: {
+                    _id: 1,
+                    LaboratoryName: { $ifNull: ["$LaboratoryName", "N/A"] },
+                    performedBy: {
+                        _id: "$Encharge._id",
+                        username: { $ifNull: ["$Encharge.username", ""] },
+                        FirstName: { $ifNull: ["$Encharge.FirstName", ""] },
+                        Middle: { $ifNull: ["$Encharge.Middle", ""] },
+                        LastName: { $ifNull: ["$Encharge.LastName", ""] },
+                        role: { $ifNull: ["$Encharge.role", ""] },
+                    },
+                },
+            },
+            { $limit: 1 },
+        ]);
+
+        if (!laboratory || laboratory.length === 0) {
+            return res.status(404).json({
+                status: "fail",
+                message: "No laboratory found.",
+            });
+        }
+
+        const laboratoryId = laboratory[0]._id;
+        const performedBy = laboratory[0].performedBy || null;
+
+        // ============================================================
+        // STEP 4: Query flags (optional date filter)
+        // ============================================================
+        const { from, to } = req.query;
+
+        // ============================================================
+        // STEP 5: Buuin ang date filter (base sa `createdAt`)
+        // ============================================================
+        const dateFilter = {};
+
+        if (from || to) {
+            dateFilter.createdAt = {};
+
+            if (from) {
+                const fromDate = new Date(from);
+                if (isNaN(fromDate.getTime())) {
+                    return res.status(400).json({
+                        status: "fail",
+                        message: "Invalid 'from' date format. Use YYYY-MM-DD.",
+                    });
+                }
+                fromDate.setHours(0, 0, 0, 0);
+                dateFilter.createdAt.$gte = fromDate;
+            }
+
+            if (to) {
+                const toDate = new Date(to);
+                if (isNaN(toDate.getTime())) {
+                    return res.status(400).json({
+                        status: "fail",
+                        message: "Invalid 'to' date format. Use YYYY-MM-DD.",
+                    });
+                }
+                toDate.setHours(23, 59, 59, 999);
+                dateFilter.createdAt.$lte = toDate;
+            }
+        }
+
+        // ============================================================
+        // STEP 6: Matching — PMS005 records lang ng lab
+        // ============================================================
+        const pms005Query = { ...dateFilter };
+
+        if (laboratoryId) {
+            // ⚠️ Kung may `laboratoryId` field ang PMS005, direct match:
+            pms005Query.laboratoryId = laboratoryId;
+
+            // ⚠️ KUNG WALANG `laboratoryId` sa PMS005, gamitin ang equipment approach:
+            // const equipmentList = await Equipment.find(
+            //     { laboratory: laboratoryId },
+            //     { _id: 1 }
+            // ).lean();
+            // const equipmentIds = equipmentList.map((e) => e._id);
+            // if (equipmentIds.length > 0) {
+            //     pms005Query.equipmentId = { $in: equipmentIds };
+            // } else {
+            //     pms005Query._id = { $in: [] };
+            // }
+        }
+
+        // ============================================================
+        // STEP 7: Kunin ang PMS005 records — matching + date filter
+        // ============================================================
+        const pmsRecord = await PMSMaintenanceController.find(pms005Query)
+            .populate("equipmentId")
+            .sort({ createdAt: -1 });
+
+        // ============================================================
+        // STEP 8: Response
+        // ============================================================
+        res.status(200).json({
+            status: "success",
+            role: role,
+            pmsRecord,
+            data: {
+                _id: laboratoryId,
+                LaboratoryName: laboratory[0].LaboratoryName,
+                performedBy,
+            },
+        });
+    } catch (error) {
+        console.error("❌ DisplayAllPMS005 error:", error);
+
+        if (!res.headersSent) {
+            return res.status(500).json({
+                status: "fail",
+                message:
+                    error?.message ||
+                    "An error occurred while fetching PMS005 records.",
+            });
+        }
+    }
 });

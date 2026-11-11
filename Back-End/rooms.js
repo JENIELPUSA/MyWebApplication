@@ -1,9 +1,4 @@
-/**
- * Room name helpers — single source of truth.
- * Pareho ito gamit sa server.js (join) at controllers (emit).
- */
 
-// Role-based room: "role:admin", "role:user", "role:technician", "role:supply"
 const roleRoom = (role) => `role:${String(role).toLowerCase().trim()}`;
 
 // User-specific room: "user:<userId>" — direct targeting / self-message

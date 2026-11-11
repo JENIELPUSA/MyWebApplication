@@ -9,212 +9,283 @@ const Assign= require("../Models/AssigningEquipment")
 
 
 exports.FindByCode = AsyncErrorHandler(async (req, res) => {
-  try {
-    const { code } = req.params;
-    const userId = req.user?._id;
+    try {
+        const { code } = req.params;
+        const userId = req.user?._id;
 
-    // ============================================================
-    // VALIDATION
-    // ============================================================
-    if (!userId) {
-      return res.status(400).json({
-        status: "fail",
-        message: "User ID not found in request.",
-      });
-    }
+        console.log("🔍 [FindByCode] raw param:", JSON.stringify(code));
 
-    if (!code) {
-      return res.status(400).json({
-        status: "fail",
-        message: "Please provide a code",
-      });
-    }
+        // ============================================================
+        // VALIDATION
+        // ============================================================
+        if (!userId) {
+            return res.status(400).json({
+                status: "fail",
+                message: "User ID not found in request.",
+            });
+        }
 
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-    const cleanCode = code.trim();
+        if (!code) {
+            return res.status(400).json({
+                status: "fail",
+                message: "Please provide a code",
+            });
+        }
 
-    // ============================================================
-    // STEP 1: AGGREGATION
-    //  ✅ Kasama na ang CategoryName (Type) at LaboratoryName (Location)
-    // ============================================================
-    console.log("🔍 [2] Running Assign aggregation...");
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+        const cleanCode = decodeURIComponent(code).trim();
 
-    const result = await Assign.aggregate([
-      {
-        $lookup: {
-          from: "laboratories",
-          let: { labId: "$Laboratory" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ["$_id", "$$labId"] },
-                    { $eq: ["$Encharge", userObjectId] },
-                  ],
+        console.log(
+            "🔍 [FindByCode] cleanCode:",
+            JSON.stringify(cleanCode)
+        );
+
+        // ============================================================
+        // STEP 1: AGGREGATION — may fallback sa collection name
+        // ============================================================
+        console.log("🔍 [FindByCode] Running Assign aggregation...");
+
+        // ✅ Helper — run aggregation with dynamic equipment collection
+        const runAggregation = async (equipmentCollection) => {
+            return Assign.aggregate([
+                {
+                    $lookup: {
+                        from: "laboratories",
+                        let: { labId: "$Laboratory" },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $and: [
+                                            { $eq: ["$_id", "$$labId"] },
+                                            {
+                                                $eq: [
+                                                    "$Encharge",
+                                                    userObjectId,
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                            {
+                                $project: {
+                                    _id: 1,
+                                    LaboratoryName: 1,
+                                },
+                            },
+                        ],
+                        as: "LaboratoryData",
+                    },
                 },
-              },
-            },
-            {
-              $project: {
-                _id: 1,
-                LaboratoryName: 1,
-              },
-            },
-          ],
-          as: "LaboratoryData",
-        },
-      },
-      { $unwind: "$LaboratoryData" },
-      {
-        $lookup: {
-          from: "equipment",
-          localField: "Equipments",
-          foreignField: "_id",
-          as: "EquipmentData",
-        },
-      },
-      { $unwind: "$EquipmentData" },
-      {
-        $match: {
-          "EquipmentData.code": {
-            $regex: `^${cleanCode}$`,
-            $options: "i",
-          },
-        },
-      },
-      // ✅ BAGONG LOOKUP — Category
-      {
-        $lookup: {
-          from: "categories",
-          localField: "EquipmentData.Category",
-          foreignField: "_id",
-          as: "CategoryData",
-        },
-      },
-      {
-        $unwind: {
-          path: "$CategoryData",
-          preserveNullAndEmptyArrays: true, // ✅ kahit walang category, hindi mawawala
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          equipmentId: "$EquipmentData._id",
-          code: "$EquipmentData.code",
-          Brand: "$EquipmentData.Brand",
-          DateAcquired: "$EquipmentData.DateAcquired",
-          Category: "$EquipmentData.Category",
-          // ✅ Type galing sa Category
-          Type: "$CategoryData.CategoryName",
-          categoryName: "$CategoryData.CategoryName",
-          SerialNumber: "$EquipmentData.SerialNumber",
-          Specification: "$EquipmentData.Specification",
-          // ✅ Location galing sa Laboratory
-          Location: "$LaboratoryData.LaboratoryName",
-          laboratoryId: "$LaboratoryData._id",
-          LaboratoryName: "$LaboratoryData.LaboratoryName",
-        },
-      },
-      { $limit: 1 },
-    ]);
+                { $unwind: "$LaboratoryData" },
+                {
+                    $lookup: {
+                        from: equipmentCollection,
+                        localField: "Equipments",
+                        foreignField: "_id",
+                        as: "EquipmentData",
+                    },
+                },
+                { $unwind: "$EquipmentData" },
+                {
+                    $match: {
+                        "EquipmentData.code": {
+                            $regex: `^\\s*${cleanCode.replace(
+                                /[.*+?^${}()|[\]\\]/g,
+                                "\\$&"
+                            )}\\s*$`,
+                            $options: "i",
+                        },
+                    },
+                },
+                {
+                    $lookup: {
+                        from: "categories",
+                        localField: "EquipmentData.Category",
+                        foreignField: "_id",
+                        as: "CategoryData",
+                    },
+                },
+                {
+                    $unwind: {
+                        path: "$CategoryData",
+                        preserveNullAndEmptyArrays: true,
+                    },
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        equipmentId: "$EquipmentData._id",
+                        code: "$EquipmentData.code",
+                        Brand: "$EquipmentData.Brand",
+                        DateAcquired: "$EquipmentData.DateAcquired",
+                        Category: "$EquipmentData.Category",
+                        Type: "$CategoryData.CategoryName",
+                        categoryName: "$CategoryData.CategoryName",
+                        SerialNumber: "$EquipmentData.SerialNumber",
+                        Specification: "$EquipmentData.Specification",
+                        Location: "$LaboratoryData.LaboratoryName",
+                        laboratoryId: "$LaboratoryData._id",
+                        LaboratoryName:
+                            "$LaboratoryData.LaboratoryName",
+                    },
+                },
+                { $limit: 1 },
+            ]);
+        };
 
-    console.log("🔍 [3] Aggregation result:", result?.length || 0);
+        // ✅ Try both collection names
+        let result = await runAggregation("equipment");
+        console.log(
+            "🔍 [FindByCode] result (equipment):",
+            result?.length || 0
+        );
 
-    if (!result || result.length === 0) {
-      return res.status(404).json({
-        status: "fail",
-        message: `No equipment found with code: ${cleanCode} in your assigned laboratory.`,
-      });
-    }
+        if (!result || result.length === 0) {
+            result = await runAggregation("equipments");
+            console.log(
+                "🔍 [FindByCode] result (equipments fallback):",
+                result?.length || 0
+            );
+        }
 
-    const equipment = result[0];
-    const equipmentId = equipment.equipmentId;
+        if (!result || result.length === 0) {
+            // ✅ Diagnostic — ilista ang available codes
+            let availableCodes = [];
+            try {
+                const assignDocs = await Assign.find({})
+                    .populate({
+                        path: "Equipments",
+                        select: "code",
+                        model:
+                            mongoose.models.Equipment ||
+                            mongoose.model("Equipment"),
+                    })
+                    .select("Equipments")
+                    .limit(20)
+                    .lean();
 
-    console.log("🔍 [4] Equipment found:", {
-      equipmentId: String(equipmentId),
-      code: equipment.code,
-      Brand: equipment.Brand,
-      Type: equipment.Type,
-      Location: equipment.Location,
-    });
+                availableCodes = assignDocs
+                    .flatMap((a) => a.Equipments || [])
+                    .filter(Boolean)
+                    .map((eq) => eq.code)
+                    .filter(Boolean);
+            } catch (diagErr) {
+                console.warn(
+                    "⚠️ Diagnostic failed:",
+                    diagErr.message
+                );
+            }
 
-    // ============================================================
-    // STEP 2: PMS003 QUERY
-    // ============================================================
-    console.log("🔍 [5] Querying PMS003 with equipmentId:", String(equipmentId));
+            return res.status(404).json({
+                status: "fail",
+                message: `No equipment found with code: "${cleanCode}" in your assigned laboratory.`,
+                debug: {
+                    searchedCode: cleanCode,
+                    availableCodes: [...new Set(availableCodes)],
+                },
+            });
+        }
 
-    const PMS003Data = await PMS003.find({
-      equipmentId: equipmentId,
-    })
-      .sort({ date: -1, createdAt: -1 })
-      .lean();
+        const equipment = result[0];
+        const equipmentId = equipment.equipmentId;
 
-    console.log("✅ [6] PMS003 records found:", PMS003Data);
+        console.log("✅ [FindByCode] Equipment found:", {
+            equipmentId: String(equipmentId),
+            code: equipment.code,
+            Brand: equipment.Brand,
+            Type: equipment.Type,
+            Location: equipment.Location,
+        });
 
-    // ============================================================
-    // STEP 3: MANUAL POPULATE (safe)
-    // ============================================================
-    const enrichedPMS003Data = await Promise.all(
-      PMS003Data.map(async (rec) => {
-        try {
-          const eq = await Equipment.findById(rec.equipmentId)
-            .select(
-              "code Brand SerialNumber Specification Category DateAcquired"
-            )
+        // ============================================================
+        // STEP 2: PMS003 QUERY
+        // ============================================================
+        console.log(
+            "🔍 [FindByCode] Querying PMS003 with equipmentId:",
+            String(equipmentId)
+        );
+
+        const PMS003Data = await PMS003.find({
+            equipmentId: equipmentId,
+        })
+            .sort({ date: -1, createdAt: -1 })
             .lean();
 
-          return {
-            ...rec,
-            equipmentId: eq || rec.equipmentId,
-          };
-        } catch (err) {
-          console.error("  ⚠️ Enrich error for record:", rec._id, err.message);
-          return rec;
-        }
-      })
-    );
+        console.log(
+            "✅ [FindByCode] PMS003 records found:",
+            PMS003Data.length
+        );
 
-    console.log("✅ [7] Enriched PMS003Data:", enrichedPMS003Data.length);
+        // ============================================================
+        // STEP 3: MANUAL POPULATE (safe)
+        // ============================================================
+        const enrichedPMS003Data = await Promise.all(
+            PMS003Data.map(async (rec) => {
+                try {
+                    const eq = await Equipment.findById(
+                        rec.equipmentId
+                    )
+                        .select(
+                            "code Brand SerialNumber Specification Category DateAcquired"
+                        )
+                        .lean();
 
-    // ============================================================
-    // RESPONSE
-    // ✅ Kasama na ang Type, Location, at iba pa
-    // ============================================================
-    return res.status(200).json({
-      status: "success",
-      data: {
-        _id: equipmentId,
-        code: equipment.code,
-        Brand: equipment.Brand,
-        DateAcquired: equipment.DateAcquired,
-        Category: equipment.Category,
-        // ✅ BAGONG FIELD — Type
-        Type: equipment.Type || "",
-        categoryName: equipment.categoryName || "",
-        SerialNumber: equipment.SerialNumber,
-        Specification: equipment.Specification,
-        // ✅ Location
-        Location: equipment.Location || "",
-        laboratoryId: equipment.laboratoryId || null,
-        LaboratoryName: equipment.LaboratoryName || "",
-      },
-      PMS003Data: enrichedPMS003Data,
-    });
-  } catch (error) {
-    console.error("❌❌❌ FindByCode CRASHED ❌❌❌");
-    console.error("  Name:", error.name);
-    console.error("  Message:", error.message);
-    console.error("  Stack:", error.stack);
+                    return {
+                        ...rec,
+                        equipmentId: eq || rec.equipmentId,
+                    };
+                } catch (err) {
+                    console.error(
+                        "  ⚠️ Enrich error for record:",
+                        rec._id,
+                        err.message
+                    );
+                    return rec;
+                }
+            })
+        );
 
-    return res.status(500).json({
-      status: "fail",
-      message: "Server error: " + error.message,
-      error: error.message,
-      stack: error.stack,
-    });
-  }
+        console.log(
+            "✅ [FindByCode] Enriched PMS003Data:",
+            enrichedPMS003Data.length
+        );
+
+        // ============================================================
+        // RESPONSE
+        // ============================================================
+        return res.status(200).json({
+            status: "success",
+            data: {
+                _id: equipmentId,
+                code: equipment.code,
+                Brand: equipment.Brand,
+                DateAcquired: equipment.DateAcquired,
+                Category: equipment.Category,
+                Type: equipment.Type || "",
+                categoryName: equipment.categoryName || "",
+                SerialNumber: equipment.SerialNumber,
+                Specification: equipment.Specification,
+                Location: equipment.Location || "",
+                laboratoryId: equipment.laboratoryId || null,
+                LaboratoryName: equipment.LaboratoryName || "",
+            },
+            PMS003Data: enrichedPMS003Data,
+        });
+    } catch (error) {
+        console.error("❌❌❌ FindByCode CRASHED ❌❌❌");
+        console.error("  Name:", error.name);
+        console.error("  Message:", error.message);
+        console.error("  Stack:", error.stack);
+
+        return res.status(500).json({
+            status: "fail",
+            message: "Server error: " + error.message,
+            error: error.message,
+            stack: error.stack,
+        });
+    }
 });
 // ============================================================
 // FIND BY EQUIPMENT — Hanapin ang PMS records ng user's lab
@@ -578,3 +649,142 @@ exports.deletePMS002 = AsyncErrorHandler(async (req, res, next) => {
         data: null,
     });
 });
+
+// src/Controllers/PMS002Controller.js
+
+// ============================================================
+// DISPLAY ALL PMS003 — with Encharge matching + optional date filter
+// ============================================================
+exports.DisplayAllPMS003 = AsyncErrorHandler(async (req, res) => {
+    const userID = req.user._id;
+    const role = req.user.role;
+
+    console.log("triggerrr____ DisplayAllPMS003");
+
+    // ============================================================
+    // STEP 1: Base match stage
+    // ============================================================
+    let matchStage = {};
+
+    // ============================================================
+    // STEP 2: Kung role === "User", i-filter base sa Laboratory ng Encharge
+    // ============================================================
+    if (role === "User") {
+        const laboratory = await Laboratory.findOne({ Encharge: userID });
+
+        console.log("laboratory", laboratory);
+
+        if (!laboratory) {
+            return res.status(404).json({
+                status: "fail",
+                message: "You are not assigned as Encharge to any laboratory.",
+            });
+        }
+
+        matchStage._id = laboratory._id;
+    }
+
+    // ============================================================
+    // STEP 3: Kunin ang Laboratory gamit ang matchStage
+    // ============================================================
+    const laboratory = await Laboratory.aggregate([
+        { $match: matchStage },
+        {
+            $project: {
+                _id: 1,
+                LaboratoryName: { $ifNull: ["$LaboratoryName", "N/A"] },
+            },
+        },
+        { $limit: 1 },
+    ]);
+
+    if (!laboratory || laboratory.length === 0) {
+        return res.status(404).json({
+            status: "fail",
+            message: "No laboratory found.",
+        });
+    }
+
+    const laboratoryId = laboratory[0]._id;
+
+    // ============================================================
+    // STEP 4: Query flags (optional date filter)
+    // ============================================================
+    const { from, to } = req.query;
+
+    // ============================================================
+    // STEP 5: Buuin ang date filter (base sa `date` field)
+    // ============================================================
+    const dateFilter = {};
+
+    if (from || to) {
+        dateFilter.date = {};
+
+        if (from) {
+            const fromDate = new Date(from);
+            if (isNaN(fromDate.getTime())) {
+                return res.status(400).json({
+                    status: "fail",
+                    message: "Invalid 'from' date format. Use YYYY-MM-DD.",
+                });
+            }
+            fromDate.setHours(0, 0, 0, 0);
+            dateFilter.date.$gte = fromDate;
+        }
+
+        if (to) {
+            const toDate = new Date(to);
+            if (isNaN(toDate.getTime())) {
+                return res.status(400).json({
+                    status: "fail",
+                    message: "Invalid 'to' date format. Use YYYY-MM-DD.",
+                });
+            }
+            toDate.setHours(23, 59, 59, 999);
+            dateFilter.date.$lte = toDate;
+        }
+    }
+
+    // ============================================================
+    // STEP 6: Matching — PMS003 records lang ng lab
+    // ============================================================
+    const pms003Query = { ...dateFilter };
+
+    if (laboratoryId) {
+        // ⚠️ Kung may `laboratoryId` field ang PMS003, direct match:
+        pms003Query.laboratoryId = laboratoryId;
+
+        // ⚠️ KUNG WALANG `laboratoryId` sa PMS003, gamitin ang equipment approach:
+        // const equipmentList = await Equipment.find(
+        //     { laboratory: laboratoryId },
+        //     { _id: 1 }
+        // ).lean();
+        // const equipmentIds = equipmentList.map((e) => e._id);
+        // if (equipmentIds.length > 0) {
+        //     pms003Query.equipmentId = { $in: equipmentIds };
+        // } else {
+        //     pms003Query._id = { $in: [] };
+        // }
+    }
+
+    // ============================================================
+    // STEP 7: Kunin ang PMS003 records — matching + date filter
+    // ============================================================
+    const pmsRecord = await PMS003.find(pms003Query)
+        .populate("equipmentId")
+        .sort({ date: -1, createdAt: -1 });
+
+    // ============================================================
+    // STEP 8: Response
+    // ============================================================
+    res.status(200).json({
+        status: "success",
+        role: role,
+        pmsRecord,
+        data: {
+            _id: laboratoryId,
+            LaboratoryName: laboratory[0].LaboratoryName,
+        },
+    });
+});
+

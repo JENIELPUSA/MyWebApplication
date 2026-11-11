@@ -12,8 +12,8 @@ const equipmentpms001 = new mongoose.Schema(
         // Reference sa Equipment model
         laboratoryId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "Equipment",
-            required: [true, "Equipment ID is required"],
+            ref: "Laboratory",
+            required: [true, "Laboratory ID is required"],
         },
         // Status fields
         serviceable: {
