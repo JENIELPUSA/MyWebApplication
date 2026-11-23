@@ -144,6 +144,40 @@ const DEFAULT_NOTIFICATION_LABEL = NOTIFICATION_LABELS.General;
 const getNotificationLabel = (type) =>
     NOTIFICATION_LABELS[type] || DEFAULT_NOTIFICATION_LABEL;
 
+// ==========================================
+// ✅ PRIORITY STYLES — mas prominenteng colors
+// ==========================================
+const getPriorityStyles = (priority) => {
+    if (priority === "High") {
+        return {
+            // solid red badge
+            badge: "bg-red-500 text-white border-red-600 dark:bg-red-600 dark:border-red-500",
+            dot: "bg-white",
+            icon: "text-white",
+            ring: "ring-2 ring-red-400/50",
+        };
+    }
+    if (priority === "Medium") {
+        return {
+            // solid amber badge
+            badge: "bg-amber-500 text-white border-amber-600 dark:bg-amber-500 dark:border-amber-400",
+            dot: "bg-white",
+            icon: "text-white",
+            ring: "ring-2 ring-amber-400/50",
+        };
+    }
+    if (priority === "Low") {
+        return {
+            // solid green badge
+            badge: "bg-emerald-500 text-white border-emerald-600 dark:bg-emerald-600 dark:border-emerald-400",
+            dot: "bg-white",
+            icon: "text-white",
+            ring: "ring-2 ring-emerald-400/50",
+        };
+    }
+    return null;
+};
+
 // ✅ Theme validation helper
 const VALID_THEMES = ["light", "dark"];
 const resolveTheme = (value) =>
@@ -166,24 +200,24 @@ export const Header = ({ collapsed, setCollapsed }) => {
         saveTheme,
     } = useContext(AuthContext);
 
-    console.log("theme",theme)
+    console.log("theme", theme)
 
     const displayFirstName = first_name || Firstname || "";
 
     const { technicians = [] } = useContext(UserDataContext) || {};
 
-    // ✅ Resolved theme para sa UI (para hindi mag-render ng invalid state)
     const activeTheme = resolveTheme(theme);
     const isDark = activeTheme === "dark";
 
-    // ✅ Greeting
+    // ✅ UPDATED: Changed "Welcome Back User" to "Welcome Back Incharge"
     const getGreeting = () => {
         if (!role) return "Welcome Back";
         const normalizedRole = role.toLowerCase();
         if (normalizedRole === "admin") return "Welcome Back Admin";
         if (normalizedRole === "technician") return "Welcome Back Technician";
         if (normalizedRole === "supply") return "Welcome Back Supply";
-        return "Welcome Back User";
+        if (normalizedRole === "user") return "Welcome Back Incharge";
+        return "Welcome Back Incharge"; // Fallback to Incharge
     };
 
     const isEmptyOrWhitespace = (str) => {
@@ -191,7 +225,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
     };
 
     // ==========================================
-    // ✅ THEME TOGGLE — gamit ang saveTheme (backend + localStorage + state)
+    // ✅ THEME TOGGLE
     // ==========================================
     const handleThemeToggle = useCallback(async () => {
         if (isSavingTheme) return;
@@ -200,11 +234,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
 
         try {
             setIsSavingTheme(true);
-
-            // saveTheme ang bahala sa:
-            //  1) setTheme (state)
-            //  2) localStorage.setItem("theme", ...)
-            //  3) PATCH backend (kung may authToken)
             const result = await saveTheme(nextTheme);
 
             if (result?.success) {
@@ -214,8 +243,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
             }
         } catch (err) {
             console.error("[Header] ❌ Theme toggle error:", err);
-
-            // Fallback — apply class + localStorage manually para hindi stuck
             try {
                 localStorage.setItem("theme", nextTheme);
                 document.documentElement.classList.toggle("dark", nextTheme === "dark");
@@ -227,9 +254,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
         }
     }, [isDark, saveTheme, isSavingTheme]);
 
-    // ==========================================
-    // ✅ Sync "dark" class sa <html> kapag nagbago ang theme
-    // ==========================================
     useEffect(() => {
         document.documentElement.classList.toggle("dark", activeTheme === "dark");
     }, [activeTheme]);
@@ -246,43 +270,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
             const msgId = msg._id || index;
             const isUnread = msg.read === false && !locallyReadIds.has(msgId);
 
-            let description = msg.message || "";
-            let details = [];
-
-            if (msg.RequestDescription && !isEmptyOrWhitespace(msg.RequestDescription)) {
-                details.push(`Issue: ${msg.RequestDescription}`);
-            }
-
-            const hasEquipmentBrand = msg.EquipmentBrand && !isEmptyOrWhitespace(msg.EquipmentBrand);
-            const hasEquipmentSpec = msg.EquipmentSpecification && !isEmptyOrWhitespace(msg.EquipmentSpecification);
-
-            if (hasEquipmentBrand && hasEquipmentSpec) {
-                details.push(`Equipment: ${msg.EquipmentBrand} - ${msg.EquipmentSpecification}`);
-            } else if (hasEquipmentBrand) {
-                details.push(`Equipment: ${msg.EquipmentBrand}`);
-            }
-
-            if (msg.EquipmentSerial && !isEmptyOrWhitespace(msg.EquipmentSerial)) {
-                details.push(`Serial: ${msg.EquipmentSerial}`);
-            }
-
-            if (msg.laboratoryNames && !isEmptyOrWhitespace(msg.laboratoryNames)) {
-                details.push(`📍 ${msg.laboratoryNames}`);
-            }
-
-            if (msg.RequestRef && !isEmptyOrWhitespace(msg.RequestRef)) {
-                details.push(`Reference: ${msg.RequestRef}`);
-            }
-
-            const hasEnchargeName = msg.EnchargeName && !isEmptyOrWhitespace(msg.EnchargeName);
-            if (hasEnchargeName) {
-                details.push(`In-charge: ${msg.EnchargeName}`);
-            }
-
-            const hasTechnicianName = msg.TechnicianName && !isEmptyOrWhitespace(msg.TechnicianName);
-            if (hasTechnicianName) {
-                details.push(`Technician: ${msg.TechnicianName}`);
-            }
+            const description = msg.message || "";
 
             let enchargeName = msg.EnchargeName;
             let enchargeEmail = msg.EnchargeEmail;
@@ -306,12 +294,13 @@ export const Header = ({ collapsed, setCollapsed }) => {
                 title: meta.label,
                 shortLabel: meta.shortLabel,
                 desc: description,
-                details: details,
+                details: [],
                 time: msg.DateTime,
                 unread: isUnread,
                 icon: meta.icon,
                 iconColor: meta.iconColor,
                 bgColor: meta.bgColor,
+                levelprioritized: msg.levelprioritized || null,
                 data: msg,
                 enchargeFullDetails: enchargeFullDetails,
                 summary: {
@@ -358,9 +347,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
         return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     };
 
-    // ==========================================
-    // ✅ CLICK → MARK AS READ AGAD
-    // ==========================================
     const handleNotificationClick = async (notif) => {
         console.log("[Header] Notification clicked:", notif);
 
@@ -396,7 +382,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
 
     const closeDetailView = () => setSelectedMessage(null);
 
-    // Cleanup locallyReadIds
     useEffect(() => {
         if (!messages || messages.length === 0) return;
         setLocallyReadIds((prev) => {
@@ -413,7 +398,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
         });
     }, [messages]);
 
-    // Mark all as read
     const handleMarkAllAsRead = useCallback(async () => {
         const unreadIds = notifications.filter(n => n.unread).map(n => n.id);
         if (unreadCount === 0) return;
@@ -468,7 +452,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
                 </div>
 
                 <div className="flex items-center gap-x-4">
-                    {/* ✅ Theme Toggle — via saveTheme (backend + localStorage + state) */}
                     <button
                         type="button"
                         className="btn-ghost size-10 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -574,14 +557,9 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                     ) : (
                                         displayedNotifications.map((notif) => {
                                             const IconComponent = notif.icon || AlertCircle;
-
-                                            const isTechnicianConfirmed =
-                                                notif.data?.typesNotification === "TechnicianConfirmed";
-
-                                            const visibleDetails = (notif.details || []).filter((detail) => {
-                                                if (!isTechnicianConfirmed) return true;
-                                                return !/^(equipment|serial)\s*:/i.test(detail.trim());
-                                            });
+                                            const priorityStyle = notif.levelprioritized
+                                                ? getPriorityStyles(notif.levelprioritized)
+                                                : null;
 
                                             return (
                                                 <button
@@ -642,6 +620,20 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                                                             {notif.shortLabel}
                                                                         </span>
                                                                     )}
+
+                                                                    {/* 👇 PRIORITY BADGE — solid color (High/Medium/Low) */}
+                                                                    {notif.levelprioritized && priorityStyle && (
+                                                                        <span
+                                                                            className={`
+                                                                                inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5
+                                                                                text-[10px] font-bold uppercase tracking-wider
+                                                                                border ${priorityStyle.badge} ${priorityStyle.ring}
+                                                                            `}
+                                                                        >
+                                                                            <span className={`size-1.5 rounded-full ${priorityStyle.dot}`} />
+                                                                            {notif.levelprioritized}
+                                                                        </span>
+                                                                    )}
                                                                 </div>
 
                                                                 {notif.unread && (
@@ -653,20 +645,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                                                 <p className="mt-2 text-[13px] leading-6 text-slate-600 dark:text-slate-400 whitespace-pre-wrap break-words">
                                                                     {notif.desc}
                                                                 </p>
-                                                            )}
-
-                                                            {visibleDetails.length > 0 && (
-                                                                <div className="mt-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-100 dark:border-slate-700 space-y-2">
-                                                                    {visibleDetails.map((detail, i) => (
-                                                                        <div
-                                                                            key={`${notif.id}-detail-${i}`}
-                                                                            className="flex items-start gap-2 text-xs leading-5 text-slate-600 dark:text-slate-400"
-                                                                        >
-                                                                            <span className="size-1.5 rounded-full bg-slate-400 shrink-0 mt-2" />
-                                                                            <span className="break-words min-w-0">{detail}</span>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
                                                             )}
 
                                                             <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">

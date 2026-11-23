@@ -5,7 +5,7 @@ const MaintenanceRequestSchema = new mongoose.Schema(
   {
     DateTime: {
       type: Date,
-      default: () => new Date(), // Automatically set current date and time
+      default: () => new Date(),
     },
     Ref: {
       type: String,
@@ -47,15 +47,22 @@ const MaintenanceRequestSchema = new mongoose.Schema(
 
     Department: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Department", // Reference to the Department model
+      ref: "Department",
     },
 
     Laboratory: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Laboratory", // Reference to the Equipment model
+      ref: "Laboratory",
       required: true,
     },
-
+    SetSchedule: {
+      type: Date,
+      default: null,
+    },
+    levelprioritized: {
+      type: String,
+      enum: ["Low", "Medium", "High"]
+    },
     Technician:
     {
       type: mongoose.Schema.Types.ObjectId,

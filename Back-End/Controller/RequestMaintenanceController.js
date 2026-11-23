@@ -2244,35 +2244,40 @@ exports.DisplayUnscheduledRepair = AsyncErrorHandler(async (req, res, next) => {
   doc.end();
 });
 
+
 exports.updateDataAssignTechnician = AsyncErrorHandler(
   async (req, res, next) => {
     try {
       const { RequestId } = req.params;
-      const { technicianId, MessageId, status, remarks, LaboratoryEnchargeId, feedback, action } = req.body;
-      console.log("action", action)
+
+      const {
+        technicianId,
+        MessageId,
+        status,
+        remarks,
+        LaboratoryEnchargeId,
+        feedback,
+        action,
+        SetSchedule,
+        levelprioritized,
+      } = req.body;
+
+      console.log("action", action);
+
       if (!RequestId) {
-        return next(
-          new CustomError(
-            "RequestId is required in URL",
-            400
-          )
-        );
+        return next(new CustomError("RequestId is required in URL", 400));
       }
 
       // Get the request
-      const request = await requestmaintenance.findById(RequestId)
+      const request = await requestmaintenance
+        .findById(RequestId)
         .populate("Equipments")
         .populate("Department")
         .populate("Laboratory")
         .populate("Technician");
 
       if (!request) {
-        return next(
-          new CustomError(
-            "Maintenance request not found",
-            404
-          )
-        );
+        return next(new CustomError("Maintenance request not found", 404));
       }
 
       // ==========================================
@@ -2291,11 +2296,13 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
               ? feedbackData.message.trim()
               : null;
           }
+
           if (feedbackData.remarks) {
             return typeof feedbackData.remarks === "string"
               ? feedbackData.remarks.trim()
               : null;
           }
+
           return JSON.stringify(feedbackData);
         }
 
@@ -2313,17 +2320,87 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
       };
 
       // ==========================================
-      // GET EXISTING MESSAGE TO GET LABORATORY AND ENCHARGE
+      // HELPER: VALIDATE SET SCHEDULE
+      // ==========================================
+      const parseSetSchedule = (value) => {
+        if (value === undefined || value === null || value === "") {
+          return null;
+        }
+
+        const parsed = new Date(value);
+        return isNaN(parsed.getTime()) ? null : parsed;
+      };
+
+      const applySetSchedule = (updateData, { required = false } = {}) => {
+        const parsed = parseSetSchedule(SetSchedule);
+
+        if (required) {
+          if (!parsed) {
+            throw new CustomError(
+              "SetSchedule is required when approving a request. Please provide a valid date.",
+              400
+            );
+          }
+
+          updateData.$set.SetSchedule = parsed;
+          return updateData;
+        }
+
+        if (
+          SetSchedule !== undefined &&
+          SetSchedule !== null &&
+          SetSchedule !== ""
+        ) {
+          if (!parsed) {
+            throw new CustomError("Invalid SetSchedule date.", 400);
+          }
+
+          updateData.$set.SetSchedule = parsed;
+        }
+
+        return updateData;
+      };
+
+      // ==========================================
+      // HELPER: VALIDATE AND APPLY PRIORITY LEVEL
+      // ==========================================
+      const applyPriorityLevel = (updateData) => {
+        if (levelprioritized === undefined) {
+          return updateData;
+        }
+
+        const allowedPriorities = ["Low", "Medium", "High"];
+
+        if (!allowedPriorities.includes(levelprioritized)) {
+          throw new CustomError(
+            "Invalid priority level. Allowed values: Low, Medium, High.",
+            400
+          );
+        }
+
+        updateData.$set.levelprioritized = levelprioritized;
+
+        return updateData;
+      };
+
+      // ==========================================
+      // GET EXISTING MESSAGE TO GET LABORATORY
+      // AND ENCHARGE
       // ==========================================
       let existingMessage = null;
       let inchargeId = null;
       let laboratoryData = [];
 
       if (RequestId) {
-        existingMessage = await Message.findOne({ RequestID: RequestId });
+        existingMessage = await Message.findOne({
+          RequestID: RequestId,
+        });
 
         if (existingMessage) {
-          if (existingMessage.Laboratory && existingMessage.Laboratory.length > 0) {
+          if (
+            existingMessage.Laboratory &&
+            existingMessage.Laboratory.length > 0
+          ) {
             laboratoryData = existingMessage.Laboratory;
           }
 
@@ -2334,7 +2411,9 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
       }
 
       if (laboratoryData.length === 0 && request.Laboratory) {
-        laboratoryData = [request.Laboratory._id || request.Laboratory];
+        laboratoryData = [
+          request.Laboratory._id || request.Laboratory,
+        ];
       }
 
       if (!inchargeId && request.Encharge) {
@@ -2352,78 +2431,78 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
         const result = await requestmaintenance.aggregate([
           {
             $match: {
-              _id: requestId
-            }
+              _id: new mongoose.Types.ObjectId(requestId),
+            },
           },
           {
             $lookup: {
               from: "users",
               localField: "Technician",
               foreignField: "_id",
-              as: "TechnicianDetails"
-            }
+              as: "TechnicianDetails",
+            },
           },
           {
             $unwind: {
               path: "$TechnicianDetails",
-              preserveNullAndEmptyArrays: true
-            }
+              preserveNullAndEmptyArrays: true,
+            },
           },
           {
             $lookup: {
               from: "departments",
               localField: "Department",
               foreignField: "_id",
-              as: "DepartmentInfo"
-            }
+              as: "DepartmentInfo",
+            },
           },
           {
             $unwind: {
               path: "$DepartmentInfo",
-              preserveNullAndEmptyArrays: true
-            }
+              preserveNullAndEmptyArrays: true,
+            },
           },
           {
             $lookup: {
               from: "laboratories",
               localField: "Laboratory",
               foreignField: "_id",
-              as: "LaboratoryInfo"
-            }
+              as: "LaboratoryInfo",
+            },
           },
           {
             $unwind: {
               path: "$LaboratoryInfo",
-              preserveNullAndEmptyArrays: true
-            }
+              preserveNullAndEmptyArrays: true,
+            },
           },
           {
             $lookup: {
               from: "equipment",
               localField: "Equipments",
               foreignField: "_id",
-              as: "EquipmentInfo"
-            }
+              as: "EquipmentInfo",
+            },
           },
           {
             $unwind: {
               path: "$EquipmentInfo",
-              preserveNullAndEmptyArrays: true
-            }
+              preserveNullAndEmptyArrays: true,
+            },
           },
           {
             $lookup: {
               from: "categories",
               localField: "EquipmentInfo.Category",
               foreignField: "_id",
-              as: "CategoryInfo"
-            }
+              as: "CategoryInfo",
+            },
           },
           {
             $unwind: {
               path: "$CategoryInfo",
-              preserveNullAndEmptyArrays: true
-            }
+              preserveNullAndEmptyArrays: true,
+            },
           },
           {
             $project: {
@@ -2438,28 +2517,33 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
               Description: 1,
               Remarks: 1,
               remarksread: 1,
+              SetSchedule: 1,
+
+              // PRIORITY LEVEL
+              levelprioritized: 1,
+
               EquipmentId: {
-                $ifNull: ["$EquipmentInfo._id", "N/A"]
+                $ifNull: ["$EquipmentInfo._id", "N/A"],
               },
               EquipmentName: {
-                $ifNull: ["$EquipmentInfo.Brand", "N/A"]
+                $ifNull: ["$EquipmentInfo.Brand", "N/A"],
               },
               EquipmentSerial: {
-                $ifNull: ["$EquipmentInfo.Serial", "N/A"]
+                $ifNull: ["$EquipmentInfo.Serial", "N/A"],
               },
               EquipmentSpecification: {
-                $ifNull: ["$EquipmentInfo.Specification", "N/A"]
+                $ifNull: ["$EquipmentInfo.Specification", "N/A"],
               },
               CategoryName: {
-                $ifNull: ["$CategoryInfo.CategoryName", "N/A"]
+                $ifNull: ["$CategoryInfo.CategoryName", "N/A"],
               },
               DepartmentId: "$DepartmentInfo._id",
               Department: {
-                $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"]
+                $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"],
               },
               LaboratoryId: "$LaboratoryInfo._id",
               laboratoryName: {
-                $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"]
+                $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"],
               },
               EnchargeId: "$LaboratoryInfo.Encharge",
               TechnicianId: "$TechnicianDetails._id",
@@ -2468,18 +2552,18 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
                   "$TechnicianDetails.FirstName",
                   " ",
                   {
-                    $ifNull: ["$TechnicianDetails.Middle", ""]
+                    $ifNull: ["$TechnicianDetails.Middle", ""],
                   },
                   " ",
-                  "$TechnicianDetails.LastName"
-                ]
+                  "$TechnicianDetails.LastName",
+                ],
               },
               TechnicianEmail: "$TechnicianDetails.Email",
               DateTimeAccomplish: 1,
               createdAt: 1,
-              updatedAt: 1
-            }
-          }
+              updatedAt: 1,
+            },
+          },
         ]);
 
         return result[0] || null;
@@ -2502,17 +2586,16 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           status: lookupData.Status || "Pending",
           technician: lookupData.Technician || "N/A",
           date: lookupData.DateTime || new Date(),
-          feedback: typeof lookupData.feedback === "object"
-            ? lookupData.feedback.message || ""
-            : lookupData.feedback || ""
+          schedule: lookupData.SetSchedule || null,
+          feedback:
+            typeof lookupData.feedback === "object"
+              ? lookupData.feedback.message || ""
+              : lookupData.feedback || "",
         };
-
-        console.log("historyData", historyData)
 
         const history = new History(historyData);
         await history.save();
 
-        console.log(`✅ History saved for action: ${actionType}`);
         return history;
       };
 
@@ -2521,6 +2604,7 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
       // ==========================================
       const emitSocketUpdate = (actionType, data) => {
         const io = req.app.get("io");
+
         if (io) {
           io.emit("requestmaintenance:created", {
             status: "success",
@@ -2528,7 +2612,10 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
             data: data,
             timestamp: new Date(),
           });
-          console.log(`📡 [Socket] Broadcasted 'requestmaintenance:created' - Action: ${actionType}`);
+
+          console.log(
+            `📡 [Socket] Broadcasted 'requestmaintenance:created' - Action: ${actionType}`
+          );
         }
       };
 
@@ -2537,7 +2624,6 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
       // ==========================================
       if (action === "Re-assign") {
         console.log("🔄 RE-ASSIGN FLOW DETECTED");
-        console.log("📌 New Technician ID:", technicianId);
 
         if (!technicianId) {
           return next(
@@ -2548,10 +2634,9 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           );
         }
 
-        // Get current assigned technician
-        const currentTechnicianId = request.Technician?._id || request.Technician;
+        const currentTechnicianId =
+          request.Technician?._id || request.Technician;
 
-        // Get old and new technician details
         let oldTechnician = null;
         let newTechnician = null;
 
@@ -2564,107 +2649,103 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
         }
 
         const getTechnicianName = (tech) => {
-          if (!tech) return 'Unknown Technician';
+          if (!tech) return "Unknown Technician";
+
           if (tech.FirstName && tech.LastName) {
             return `${tech.FirstName} ${tech.LastName}`;
           }
-          return tech.username || tech.email || 'Technician';
+
+          return tech.username || tech.email || "Technician";
         };
 
-        // ==========================================
-        // UPDATE MAINTENANCE REQUEST - Palitan ang Technician
-        // ==========================================
         const updateData = {
           $set: {
-            Technician: technicianId
-          }
+            Technician: technicianId,
+          },
         };
 
-        if (request.Status === "Assigned" || request.Status === "In Progress") {
+        if (
+          request.Status === "Assigned" ||
+          request.Status === "In Progress"
+        ) {
           updateData.$set.Status = "Assigned";
         }
 
-        const updatedRequest = await requestmaintenance.findByIdAndUpdate(
-          RequestId,
-          updateData,
-          {
+        applySetSchedule(updateData);
+        applyPriorityLevel(updateData);
+
+        const updatedRequest = await requestmaintenance
+          .findByIdAndUpdate(RequestId, updateData, {
             new: true,
             runValidators: true,
-          }
-        )
+          })
           .populate("Equipments")
           .populate("Department")
           .populate("Laboratory")
           .populate("Technician");
 
-        // ==========================================
-        // GET LOOKUP DATA AND SAVE TO HISTORY
-        // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
-        const history = await saveToHistory(lookupData, "Re-assign");
 
-        // ==========================================
-        // SOCKET EMIT - RE-ASSIGN
-        // ==========================================
-        emitSocketUpdate("Re-assign", lookupData || updatedRequest);
+        const history = await saveToHistory(
+          lookupData,
+          "Re-assign"
+        );
 
-        // ==========================================
-        // UPDATE OLD MESSAGE - isReassign LANG ANG BABAGUHIN
-        // ==========================================
+        emitSocketUpdate(
+          "Re-assign",
+          lookupData || updatedRequest
+        );
+
         let updatedMessage = null;
 
         const oldMessage = await Message.findOne({
           RequestID: RequestId,
-          isReassign: false
+          isReassign: false,
         });
 
         if (oldMessage) {
-          const messageId = oldMessage._id;
-
-          console.log("📩 Old Message typesNotification:", oldMessage.typesNotification);
-          console.log("📩 Old Message Status:", oldMessage.Status);
-
-          // Update ONLY isReassign to true
           await Message.updateOne(
-            { _id: messageId },
-            { $set: { isReassign: true } },
-            { runValidators: false }
+            {
+              _id: oldMessage._id,
+            },
+            {
+              $set: {
+                isReassign: true,
+              },
+            },
+            {
+              runValidators: false,
+            }
           );
 
-          updatedMessage = await Message.findById(messageId);
-
-          console.log("✅ OLD Message updated - isReassign set to true");
-          console.log("📩 typesNotification unchanged:", updatedMessage.typesNotification);
-          console.log("📩 Status unchanged:", updatedMessage.Status);
+          updatedMessage = await Message.findById(oldMessage._id);
         }
 
-        // ==========================================
-        // GET EQUIPMENT DETAILS FOR MESSAGES
-        // ==========================================
-        let equipmentBrand = "N/A";
-        let equipmentSerial = "N/A";
-        let equipmentSpecs = "N/A";
-        let equipmentCategory = "N/A";
+        let equipmentBrand = request.Equipments
+          ? request.Equipments.EquipmentBrand ||
+          request.Equipments.name ||
+          "N/A"
+          : "N/A";
 
-        if (request.Equipments) {
-          equipmentBrand = request.Equipments.EquipmentBrand || request.Equipments.name || "N/A";
-          equipmentSerial = request.Equipments.EquipmentSerial || request.Equipments.serialNumber || "N/A";
-          equipmentSpecs = request.Equipments.EquipmentSpecification || request.Equipments.specifications || "N/A";
-          equipmentCategory = request.Equipments.CategoryName || request.Equipments.category || "N/A";
-        }
+        let departmentName = request.Department
+          ? request.Department.name ||
+          request.Department.departmentName ||
+          "N/A"
+          : "N/A";
 
-        let departmentName = "N/A";
-        if (request.Department) {
-          departmentName = request.Department.name || request.Department.departmentName || "N/A";
-        }
+        let laboratoryName = request.Laboratory
+          ? request.Laboratory.name ||
+          request.Laboratory.laboratoryName ||
+          "N/A"
+          : "N/A";
 
-        let laboratoryName = "N/A";
-        if (request.Laboratory) {
-          laboratoryName = request.Laboratory.name || request.Laboratory.laboratoryName || "N/A";
-        }
+        const oldTechName = oldTechnician
+          ? getTechnicianName(oldTechnician)
+          : "Unknown Technician";
 
-        const oldTechName = oldTechnician ? getTechnicianName(oldTechnician) : "Unknown Technician";
-        const newTechName = newTechnician ? getTechnicianName(newTechnician) : "Unknown Technician";
+        const newTechName = newTechnician
+          ? getTechnicianName(newTechnician)
+          : "Unknown Technician";
 
         const reassignDate = new Date().toLocaleString("en-US", {
           year: "numeric",
@@ -2675,16 +2756,17 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           hour12: true,
         });
 
-        const targetInchargeId = LaboratoryEnchargeId || inchargeId;
+        const targetInchargeId =
+          LaboratoryEnchargeId || inchargeId;
 
-        // ==========================================
-        // MESSAGE FOR NEW TECHNICIAN
-        // ==========================================
-        const equipLabel = equipmentBrand !== "N/A" ? `${equipmentBrand} (${request.Ref || request._id})` : `${request.Ref || request._id}`;
-        const newTechnicianMessage = `Re-assigned task: ${equipLabel}. Previous technician was ${oldTechName}. ${reassignDate}.${remarks ? ` Remarks: ${remarks}` : ""}`;
+        const equipLabel =
+          equipmentBrand !== "N/A"
+            ? `${equipmentBrand} (${request.Ref || request._id})`
+            : `${request.Ref || request._id}`;
 
+        // New Technician Notification
         const newTechnicianNotification = await Message.create({
-          message: newTechnicianMessage,
+          message: `Re-assigned task: ${equipLabel}. Previous technician was ${oldTechName}. ${reassignDate}.${remarks ? ` Remarks: ${remarks}` : ""}`,
           equipmentId: request.Equipments?._id || null,
           typesNotification: "AssignedTechnician",
           Status: "Re-Assigned",
@@ -2707,16 +2789,12 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           reassignedAt: new Date(),
         });
 
-        // ==========================================
-        // MESSAGE FOR OLD TECHNICIAN
-        // ==========================================
+        // Old Technician Notification
         let oldTechnicianNotification = null;
 
         if (currentTechnicianId) {
-          const oldTechnicianMessage = `Task ${equipLabel} is no longer assigned to you. Reassigned to ${newTechName}. ${reassignDate}.`;
-
           oldTechnicianNotification = await Message.create({
-            message: oldTechnicianMessage,
+            message: `Task ${equipLabel} is no longer assigned to you. Reassigned to ${newTechName}. ${reassignDate}.`,
             equipmentId: request.Equipments?._id || null,
             typesNotification: "AssignedTechnician",
             Status: "Re-Assigned",
@@ -2742,23 +2820,16 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           });
         }
 
-        // ==========================================
-        // MESSAGE FOR LABORATORY ENCHARGE
-        // ==========================================
+        // Incharge Notification
         let inchargeNotification = null;
 
         if (targetInchargeId) {
-          const inchargeMessage = `Task ${equipLabel} reassigned from ${oldTechName} to ${newTechName}. ${reassignDate}.${remarks ? ` Remarks: ${remarks}` : ""}`;
-
-          let inchargeUser = null;
-          try {
-            inchargeUser = await user.findById(targetInchargeId);
-          } catch (err) {
-            // Silently handle error
-          }
+          const inchargeUser = await user
+            .findById(targetInchargeId)
+            .catch(() => null);
 
           inchargeNotification = await Message.create({
-            message: inchargeMessage,
+            message: `Task ${equipLabel} reassigned from ${oldTechName} to ${newTechName}. ${reassignDate}.${remarks ? ` Remarks: ${remarks}` : ""}`,
             equipmentId: request.Equipments?._id || null,
             typesNotification: "AssignedTechnician",
             Status: "Re-Assigned",
@@ -2783,9 +2854,7 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           });
         }
 
-        // ==========================================
-        // MESSAGE FOR ADMIN
-        // ==========================================
+        // Admin Notification
         let adminNotification = null;
 
         const adminUsers = await user.find({
@@ -2795,15 +2864,13 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
         });
 
         if (adminUsers.length > 0) {
-          const adminMessage = `Task ${equipLabel} reassigned from ${oldTechName} to ${newTechName}. ${reassignDate}.`;
-
           const viewers = adminUsers.map((adminUser) => ({
             user: adminUser._id,
             isRead: false,
           }));
 
           adminNotification = await Message.create({
-            message: adminMessage,
+            message: `Task ${equipLabel} reassigned from ${oldTechName} to ${newTechName}. ${reassignDate}.`,
             equipmentId: request.Equipments?._id || null,
             typesNotification: "AssignedTechnician",
             Status: "Re-Assigned",
@@ -2823,19 +2890,16 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           });
         }
 
-        // ==========================================
-        // RESPONSE - ADDED history AND lookupData
-        // ==========================================
         return res.status(200).json({
           success: true,
           message: "Task re-assigned successfully",
           data: lookupData || updatedRequest,
           history: history,
           messageData: updatedMessage,
-          newTechnicianNotification: newTechnicianNotification,
-          oldTechnicianNotification: oldTechnicianNotification,
-          inchargeNotification: inchargeNotification,
-          adminNotification: adminNotification,
+          newTechnicianNotification,
+          oldTechnicianNotification,
+          inchargeNotification,
+          adminNotification,
           newTechnicianNotified: !!newTechnicianNotification,
           oldTechnicianNotified: !!oldTechnicianNotification,
           inchargeNotified: !!inchargeNotification,
@@ -2844,6 +2908,7 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           reassignedTo: technicianId,
         });
       }
+
       // ==========================================
       // CHECK IF THIS IS COMPLETED FLOW
       // ==========================================
@@ -2854,59 +2919,53 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           },
         };
 
-        if (remarks && typeof remarks === "string" && remarks.trim() !== "") {
+        if (
+          remarks &&
+          typeof remarks === "string" &&
+          remarks.trim() !== ""
+        ) {
           updateData.$set.Remarks = remarks.trim();
           updateData.$set.remarksread = false;
         }
 
         if (feedbackText) {
-          if (typeof feedback === "object" && feedback !== null) {
-            updateData.$set.feedback = feedback;
-          } else {
-            updateData.$set.feedback = {
-              type: feedbackType || "",
-              message: feedbackText,
-              submittedBy: feedbackSubmittedBy || "User",
-              submittedAt: new Date()
-            };
-          }
+          updateData.$set.feedback =
+            typeof feedback === "object" && feedback !== null
+              ? feedback
+              : {
+                type: feedbackType || "",
+                message: feedbackText,
+                submittedBy: feedbackSubmittedBy || "User",
+                submittedAt: new Date(),
+              };
+
           updateData.$set.feedbackread = false;
         }
 
-        const updatedRequest = await requestmaintenance.findByIdAndUpdate(
-          RequestId,
-          updateData,
-          {
+        applySetSchedule(updateData);
+
+        const updatedRequest = await requestmaintenance
+          .findByIdAndUpdate(RequestId, updateData, {
             new: true,
             runValidators: true,
-          }
-        )
+          })
           .populate("Equipments")
           .populate("Department")
           .populate("Laboratory")
           .populate("Technician");
 
-        // ==========================================
-        // GET LOOKUP DATA AND SAVE TO HISTORY
-        // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
-        const history = await saveToHistory(lookupData, "Completed");
 
-        // ==========================================
-        // SOCKET EMIT - COMPLETED
-        // ==========================================
-        emitSocketUpdate("Completed", lookupData || updatedRequest);
+        const history = await saveToHistory(
+          lookupData,
+          "Completed"
+        );
 
-        let updatedMessage = null;
+        emitSocketUpdate(
+          "Completed",
+          lookupData || updatedRequest
+        );
 
-        // ==========================================
-        // HANAPIN LAHAT NG role === "Admin"
-        // ==========================================
-        const adminUsers = await user.find({ role: "Admin" });
-
-        console.log("👑 Admins found:", adminUsers.length);
-
-        // CHECK IF COMPLETED NOTIFICATION ALREADY EXISTS
         const existingCompletedMessages = await Message.find({
           RequestID: request._id,
           typesNotification: "TaskCompleted",
@@ -2915,10 +2974,10 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
         if (existingCompletedMessages.length > 0) {
           return res.status(200).json({
             success: true,
-            message: "Task is already completed. Notification already exists.",
+            message:
+              "Task is already completed. Notification already exists.",
             data: lookupData || updatedRequest,
-            history: history,
-            messageData: updatedMessage,
+            history,
             adminNotifications: existingCompletedMessages,
             adminNotified: true,
             adminCount: existingCompletedMessages.length,
@@ -2928,34 +2987,35 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           });
         }
 
-        // ==========================================
-        // GUMAWA NG NOTIFICATION PARA SA BAWAT ADMIN
-        // ==========================================
+        const adminUsers = await user.find({
+          role: "Admin",
+        });
+
         const adminNotifications = [];
 
         if (adminUsers.length > 0) {
-          let technicianName = "Unknown Technician";
-          if (request.Technician) {
-            const tech = request.Technician;
-            technicianName = tech.FirstName && tech.LastName
+          const tech = request.Technician;
+
+          const technicianName =
+            tech && tech.FirstName && tech.LastName
               ? `${tech.FirstName} ${tech.LastName}`
-              : tech.username || tech.email || "Technician";
-          }
+              : tech
+                ? tech.username || tech.email
+                : "Unknown Technician";
 
-          let equipmentBrand = "N/A";
-          if (request.Equipments) {
-            equipmentBrand = request.Equipments.EquipmentBrand || request.Equipments.name || "N/A";
-          }
+          const equipmentBrand = request.Equipments
+            ? request.Equipments.EquipmentBrand ||
+            request.Equipments.name ||
+            "N/A"
+            : "N/A";
 
-          let departmentId = null;
-          if (request.Department) {
-            departmentId = request.Department._id || request.Department;
-          }
+          const departmentId = request.Department
+            ? request.Department._id || request.Department
+            : null;
 
-          let laboratoryId = null;
-          if (request.Laboratory) {
-            laboratoryId = request.Laboratory._id || request.Laboratory;
-          }
+          const laboratoryId = request.Laboratory
+            ? request.Laboratory._id || request.Laboratory
+            : null;
 
           const completedDate = new Date().toLocaleString("en-US", {
             year: "numeric",
@@ -2966,36 +3026,36 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
             hour12: true,
           });
 
-          const equipLabel = equipmentBrand !== "N/A"
-            ? `${equipmentBrand} (${request.Ref || request._id})`
-            : `${request.Ref || request._id}`;
+          const equipLabel =
+            equipmentBrand !== "N/A"
+              ? `${equipmentBrand} (${request.Ref || request._id})`
+              : `${request.Ref || request._id}`;
 
           const completionMessage = `Task ${equipLabel} completed by ${technicianName}. ${completedDate}.${remarks && typeof remarks === "string" ? ` Remarks: ${remarks.trim()}` : ""}${feedbackText ? ` Feedback: ${feedbackText}` : ""}`;
 
           let feedbackToStore = null;
+
           if (feedbackText) {
-            if (typeof feedback === "object" && feedback !== null) {
-              feedbackToStore = feedback;
-            } else {
-              feedbackToStore = {
-                type: feedbackType || "",
-                message: feedbackText,
-                submittedBy: feedbackSubmittedBy || "User",
-                submittedAt: new Date()
-              };
-            }
+            feedbackToStore =
+              typeof feedback === "object" && feedback !== null
+                ? feedback
+                : {
+                  type: feedbackType || "",
+                  message: feedbackText,
+                  submittedBy: feedbackSubmittedBy || "User",
+                  submittedAt: new Date(),
+                };
           }
 
-          // ==========================================
-          // LOOP PER ADMIN — BAWAT ADMIN MAY SARILING VIEWER
-          // ==========================================
           for (const adminUser of adminUsers) {
-            const messageData = {
+            const notif = await Message.create({
               message: completionMessage,
               equipmentId: request.Equipments?._id || null,
               typesNotification: "TaskCompleted",
               Status: "Completed",
-              Laboratory: laboratoryId ? [laboratoryId] : laboratoryData,
+              Laboratory: laboratoryId
+                ? [laboratoryId]
+                : laboratoryData,
               Department: departmentId || null,
               To: "Admin",
               Encharge: adminUser._id,
@@ -3012,22 +3072,19 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
               feedbackType: feedbackType,
               feedbackSubmittedBy: feedbackSubmittedBy,
               parentMessageId: MessageId || null,
-            };
+            });
 
-            const notif = await Message.create(messageData);
             adminNotifications.push(notif);
-
-            console.log(`✅ Notification sent to Admin: ${adminUser._id}`);
           }
         }
 
         return res.status(200).json({
           success: true,
-          message: "Task marked as completed successfully. All admins have been notified.",
+          message:
+            "Task marked as completed successfully. All admins have been notified.",
           data: lookupData || updatedRequest,
-          history: history,
-          messageData: updatedMessage,
-          adminNotifications: adminNotifications,
+          history,
+          adminNotifications,
           adminNotified: adminNotifications.length > 0,
           adminCount: adminNotifications.length,
           duplicatePrevented: false,
@@ -3040,58 +3097,72 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
       // CHECK IF THIS IS APPROVED FLOW
       // ==========================================
       else if (status === "Approved") {
+        const parsedSchedule = parseSetSchedule(SetSchedule);
+
+        if (!parsedSchedule) {
+          return next(
+            new CustomError(
+              "SetSchedule is required when approving a request. Please provide a valid date.",
+              400
+            )
+          );
+        }
+
         const updateData = {
           $set: {
             Status: "Approved",
           },
         };
 
-        if (remarks && typeof remarks === "string" && remarks.trim() !== "") {
+        if (
+          remarks &&
+          typeof remarks === "string" &&
+          remarks.trim() !== ""
+        ) {
           updateData.$set.Remarks = remarks.trim();
           updateData.$set.remarksread = false;
         }
 
         if (feedbackText) {
-          if (typeof feedback === "object" && feedback !== null) {
-            updateData.$set.feedback = feedback;
-          } else {
-            updateData.$set.feedback = {
-              type: feedbackType || "",
-              message: feedbackText,
-              submittedBy: feedbackSubmittedBy || "User",
-              submittedAt: new Date()
-            };
-          }
+          updateData.$set.feedback =
+            typeof feedback === "object" && feedback !== null
+              ? feedback
+              : {
+                type: feedbackType || "",
+                message: feedbackText,
+                submittedBy: feedbackSubmittedBy || "User",
+                submittedAt: new Date(),
+              };
+
           updateData.$set.feedbackread = false;
         }
 
-        const updatedRequest = await requestmaintenance.findByIdAndUpdate(
-          RequestId,
-          updateData,
-          {
+        applySetSchedule(updateData, {
+          required: true,
+        });
+
+        const updatedRequest = await requestmaintenance
+          .findByIdAndUpdate(RequestId, updateData, {
             new: true,
             runValidators: true,
-          }
-        )
+          })
           .populate("Equipments")
           .populate("Department")
           .populate("Laboratory")
           .populate("Technician");
 
-        // ==========================================
-        // GET LOOKUP DATA AND SAVE TO HISTORY
-        // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
-        const history = await saveToHistory(lookupData, "Approved");
 
-        // ==========================================
-        // SOCKET EMIT - APPROVED
-        // ==========================================
-        emitSocketUpdate("Approved", lookupData || updatedRequest);
+        const history = await saveToHistory(
+          lookupData,
+          "Approved"
+        );
 
-        let updatedMessage = null;
+        emitSocketUpdate(
+          "Approved",
+          lookupData || updatedRequest
+        );
 
-        // CHECK IF TECHNICIAN CONFIRMED MESSAGE ALREADY EXISTS
         const existingApprovedMessage = await Message.findOne({
           RequestID: request._id,
           typesNotification: "TechnicianConfirmed",
@@ -3100,10 +3171,10 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
         if (existingApprovedMessage) {
           return res.status(200).json({
             success: true,
-            message: "Request is already approved. Notification already exists.",
+            message:
+              "Request is already approved. Notification already exists.",
             data: lookupData || updatedRequest,
-            history: history,
-            messageData: updatedMessage,
+            history,
             adminNotifications: [existingApprovedMessage],
             adminNotified: true,
             adminCount: 1,
@@ -3113,6 +3184,21 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           });
         }
 
+        // GET LABORATORY ENCHARGE FROM DATABASE
+        const rawLabId = request.Laboratory
+          ? request.Laboratory._id || request.Laboratory
+          : null;
+
+        let enchargeUserId = null;
+
+        if (rawLabId) {
+          const laboratoryRecord = await Laboratory.findById(rawLabId);
+
+          if (laboratoryRecord && laboratoryRecord.Encharge) {
+            enchargeUserId = laboratoryRecord.Encharge;
+          }
+        }
+
         const adminUsers = await user.find({
           role: {
             $in: ["Admin", "SuperAdmin"],
@@ -3120,41 +3206,31 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
         });
 
         let adminNotification = null;
+        let enchargeNotification = null;
 
-        if (adminUsers.length > 0) {
-          let technicianName = "Unknown Technician";
-          if (request.Technician) {
-            const tech = request.Technician;
-            technicianName = tech.FirstName && tech.LastName
+        if (adminUsers.length > 0 || enchargeUserId) {
+          const tech = request.Technician;
+
+          const technicianName =
+            tech && tech.FirstName && tech.LastName
               ? `${tech.FirstName} ${tech.LastName}`
-              : tech.username || tech.email || "Technician";
-          }
+              : tech
+                ? tech.username || tech.email
+                : "Unknown Technician";
 
-          let equipmentBrand = "N/A";
-          let equipmentSerial = "N/A";
-          let equipmentSpecs = "N/A";
-          let equipmentCategory = "N/A";
+          const equipmentBrand = request.Equipments
+            ? request.Equipments.EquipmentBrand ||
+            request.Equipments.name ||
+            "N/A"
+            : "N/A";
 
-          if (request.Equipments) {
-            equipmentBrand = request.Equipments.EquipmentBrand || request.Equipments.name || "N/A";
-            equipmentSerial = request.Equipments.EquipmentSerial || request.Equipments.serialNumber || "N/A";
-            equipmentSpecs = request.Equipments.EquipmentSpecification || request.Equipments.specifications || "N/A";
-            equipmentCategory = request.Equipments.CategoryName || request.Equipments.category || "N/A";
-          }
+          const departmentId = request.Department
+            ? request.Department._id || request.Department
+            : null;
 
-          let departmentName = "N/A";
-          let departmentId = null;
-          if (request.Department) {
-            departmentName = request.Department.name || request.Department.departmentName || "N/A";
-            departmentId = request.Department._id || request.Department;
-          }
-
-          let laboratoryName = "N/A";
-          let laboratoryId = null;
-          if (request.Laboratory) {
-            laboratoryName = request.Laboratory.name || request.Laboratory.laboratoryName || "N/A";
-            laboratoryId = request.Laboratory._id || request.Laboratory;
-          }
+          const laboratoryId = request.Laboratory
+            ? request.Laboratory._id || request.Laboratory
+            : null;
 
           const approvedDate = new Date().toLocaleString("en-US", {
             year: "numeric",
@@ -3165,58 +3241,114 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
             hour12: true,
           });
 
-          const equipLabel = equipmentBrand !== "N/A" ? `${equipmentBrand} (${request.Ref || request._id})` : `${request.Ref || request._id}`;
-          const professionalMessage = `Task ${equipLabel} confirmed by ${technicianName}. ${approvedDate}.${remarks && typeof remarks === "string" ? ` Remarks: ${remarks.trim()}` : ""}${feedbackText ? ` Feedback: ${feedbackText}` : ""}`;
+          const scheduleDate = parsedSchedule
+            ? new Date(parsedSchedule).toLocaleString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            })
+            : "Not specified";
+
+          const equipLabel =
+            equipmentBrand !== "N/A"
+              ? `${equipmentBrand} (${request.Ref || request._id})`
+              : `${request.Ref || request._id}`;
 
           let feedbackToStore = null;
+
           if (feedbackText) {
-            if (typeof feedback === "object" && feedback !== null) {
-              feedbackToStore = feedback;
-            } else {
-              feedbackToStore = {
-                type: feedbackType || "",
-                message: feedbackText,
-                submittedBy: feedbackSubmittedBy || "User",
-                submittedAt: new Date()
-              };
-            }
+            feedbackToStore =
+              typeof feedback === "object" && feedback !== null
+                ? feedback
+                : {
+                  type: feedbackType || "",
+                  message: feedbackText,
+                  submittedBy: feedbackSubmittedBy || "User",
+                  submittedAt: new Date(),
+                };
           }
 
-          const viewers = adminUsers.map((adminUser) => ({
-            user: adminUser._id,
-            isRead: false,
-          }));
+          // CREATE NOTIFICATION FOR ADMINS
+          if (adminUsers.length > 0) {
+            const professionalMessage = `Task ${equipLabel} confirmed by ${technicianName}. Scheduled on: ${scheduleDate}.${remarks && typeof remarks === "string" ? ` Remarks: ${remarks.trim()}` : ""}${feedbackText ? ` Feedback: ${feedbackText}` : ""}`;
 
-          const messageData = {
-            message: professionalMessage,
-            equipmentId: request.Equipments?._id || null,
-            typesNotification: "TechnicianConfirmed",
-            Status: "Approved",
-            Laboratory: laboratoryId ? [laboratoryId] : laboratoryData,
-            Department: departmentId || null,
-            To: "Admin",
-            Encharge: adminUsers[0]._id,
-            role: adminUsers[0].role || "Admin",
-            RequestID: request._id,
-            read: false,
-            viewers: viewers,
-            feedback: feedbackToStore,
-            feedbackType: feedbackType,
-            feedbackSubmittedBy: feedbackSubmittedBy,
-            parentMessageId: MessageId || null,
-          };
+            const viewers = adminUsers.map((adminUser) => ({
+              user: adminUser._id,
+              isRead: false,
+            }));
 
-          adminNotification = await Message.create(messageData);
+            adminNotification = await Message.create({
+              message: professionalMessage,
+              equipmentId: request.Equipments?._id || null,
+              typesNotification: "TechnicianConfirmed",
+              Status: "Approved",
+              Laboratory: laboratoryId
+                ? [laboratoryId]
+                : laboratoryData,
+              Department: departmentId || null,
+              To: "Admin",
+              Encharge: adminUsers[0]._id,
+              role: adminUsers[0].role || "Admin",
+              RequestID: request._id,
+              read: false,
+              viewers: viewers,
+              feedback: feedbackToStore,
+              feedbackType: feedbackType,
+              feedbackSubmittedBy: feedbackSubmittedBy,
+              parentMessageId: MessageId || null,
+            });
+          }
+
+          // CREATE NOTIFICATION FOR LABORATORY ENCHARGE
+          if (enchargeUserId) {
+            const enchargeUserDetails = await user.findById(
+              enchargeUserId
+            );
+
+            // ✅ UPDATED: Added remarks to the encharge message if it exists
+            const enchargeMessage = `Good news! The maintenance request for ${equipLabel} has been APPROVED. Technician ${technicianName} is scheduled to work on it at: ${scheduleDate}.${remarks && typeof remarks === "string" && remarks.trim() !== "" ? ` Remarks: ${remarks.trim()}` : ""}`;
+
+            enchargeNotification = await Message.create({
+              message: enchargeMessage,
+              equipmentId: request.Equipments?._id || null,
+              typesNotification: "RequestApproved",
+              Status: "Approved",
+              Laboratory: laboratoryId
+                ? [laboratoryId]
+                : laboratoryData,
+              Department: departmentId || null,
+              To: "Incharge",
+              Encharge: enchargeUserId,
+              role: enchargeUserDetails?.role || "Incharge",
+              RequestID: request._id,
+              read: false,
+              viewers: [
+                {
+                  user: enchargeUserId,
+                  isRead: false,
+                },
+              ],
+              feedback: feedbackToStore,
+              parentMessageId: MessageId || null,
+            });
+          }
         }
 
         return res.status(200).json({
           success: true,
-          message: "Request approved successfully. Admins have been notified.",
+          message:
+            "Request approved successfully. Admins and Laboratory In-charge have been notified.",
           data: lookupData || updatedRequest,
           history: history,
-          messageData: updatedMessage,
-          adminNotifications: adminNotification ? [adminNotification] : [],
+          adminNotifications: adminNotification
+            ? [adminNotification]
+            : [],
+          enchargeNotification: enchargeNotification,
           adminNotified: !!adminNotification,
+          enchargeNotified: !!enchargeNotification,
           adminCount: adminNotification ? 1 : 0,
           feedbackUpdated: !!feedbackText,
           feedbackData: feedback,
@@ -3225,81 +3357,80 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
       }
 
       // ==========================================
-      // CHECK IF THIS IS INCHARGECONFIRMED FLOW (with remarks)
+      // CHECK IF THIS IS INCHARGECONFIRMED FLOW
       // ==========================================
-      else if (status === "InchargedConfirmed" && remarks && typeof remarks === "string" && remarks.trim() !== "") {
+      else if (
+        status === "InchargedConfirmed" &&
+        remarks &&
+        typeof remarks === "string" &&
+        remarks.trim() !== ""
+      ) {
         const updateData = {
           $set: {
             Status: "InchargedConfirmed",
             Remarks: remarks.trim(),
-            remarksread: false
-          }
+            remarksread: false,
+          },
         };
 
         if (feedbackText) {
-          if (typeof feedback === "object" && feedback !== null) {
-            updateData.$set.feedback = feedback;
-          } else {
-            updateData.$set.feedback = {
-              type: feedbackType || "",
-              message: feedbackText,
-              submittedBy: feedbackSubmittedBy || "User",
-              submittedAt: new Date()
-            };
-          }
+          updateData.$set.feedback =
+            typeof feedback === "object" && feedback !== null
+              ? feedback
+              : {
+                type: feedbackType || "",
+                message: feedbackText,
+                submittedBy: feedbackSubmittedBy || "User",
+                submittedAt: new Date(),
+              };
+
           updateData.$set.feedbackread = false;
         }
 
-        const updatedRequest = await requestmaintenance.findByIdAndUpdate(
-          RequestId,
-          updateData,
-          {
+        applySetSchedule(updateData);
+
+        const updatedRequest = await requestmaintenance
+          .findByIdAndUpdate(RequestId, updateData, {
             new: true,
             runValidators: true,
-          }
-        )
+          })
           .populate("Equipments")
           .populate("Department")
           .populate("Laboratory")
           .populate("Technician");
 
-        // ==========================================
-        // GET LOOKUP DATA AND SAVE TO HISTORY
-        // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
-        const history = await saveToHistory(lookupData, "InchargedConfirmed");
 
-        // ==========================================
-        // SOCKET EMIT - INCHARGECONFIRMED
-        // ==========================================
-        emitSocketUpdate("InchargedConfirmed", lookupData || updatedRequest);
+        const history = await saveToHistory(
+          lookupData,
+          "InchargedConfirmed"
+        );
 
-        let laboratoryId = null;
-        if (updatedRequest.Laboratory) {
-          laboratoryId = updatedRequest.Laboratory._id || updatedRequest.Laboratory;
-        }
+        emitSocketUpdate(
+          "InchargedConfirmed",
+          lookupData || updatedRequest
+        );
 
-        // UPDATE EXISTING MESSAGE - REMARKS ONLY (NO STATUS UPDATE)
         let updatedMessage = null;
+
         if (MessageId) {
           const messageUpdateData = {
             $set: {
               remarks: remarks.trim(),
-              read: true
-            }
+              read: true,
+            },
           };
 
           if (feedbackText) {
-            if (typeof feedback === "object" && feedback !== null) {
-              messageUpdateData.$set.feedback = feedback;
-            } else {
-              messageUpdateData.$set.feedback = {
-                type: feedbackType || "",
-                message: feedbackText,
-                submittedBy: feedbackSubmittedBy || "User",
-                submittedAt: new Date()
-              };
-            }
+            messageUpdateData.$set.feedback =
+              typeof feedback === "object" && feedback !== null
+                ? feedback
+                : {
+                  type: feedbackType || "",
+                  message: feedbackText,
+                  submittedBy: feedbackSubmittedBy || "User",
+                  submittedAt: new Date(),
+                };
           }
 
           updatedMessage = await Message.findByIdAndUpdate(
@@ -3312,45 +3443,37 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           );
         }
 
-        // SEND NOTIFICATION TO IN-CHARGE (NEW MESSAGE)
         let inchargeNotification = null;
-        const targetInchargeId = LaboratoryEnchargeId || inchargeId;
+
+        const targetInchargeId =
+          LaboratoryEnchargeId || inchargeId;
 
         if (targetInchargeId) {
-          let technicianName = "Unknown Technician";
-          if (request.Technician) {
-            const tech = request.Technician;
-            technicianName = tech.FirstName && tech.LastName
+          const tech = request.Technician;
+
+          const technicianName =
+            tech && tech.FirstName && tech.LastName
               ? `${tech.FirstName} ${tech.LastName}`
-              : tech.username || tech.email || "Technician";
-          }
+              : tech
+                ? tech.username || tech.email
+                : "Unknown Technician";
 
-          let equipmentBrand = "N/A";
-          let equipmentSerial = "N/A";
-          if (request.Equipments) {
-            equipmentBrand = request.Equipments.EquipmentBrand || request.Equipments.name || "N/A";
-            equipmentSerial = request.Equipments.EquipmentSerial || request.Equipments.serialNumber || "N/A";
-          }
+          const equipmentBrand = request.Equipments
+            ? request.Equipments.EquipmentBrand ||
+            request.Equipments.name ||
+            "N/A"
+            : "N/A";
 
-          const equipLabel = equipmentBrand !== "N/A" ? `${equipmentBrand} (${request.Ref || request._id})` : `${request.Ref || request._id}`;
+          const equipLabel =
+            equipmentBrand !== "N/A"
+              ? `${equipmentBrand} (${request.Ref || request._id})`
+              : `${request.Ref || request._id}`;
+
           const inchargeMessage = `Task ${equipLabel} completed by ${technicianName} and awaiting your confirmation. ${new Date().toLocaleString()}.${remarks ? ` Remarks: ${remarks.trim()}` : ""}`;
 
-          let inchargeUser = null;
-          try {
-            inchargeUser = await user.findById(targetInchargeId);
-          } catch (err) {
-            // Silently handle error
-          }
-
-          let viewers = [];
-          if (targetInchargeId) {
-            viewers = [
-              {
-                user: targetInchargeId,
-                isRead: false
-              }
-            ];
-          }
+          const inchargeUser = await user
+            .findById(targetInchargeId)
+            .catch(() => null);
 
           inchargeNotification = await Message.create({
             message: inchargeMessage,
@@ -3363,66 +3486,77 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
             role: inchargeUser?.role || "Incharge",
             RequestID: request._id,
             read: false,
-            viewers: viewers,
-            parentMessageId: MessageId || null
+            viewers: [
+              {
+                user: targetInchargeId,
+                isRead: false,
+              },
+            ],
+            parentMessageId: MessageId || null,
           });
         }
 
         return res.status(200).json({
           success: true,
-          message: "Request confirmed successfully. In-charge has been notified.",
+          message:
+            "Request confirmed successfully. In-charge has been notified.",
           data: lookupData || updatedRequest,
-          history: history,
+          history,
           messageData: updatedMessage,
-          inchargeNotification: inchargeNotification,
+          inchargeNotification,
           inchargeNotified: !!inchargeNotification,
         });
       }
 
       // ==========================================
-      // CHECK IF THIS IS REMARKS-ONLY FLOW (no status)
+      // CHECK IF THIS IS REMARKS-ONLY FLOW
       // ==========================================
-      else if (remarks && typeof remarks === "string" && remarks.trim() !== "") {
+      else if (
+        remarks &&
+        typeof remarks === "string" &&
+        remarks.trim() !== ""
+      ) {
         const updateData = {
           $set: {
             Remarks: remarks.trim(),
-            remarksread: false
-          }
+            remarksread: false,
+          },
         };
 
-        const updatedRequest = await requestmaintenance.findByIdAndUpdate(
-          RequestId,
-          updateData,
-          {
+        applySetSchedule(updateData);
+
+        const updatedRequest = await requestmaintenance
+          .findByIdAndUpdate(RequestId, updateData, {
             new: true,
             runValidators: true,
-          }
-        )
+          })
           .populate("Equipments")
           .populate("Department")
           .populate("Laboratory")
           .populate("Technician");
 
-        // ==========================================
-        // GET LOOKUP DATA AND SAVE TO HISTORY
-        // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
-        const history = await saveToHistory(lookupData, "Remarks Only");
 
-        // ==========================================
-        // SOCKET EMIT - REMARKS ONLY
-        // ==========================================
-        emitSocketUpdate("Remarks Only", lookupData || updatedRequest);
+        const history = await saveToHistory(
+          lookupData,
+          "Remarks Only"
+        );
+
+        emitSocketUpdate(
+          "Remarks Only",
+          lookupData || updatedRequest
+        );
 
         let updatedMessage = null;
+
         if (MessageId) {
           updatedMessage = await Message.findByIdAndUpdate(
             MessageId,
             {
               $set: {
                 remarks: remarks.trim(),
-                read: true
-              }
+                read: true,
+              },
             },
             {
               new: true,
@@ -3431,18 +3565,58 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
           );
         }
 
+        // ✅ NEW: NOTIFY ENCHARGE ABOUT REMARKS (Same viewers structure as Approved)
+        let enchargeNotification = null;
+        const targetInchargeId = inchargeId || (request.Laboratory ? (request.Laboratory.Encharge || request.Laboratory._id) : null);
+
+        if (targetInchargeId) {
+          const inchargeUser = await user.findById(targetInchargeId).catch(() => null);
+
+          const equipmentBrand = request.Equipments
+            ? request.Equipments.EquipmentBrand || request.Equipments.name || "N/A"
+            : "N/A";
+
+          const equipLabel = equipmentBrand !== "N/A"
+            ? `${equipmentBrand} (${request.Ref || request._id})`
+            : `${request.Ref || request._id}`;
+
+          const remarksMessage = `New remarks added for task ${equipLabel}: "${remarks.trim()}". Please check the maintenance request for details.`;
+
+          enchargeNotification = await Message.create({
+            message: remarksMessage,
+            equipmentId: request.Equipments?._id || null,
+            typesNotification: "RemarksAdded",
+            Status: "Remarks Updated",
+            Laboratory: laboratoryData.length > 0 ? laboratoryData : (request.Laboratory ? [request.Laboratory._id || request.Laboratory] : []),
+            Department: request.Department?._id || request.Department || null,
+            To: "Incharge",
+            Encharge: targetInchargeId,
+            role: inchargeUser?.role || "Incharge",
+            RequestID: request._id,
+            read: false,
+            viewers: [
+              {
+                user: targetInchargeId,
+                isRead: false,
+              },
+            ],
+            parentMessageId: MessageId || null,
+          });
+        }
+
         return res.status(200).json({
           success: true,
-          message: "Remarks submitted successfully.",
+          message: "Remarks submitted successfully and In-charge has been notified.",
           data: lookupData || updatedRequest,
-          history: history,
+          history,
           messageData: updatedMessage,
-          adminNotified: false
+          enchargeNotification,
+          enchargeNotified: !!enchargeNotification,
         });
       }
 
       // ==========================================
-      // FOR ASSIGN TECHNICIAN (no status and no remarks)
+      // FOR ASSIGN TECHNICIAN (DEFAULT FLOW)
       // ==========================================
       else {
         if (!technicianId) {
@@ -3456,45 +3630,48 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
 
         const updateData = {
           $set: {
-            Technician: technicianId
-          }
+            Technician: technicianId,
+          },
         };
 
         if (request.Status === "Pending" || !request.Status) {
           updateData.$set.Status = "Assigned";
         }
 
-        const updatedRequest = await requestmaintenance.findByIdAndUpdate(
-          RequestId,
-          updateData,
-          {
+        // APPLY SCHEDULE AND PRIORITY
+        applySetSchedule(updateData);
+        applyPriorityLevel(updateData);
+
+        const updatedRequest = await requestmaintenance
+          .findByIdAndUpdate(RequestId, updateData, {
             new: true,
             runValidators: true,
-          }
-        )
+          })
           .populate("Equipments")
           .populate("Department")
           .populate("Laboratory")
           .populate("Technician");
 
-        // ==========================================
-        // GET LOOKUP DATA AND SAVE TO HISTORY
-        // ==========================================
         const lookupData = await getRequestWithLookup(updatedRequest._id);
-        const history = await saveToHistory(lookupData, "Assign Technician");
 
-        // ==========================================
-        // SOCKET EMIT - ASSIGN TECHNICIAN
-        // ==========================================
-        emitSocketUpdate("Assign Technician", lookupData || updatedRequest);
+        const history = await saveToHistory(
+          lookupData,
+          "Assign Technician"
+        );
+
+        emitSocketUpdate(
+          "Assign Technician",
+          lookupData || updatedRequest
+        );
 
         let updatedMessage = null;
+
         if (MessageId) {
           updatedMessage = await Message.findByIdAndUpdate(
             MessageId,
             {
               $set: {
-                Status: "Assigned",
+                Status: status || "Assigned",
                 read: true,
                 technicianId: technicianId,
               },
@@ -3513,26 +3690,30 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
 
           if (!updatedMessage) {
             return next(
-              new CustomError(
-                "Message not found",
-                404
-              )
+              new CustomError("Message not found", 404)
             );
           }
         }
 
-        let assignedEquipmentBrand = "N/A";
-        if (request.Equipments) {
-          assignedEquipmentBrand = request.Equipments.EquipmentBrand || request.Equipments.name || "N/A";
-        }
+        const assignedEquipmentBrand = request.Equipments
+          ? request.Equipments.EquipmentBrand ||
+          request.Equipments.name ||
+          "N/A"
+          : "N/A";
 
-        const equipLabel = assignedEquipmentBrand !== "N/A" ? `${assignedEquipmentBrand} (${request.Ref || request._id})` : `${request.Ref || request._id}`;
-        const messageData = {
+        const equipLabel =
+          assignedEquipmentBrand !== "N/A"
+            ? `${assignedEquipmentBrand} (${request.Ref || request._id})`
+            : `${request.Ref || request._id}`;
+
+        const newMessage = await Message.create({
           message: `New task assigned to you: ${equipLabel}.`,
           equipmentId: request.Equipments?._id || null,
           typesNotification: status || "AssignedTechnician",
           Status: status || "Assigned",
-          Laboratory: request.Laboratory ? [request.Laboratory] : [],
+          Laboratory: request.Laboratory
+            ? [request.Laboratory]
+            : [],
           To: "Technician",
           Encharge: technicianId,
           role: "Technician",
@@ -3543,34 +3724,33 @@ exports.updateDataAssignTechnician = AsyncErrorHandler(
               isRead: false,
             },
           ],
-        };
-
-        const newMessage = await Message.create(messageData);
+        });
 
         return res.status(200).json({
           success: true,
           message: "Technician assigned successfully",
           data: lookupData || updatedRequest,
-          history: history,
+          history,
           messageData: updatedMessage,
-          newMessage: newMessage,
-          adminNotified: false
+          newMessage,
+          adminNotified: false,
         });
       }
-
     } catch (error) {
-      console.error("❌ Error in updateDataAssignTechnician:", error);
+      console.error(
+        "❌ Error in updateDataAssignTechnician:",
+        error
+      );
+
       console.error("❌ Stack:", error.stack);
 
       return next(
-        new CustomError(
-          error.message || "Server error",
-          500
-        )
+        new CustomError(error.message || "Server error", 500)
       );
     }
   }
 );
+
 
 exports.TechnicianTask = AsyncErrorHandler(async (req, res) => {
   // ============================================================
@@ -3843,6 +4023,232 @@ exports.TechnicianTask = AsyncErrorHandler(async (req, res) => {
     totalTechnicians: technicianTasks.length,
 
     data: responseData,
+  });
+});
+
+exports.DisplayCalendarSchedules = AsyncErrorHandler(async (req, res) => {
+  const role = req.user.role;
+  const userId = req.user._id;
+
+  // ==========================================
+  // BUILD BASE QUERY (ONLY RECORDS WITH SetSchedule)
+  // ==========================================
+  let query = {
+    SetSchedule: { $ne: null },
+  };
+  if (role === "Admin" || role?.toLowerCase() === "admin") {
+    // Admin = display ALL scheduled maintenance
+    query = { SetSchedule: { $ne: null } };
+  } else if (role === "User" || role?.toLowerCase() === "user") {
+    // User = i-match ang userId sa Encharge ng Laboratory, kunin ang Laboratory IDs,
+    // at gamitin ito para makuha ang matching records sa RequestMaintenance
+    try {
+      const assignedLabs = await Laboratory.find({ Encharge: userId }).select("_id Encharge");
+      const labIds = assignedLabs.map((lab) => lab._id);
+
+      if (labIds.length > 0) {
+        query.$or = [
+          { Laboratory: { $in: labIds } },
+          { Encharge: userId },
+        ];
+      } else {
+        // Fallback kung sakaling naka-store directly ang Encharge sa RequestMaintenance
+        query.Encharge = userId;
+      }
+    } catch (error) {
+      return res.status(500).json({
+        status: "error",
+        message: "Error fetching user's laboratory assignment",
+        error: error.message,
+      });
+    }
+  } else if (role === "Technician" || role?.toLowerCase() === "technician") {
+    // Technician = display only scheduled requests where Technician matches userId
+    query.Technician = userId;
+  } else {
+    // Fallback for any other unauthorized roles
+    return res.status(200).json({
+      status: "success",
+      totalSchedule: 0,
+      data: [],
+    });
+  }
+
+  // Optional: Filter by month & year if passed from Calendar UI (?month=11&year=2026)
+  if (req.query.month && req.query.year) {
+    const m = parseInt(req.query.month, 10) - 1;
+    const y = parseInt(req.query.year, 10);
+    const startDate = new Date(y, m, 1, 0, 0, 0);
+    const endDate = new Date(y, m + 1, 0, 23, 59, 59);
+    query.SetSchedule = { $gte: startDate, $lte: endDate };
+  }
+
+  // ==========================================
+  // API FEATURES
+  // ==========================================
+  const features = new Apifeatures(
+    requestmaintenance.find(query),
+    req.query
+  )
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate();
+
+  const filteredrequest = await features.query;
+
+  if (filteredrequest.length === 0) {
+    return res.status(200).json({
+      status: "success",
+      totalSchedule: 0,
+      data: [],
+    });
+  }
+
+  // ==========================================
+  // AGGREGATION
+  // ==========================================
+  const schedules = await requestmaintenance.aggregate([
+    {
+      $match: {
+        _id: {
+          $in: filteredrequest.map((lb) => lb._id),
+        },
+      },
+    },
+    {
+      $sort: { SetSchedule: 1 },
+    },
+
+    // ==========================================
+    // DEPARTMENT
+    // ==========================================
+    {
+      $lookup: {
+        from: "departments",
+        localField: "Department",
+        foreignField: "_id",
+        as: "DepartmentInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$DepartmentInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    // ==========================================
+    // LABORATORY
+    // ==========================================
+    {
+      $lookup: {
+        from: "laboratories",
+        localField: "Laboratory",
+        foreignField: "_id",
+        as: "LaboratoryInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$LaboratoryInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    // ==========================================
+    // ENCHARGE (FROM LABORATORY.ENCHARGE -> USERS)
+    // ==========================================
+    {
+      $lookup: {
+        from: "users",
+        localField: "LaboratoryInfo.Encharge",
+        foreignField: "_id",
+        as: "EnchargeDetails",
+      },
+    },
+    {
+      $unwind: {
+        path: "$EnchargeDetails",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    // ==========================================
+    // EQUIPMENT (PARA SA REQUEST DETAILS)
+    // ==========================================
+    {
+      $lookup: {
+        from: "equipment",
+        localField: "Equipments",
+        foreignField: "_id",
+        as: "EquipmentsInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$EquipmentsInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    // ==========================================
+    // PROJECT (ENCHARGE, DEPARTMENT, LABORATORY, REQUEST, SETSCHEDULE)
+    // ==========================================
+    {
+      $project: {
+        _id: 1,
+        Ref: 1,
+        Request: {
+          $ifNull: ["$Description", "N/A"],
+        },
+        Equipment: {
+          $ifNull: ["$EquipmentsInfo.Brand", "N/A"],
+        },
+        Encharge: {
+          $cond: {
+            if: { $ifNull: ["$EnchargeDetails._id", false] },
+            then: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ["$EnchargeDetails.FirstName", ""] },
+                    " ",
+                    { $ifNull: ["$EnchargeDetails.Middle", ""] },
+                    " ",
+                    { $ifNull: ["$EnchargeDetails.LastName", ""] },
+                  ],
+                },
+              },
+            },
+            else: "N/A",
+          },
+        },
+        Department: {
+          $ifNull: ["$DepartmentInfo.DepartmentName", "N/A"],
+        },
+        Laboratory: {
+          $ifNull: ["$LaboratoryInfo.LaboratoryName", "N/A"],
+        },
+        SetSchedule: 1,
+        scheduledDate: {
+          $dateToString: {
+            format: "%Y-%m-%d",
+            date: "$SetSchedule",
+            timezone: "Asia/Manila",
+          },
+        },
+      },
+    },
+  ]);
+
+  // ==========================================
+  // RESPONSE
+  // ==========================================
+  res.status(200).json({
+    status: "success",
+    totalSchedule: schedules.length,
+    data: schedules,
   });
 });
 

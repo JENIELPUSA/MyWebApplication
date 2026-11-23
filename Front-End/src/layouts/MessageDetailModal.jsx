@@ -1,4 +1,3 @@
-// components/MessageDetailModal.jsx
 import { useState, useContext } from "react";
 import {
     FileText,
@@ -28,7 +27,7 @@ import {
 } from "lucide-react";
 import { MaintenanceRequestContext } from "../contexts/MaintenanceRequestContext/MaintenanceRequestContext";
 import { AuthContext } from "../contexts/AuthContext";
-
+import { UserDataContext } from "../contexts/UserContext/UserContext";
 
 // Helper functions
 const isEmptyOrWhitespace = (value) => {
@@ -88,6 +87,21 @@ const getDisplayValue = (value) => {
     return "N/A";
 };
 
+// Priority color helpers
+const getPriorityColor = (priority) => {
+    if (priority === "High") return "text-red-600 dark:text-red-400";
+    if (priority === "Medium") return "text-yellow-600 dark:text-yellow-400";
+    if (priority === "Low") return "text-green-600 dark:text-green-400";
+    return "text-slate-600 dark:text-slate-400";
+};
+
+const getPriorityBg = (priority) => {
+    if (priority === "High") return "bg-red-100 dark:bg-red-900/30";
+    if (priority === "Medium") return "bg-yellow-100 dark:bg-yellow-900/30";
+    if (priority === "Low") return "bg-green-100 dark:bg-green-900/30";
+    return "bg-slate-100 dark:bg-slate-700/30";
+};
+
 export const MessageDetailModal = ({
     selectedMessage,
     onClose,
@@ -99,6 +113,8 @@ export const MessageDetailModal = ({
 }) => {
     const { role } = useContext(AuthContext);
     const { UpdateAssignTechnician } = useContext(MaintenanceRequestContext);
+    const { technicianTypes, fetchAllTechnicians } = useContext(UserDataContext);
+
     const [selectedTechnician, setSelectedTechnician] = useState("");
     const [isAssigning, setIsAssigning] = useState(false);
     const [assignSuccess, setAssignSuccess] = useState(false);
@@ -109,12 +125,21 @@ export const MessageDetailModal = ({
     const [showRemarksPopup, setShowRemarksPopup] = useState(false);
     const [isSubmittingRemarks, setIsSubmittingRemarks] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
+    
+    // NEW: Technician Type States
+    const [selectedTechnicianType, setSelectedTechnicianType] = useState("");
+    const [technicianTypeError, setTechnicianTypeError] = useState("");
 
-    console.log("selectedMessage",selectedMessage)
+    const [showScheduleCalendar, setShowScheduleCalendar] = useState(false);
+    const [scheduleValue, setScheduleValue] = useState("");
+    const [scheduleError, setScheduleError] = useState("");
+    const [isSubmittingSchedule, setIsSubmittingSchedule] = useState(false);
 
-    // =============================================
+    // Priority level state (for assigning technician)
+    const [selectedPriority, setSelectedPriority] = useState("");
+    const [priorityError, setPriorityError] = useState("");
+
     // FEEDBACK STATES
-    // =============================================
     const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
     const [feedbackType, setFeedbackType] = useState("");
     const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -122,9 +147,7 @@ export const MessageDetailModal = ({
 
     if (!selectedMessage) return null;
 
-    // =============================================
     // CHECK IF RE-ASSIGN - ACCESS FROM data OBJECT
-    // =============================================
     const isReassign = selectedMessage.data?.isReassign === true;
 
     // =============================================
@@ -133,13 +156,27 @@ export const MessageDetailModal = ({
     const handleAssignTechnician = async () => {
         if (!selectedTechnician) return;
 
+        // Validate priority
+        if (!selectedPriority || !["Low", "Medium", "High"].includes(selectedPriority)) {
+            setPriorityError("Please select a valid priority level.");
+            return;
+        }
+
+        // NEW: Validate technician type
+        if (!selectedTechnicianType) {
+            setTechnicianTypeError("Please select a technician type.");
+            return;
+        }
+
         setIsAssigning(true);
         try {
             const payload = {
                 technicianId: selectedTechnician,
                 RequestId: selectedMessage.data?.RequestID || selectedMessage.data?._id,
                 MessageId: selectedMessage.id || selectedMessage.data?._id,
-                status: "AssignedTechnician"
+                status: "AssignedTechnician",
+                levelprioritized: selectedPriority,
+                types_of_technician: selectedTechnicianType, // NEW: Added to payload
             };
 
             console.log("📤 ASSIGN PAYLOAD:", payload);
@@ -160,10 +197,39 @@ export const MessageDetailModal = ({
     };
 
     // =============================================
-    // HANDLE APPROVE
+    // NEW: CLICK "CONFIRMED" → OPEN CALENDAR
     // =============================================
-    const handleApprove = async () => {
+    const handleOpenScheduleCalendar = () => {
+        setScheduleValue("");
+        setScheduleError("");
+        setShowScheduleCalendar(true);
+    };
+
+    // =============================================
+    // NEW: USER PICKS SCHEDULE → SUBMIT APPROVAL
+    // =============================================
+    const handleSubmitScheduleApproval = async () => {
+        if (!scheduleValue || String(scheduleValue).trim() === "") {
+            setScheduleError("Please select a schedule date.");
+            return;
+        }
+
+        const parsed = new Date(scheduleValue);
+        if (isNaN(parsed.getTime())) {
+            setScheduleError("Invalid date. Please pick a valid schedule.");
+            return;
+        }
+
+        // Prevent 2027 and above
+        if (parsed.getFullYear() >= 2027) {
+            setScheduleError("Schedule date cannot be in 2027 or later. Please select a date in 2026 or earlier.");
+            return;
+        }
+
+        setScheduleError("");
+        setIsSubmittingSchedule(true);
         setIsApproving(true);
+
         try {
             const requestId = selectedMessage.data?.RequestID || selectedMessage.data?._id;
             const messageId = selectedMessage.id || selectedMessage.data?._id;
@@ -171,14 +237,16 @@ export const MessageDetailModal = ({
             const payload = {
                 RequestId: requestId,
                 MessageId: messageId,
-                status: "Approved"
+                status: "Approved",
+                SetSchedule: parsed.toISOString(),
             };
 
-            console.log("📤 APPROVAL PAYLOAD:", JSON.stringify(payload, null, 2));
+            console.log("📤 APPROVAL + SETSCHEDULE PAYLOAD:", JSON.stringify(payload, null, 2));
 
             const result = await UpdateAssignTechnician(payload);
             console.log("Approval response:", result);
 
+            setShowScheduleCalendar(false);
             setApproveSuccess(true);
             setShowConfirmation(true);
 
@@ -192,8 +260,14 @@ export const MessageDetailModal = ({
 
         } catch (error) {
             console.error("❌ Error approving request:", error);
+            setScheduleError(
+                error?.response?.data?.message ||
+                error?.message ||
+                "Failed to approve request."
+            );
             if (onAssignError) onAssignError(error);
         } finally {
+            setIsSubmittingSchedule(false);
             setIsApproving(false);
         }
     };
@@ -352,15 +426,9 @@ export const MessageDetailModal = ({
     // GET DISPLAY STATUS
     // =============================================
     const getDisplayStatus = (status) => {
-        if (status === "InchargedConfirmed") {
-            return "Waiting For Incharge Feedback";
-        }
-        if (status === "InchargeConfirmation") {
-            return "Awaiting User Confirmation";
-        }
-        if (status === "FeedbackSubmitted") {
-            return "Feedback Submitted";
-        }
+        if (status === "InchargedConfirmed") return "Waiting For Incharge Feedback";
+        if (status === "InchargeConfirmation") return "Awaiting User Confirmation";
+        if (status === "FeedbackSubmitted") return "Feedback Submitted";
         return status || "N/A";
     };
 
@@ -415,15 +483,25 @@ export const MessageDetailModal = ({
     // =============================================
     const showRemarksButton = !isReassign && isAssignedTechnician && isApproved;
     const showApproveButton = !isReassign && isAssignedTechnician && !isApproved && !isInchargedConfirmed && !isCompleted;
-    const showAssignButton = !isReassign && !isAssignedTechnician &&
+
+    // HIDE Assign Technician kapag Waiting For Incharge Feedback / Feedback Submitted
+    const showAssignButton =
+        !isReassign &&
+        !isAssignedTechnician &&
         selectedMessage.data?.typesNotification === "MaintenanceRequest" &&
-        getDisplayValue(selectedMessage.data?.RequestStatus) !== "Completed";
+        getDisplayValue(selectedMessage.data?.RequestStatus) !== "Completed" &&
+        !isInchargedConfirmed &&
+        !isFeedbackSubmitted;
+
     const showFeedbackButtonFinal = !isReassign && showFeedbackButton;
 
     const hasAdditionalInfo =
         (selectedMessage.data?.EquipmentRemarks && !isEmptyOrWhitespace(selectedMessage.data.EquipmentRemarks)) ||
         (selectedMessage.data?.RequestDescription && !isEmptyOrWhitespace(selectedMessage.data.RequestDescription) &&
             selectedMessage.data.RequestDescription !== selectedMessage.data?.message);
+
+    // Current priority (from request data)
+    const currentPriority = selectedMessage.data?.levelprioritized;
 
     return (
         <>
@@ -436,9 +514,7 @@ export const MessageDetailModal = ({
                     className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* ========================================== */}
                     {/* RE-ASSIGN WATERMARK - TOP RIGHT CORNER */}
-                    {/* ========================================== */}
                     {isReassign && (
                         <div className="absolute top-6 right-6 z-10">
                             <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow-lg transform rotate-12 border-2 border-orange-600 flex items-center gap-2 animate-pulse">
@@ -448,9 +524,7 @@ export const MessageDetailModal = ({
                         </div>
                     )}
 
-                    {/* ========================================== */}
                     {/* RE-ASSIGN OVERLAY WATERMARK - DIAGONAL */}
-                    {/* ========================================== */}
                     {isReassign && (
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-25deg] opacity-5">
@@ -471,9 +545,7 @@ export const MessageDetailModal = ({
                         </div>
                     )}
 
-                    {/* ========================================== */}
                     {/* CONFIRMATION BANNER */}
-                    {/* ========================================== */}
                     {showConfirmation && (
                         <div className="mx-6 mt-6 p-4 rounded-xl bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
                             <div className="flex items-start gap-3">
@@ -487,8 +559,7 @@ export const MessageDetailModal = ({
                                     <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
                                         {isFeedbackSubmitted
                                             ? `Your feedback has been recorded. Thank you for your response.`
-                                            : `You have successfully confirmed and approved the maintenance task.
-                                            ${remarks ? ` Remarks: "${remarks}"` : ''}`
+                                            : `You have successfully confirmed and approved the maintenance task. ${remarks ? ` Remarks: "${remarks}"` : ''}`
                                         }
                                     </p>
                                 </div>
@@ -512,12 +583,19 @@ export const MessageDetailModal = ({
                                     )}
                                 </h2>
                                 <div className="flex items-center gap-2">
-                                    {/* Hide status badge when isReassign is true */}
                                     {!isReassign && (
                                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getStatusBg(currentStatus)} ${getStatusColor(currentStatus)}`}>
                                             {displayStatus}
                                         </span>
                                     )}
+
+                                    {/* Priority badge in header */}
+                                    {currentPriority && (
+                                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getPriorityBg(currentPriority)} ${getPriorityColor(currentPriority)}`}>
+                                            {currentPriority} Priority
+                                        </span>
+                                    )}
+
                                     <span className="text-xs text-slate-400 dark:text-slate-500">
                                         {formatFullDate(selectedMessage.data?.DateTime)}
                                     </span>
@@ -532,14 +610,9 @@ export const MessageDetailModal = ({
                         </button>
                     </div>
 
-                    {/* ========================================== */}
                     {/* CONTENT */}
-                    {/* ========================================== */}
                     <div className="p-6 space-y-5 text-sm text-slate-700 dark:text-slate-200">
 
-                        {/* ========================================== */}
-                        {/* DEPARTMENT & LABORATORY */}
-                        {/* ========================================== */}
                         <div className="flex items-start gap-3">
                             <Building size={18} className="text-slate-400 mt-1 shrink-0" />
                             <p className="leading-7">
@@ -555,9 +628,6 @@ export const MessageDetailModal = ({
                             </p>
                         </div>
 
-                        {/* ========================================== */}
-                        {/* EQUIPMENT DETAILS */}
-                        {/* ========================================== */}
                         {selectedMessage.data?.EquipmentBrand && !isEmptyOrWhitespace(selectedMessage.data.EquipmentBrand) && (
                             <div className="flex items-start gap-3">
                                 <Monitor size={18} className="text-slate-400 mt-1 shrink-0" />
@@ -582,9 +652,6 @@ export const MessageDetailModal = ({
                             </div>
                         )}
 
-                        {/* ========================================== */}
-                        {/* PERSONNEL & ASSIGNMENT */}
-                        {/* ========================================== */}
                         {!isAssignedTechnician && (
                             <div className="flex items-start gap-3">
                                 <Users size={18} className="text-slate-400 mt-1 shrink-0" />
@@ -615,9 +682,6 @@ export const MessageDetailModal = ({
                             </div>
                         )}
 
-                        {/* ========================================== */}
-                        {/* REFERENCE & REQUEST ID */}
-                        {/* ========================================== */}
                         <div className="flex items-start gap-3">
                             <Hash size={18} className="text-slate-400 mt-1 shrink-0" />
                             <p className="leading-7 break-words">
@@ -632,9 +696,6 @@ export const MessageDetailModal = ({
                             </p>
                         </div>
 
-                        {/* ========================================== */}
-                        {/* TIMESTAMPS */}
-                        {/* ========================================== */}
                         <div className="flex items-start gap-3">
                             <Calendar size={18} className="text-slate-400 mt-1 shrink-0" />
                             <p className="leading-7">
@@ -649,9 +710,6 @@ export const MessageDetailModal = ({
                             </p>
                         </div>
 
-                        {/* ========================================== */}
-                        {/* ISSUE / PROBLEM */}
-                        {/* ========================================== */}
                         {hasAdditionalInfo && (
                             <div className="flex items-start gap-3 p-4 rounded-xl border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20 shadow-sm">
                                 <AlertTriangle size={18} className="text-yellow-500 mt-0.5 shrink-0" />
@@ -672,9 +730,6 @@ export const MessageDetailModal = ({
                             </div>
                         )}
 
-                        {/* ========================================== */}
-                        {/* EXISTING REMARKS */}
-                        {/* ========================================== */}
                         {selectedMessage.data?.Remarks && !isEmptyOrWhitespace(selectedMessage.data.Remarks) && (
                             <div className="flex items-start gap-3">
                                 <MessageSquare size={18} className="text-blue-500 mt-1 shrink-0" />
@@ -687,9 +742,6 @@ export const MessageDetailModal = ({
                             </div>
                         )}
 
-                        {/* ========================================== */}
-                        {/* FEEDBACK DISPLAY (if already submitted) */}
-                        {/* ========================================== */}
                         {isFeedbackSubmitted && selectedMessage.data?.feedback && (
                             <div className={`flex items-start gap-3 p-4 rounded-xl border-l-4 ${selectedMessage.data.feedback.type === "Satisfied"
                                 ? "border-green-500 bg-green-50 dark:bg-green-950/20"
@@ -716,12 +768,9 @@ export const MessageDetailModal = ({
                         )}
                     </div>
 
-                    {/* ========================================== */}
                     {/* MODAL FOOTER */}
-                    {/* ========================================== */}
                     <div className="sticky bottom-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-wrap items-center justify-between gap-3 rounded-b-2xl">
 
-                        {/* Left side - Re-assign info or status */}
                         {isReassign ? (
                             <div className="flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
                                 <Clock size={16} />
@@ -733,11 +782,7 @@ export const MessageDetailModal = ({
                             </div>
                         )}
 
-                        {/* Right side - Action Buttons */}
                         <div className="flex flex-wrap items-center gap-2">
-                            {/* ========================================== */}
-                            {/* ADD FEEDBACK BUTTON */}
-                            {/* ========================================== */}
                             {showFeedbackButtonFinal && (
                                 <button
                                     onClick={handleOpenFeedbackPopup}
@@ -748,7 +793,6 @@ export const MessageDetailModal = ({
                                 </button>
                             )}
 
-                            {/* ADD REMARKS BUTTON */}
                             {showRemarksButton && (
                                 <button
                                     onClick={handleOpenRemarksPopup}
@@ -759,7 +803,6 @@ export const MessageDetailModal = ({
                                 </button>
                             )}
 
-                            {/* ASSIGN TECHNICIAN BUTTON */}
                             {showAssignButton && (
                                 <div className="relative">
                                     <button
@@ -768,6 +811,11 @@ export const MessageDetailModal = ({
                                                 setAssignSuccess(false);
                                                 setSelectedTechnician("");
                                             }
+                                            setSelectedPriority("");
+                                            setPriorityError("");
+                                            // NEW: Reset Technician Type states
+                                            setSelectedTechnicianType("");
+                                            setTechnicianTypeError("");
                                             setShowAssignDropdown(!showAssignDropdown);
                                         }}
                                         disabled={isAssigning}
@@ -794,7 +842,6 @@ export const MessageDetailModal = ({
                                         )}
                                     </button>
 
-                                    {/* Assign Dropdown Modal */}
                                     {showAssignDropdown && !assignSuccess && (
                                         <div
                                             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[200] animate-in fade-in duration-200 p-4"
@@ -826,8 +873,62 @@ export const MessageDetailModal = ({
                                                                 {displayStatus}
                                                             </span>
                                                         )}
+
+                                                        {currentPriority && (
+                                                            <p className="mt-1">
+                                                                <span className="font-medium">Current Priority:</span>{" "}
+                                                                <span className={`font-semibold ${getPriorityColor(currentPriority)}`}>
+                                                                    {currentPriority}
+                                                                </span>
+                                                            </p>
+                                                        )}
                                                     </div>
 
+                                                    {/* 1. Technician Type Selection (MAUNA MUNA) */}
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                            Technician Type
+                                                            <span className="text-red-500 text-xs ml-1">*Required</span>
+                                                        </label>
+                                                        <select
+                                                            value={selectedTechnicianType}
+                                                            onChange={async (e) => {
+                                                                const type = e.target.value;
+                                                                setSelectedTechnicianType(type);
+                                                                setSelectedTechnician(""); // Reset chosen technician when type changes
+                                                                if (technicianTypeError) setTechnicianTypeError("");
+                                                                
+                                                                if (type && fetchAllTechnicians) {
+                                                                    try {
+                                                                        // AUTO-FETCH technicians based on selected type
+                                                                        await fetchAllTechnicians({ search: type });
+                                                                    } catch (error) {
+                                                                        console.error("Error fetching technicians:", error);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition"
+                                                        >
+                                                            <option value="">Select Technician Type...</option>
+                                                            {technicianTypes && technicianTypes.length > 0 ? (
+                                                                technicianTypes.map((typeObj, index) => (
+                                                                    <option key={index} value={typeObj.types_of_technician}>
+                                                                        {typeObj.types_of_technician}
+                                                                    </option>
+                                                                ))
+                                                            ) : (
+                                                                <option value="" disabled>No technician types available</option>
+                                                            )}
+                                                        </select>
+                                                        {technicianTypeError && (
+                                                            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                                                                <AlertTriangle size={12} />
+                                                                {technicianTypeError}
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    {/* 2. Choose Technician (NASA BABA, enabled pag may type na) */}
                                                     <div className="space-y-2">
                                                         <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                                                             Choose Technician
@@ -835,11 +936,18 @@ export const MessageDetailModal = ({
                                                         <select
                                                             value={selectedTechnician}
                                                             onChange={(e) => setSelectedTechnician(e.target.value)}
-                                                            className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition"
-                                                            disabled={isLoadingTechnicians}
+                                                            className={`w-full px-3 py-2 border rounded-lg text-sm outline-none transition ${
+                                                                !selectedTechnicianType
+                                                                    ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:border-slate-700 dark:text-slate-500'
+                                                                    : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-yellow-500 focus:border-transparent'
+                                                            }`}
+                                                            disabled={!selectedTechnicianType || isLoadingTechnicians}
                                                         >
-                                                            <option value="">Choose a technician...</option>
-                                                            {technicians && technicians.length > 0 ? (
+                                                            {!selectedTechnicianType ? (
+                                                                <option value="">Select a Technician Type first</option>
+                                                            ) : isLoadingTechnicians ? (
+                                                                <option value="">Loading technicians...</option>
+                                                            ) : technicians && technicians.length > 0 ? (
                                                                 technicians.map((tech) => {
                                                                     const techId = tech._id || tech.id;
                                                                     const fullName = getTechnicianName(tech);
@@ -850,22 +958,55 @@ export const MessageDetailModal = ({
                                                                     );
                                                                 })
                                                             ) : (
-                                                                <option value="" disabled>No technicians available</option>
+                                                                <option value="" disabled>No technicians available for this type</option>
                                                             )}
                                                         </select>
-                                                        {isLoadingTechnicians && (
+                                                        
+                                                        {/* Loading indicator specifically for this dropdown */}
+                                                        {isLoadingTechnicians && selectedTechnicianType && (
                                                             <p className="text-xs text-slate-400 flex items-center gap-1">
                                                                 <Loader2 size={12} className="animate-spin" />
-                                                                Loading technicians...
+                                                                Fetching technicians...
                                                             </p>
                                                         )}
+                                                    </div>
+
+                                                    {/* 3. Priority Level Selection */}
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                            Priority Level
+                                                            <span className="text-red-500 text-xs ml-1">*Required</span>
+                                                        </label>
+                                                        <select
+                                                            value={selectedPriority}
+                                                            onChange={(e) => {
+                                                                setSelectedPriority(e.target.value);
+                                                                if (priorityError) setPriorityError("");
+                                                            }}
+                                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition"
+                                                        >
+                                                            <option value="">Select Priority Level...</option>
+                                                            <option value="Low">Low</option>
+                                                            <option value="Medium">Medium</option>
+                                                            <option value="High">High</option>
+                                                        </select>
+                                                        {priorityError && (
+                                                            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                                                                <AlertTriangle size={12} />
+                                                                {priorityError}
+                                                            </p>
+                                                        )}
+                                                        <p className="text-xs text-slate-400 dark:text-slate-500">
+                                                            Priority helps technicians plan their workload.
+                                                        </p>
                                                     </div>
 
                                                     <div className="flex gap-3 pt-2">
                                                         <button
                                                             onClick={handleAssignTechnician}
-                                                            disabled={!selectedTechnician || isAssigning || isLoadingTechnicians}
-                                                            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${!selectedTechnician || isAssigning || isLoadingTechnicians
+                                                            // UPDATED: Added !selectedTechnicianType to disabled condition
+                                                            disabled={!selectedTechnician || !selectedPriority || !selectedTechnicianType || isAssigning || isLoadingTechnicians}
+                                                            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${!selectedTechnician || !selectedPriority || !selectedTechnicianType || isAssigning || isLoadingTechnicians
                                                                 ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
                                                                 : 'bg-yellow-500 hover:bg-yellow-600 text-white shadow-md hover:shadow-lg'
                                                                 }`}
@@ -896,10 +1037,10 @@ export const MessageDetailModal = ({
                                 </div>
                             )}
 
-                            {/* APPROVE BUTTON */}
+                            {/* CONFIRMED BUTTON — now opens Calendar popup */}
                             {showApproveButton && (
                                 <button
-                                    onClick={handleApprove}
+                                    onClick={handleOpenScheduleCalendar}
                                     disabled={isApproving || approveSuccess}
                                     className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${approveSuccess
                                         ? 'bg-green-600 hover:bg-green-700 text-white'
@@ -927,7 +1068,6 @@ export const MessageDetailModal = ({
                                 </button>
                             )}
 
-                            {/* ALREADY APPROVED BADGE */}
                             {!isReassign && isAssignedTechnician && isApproved && !showRemarksButton && (
                                 <span className="px-4 py-2 rounded-lg text-sm font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 flex items-center gap-2">
                                     <Check size={16} />
@@ -935,15 +1075,6 @@ export const MessageDetailModal = ({
                                 </span>
                             )}
 
-                            {/* INCHARGE CONFIRMED BADGE */}
-                            {!isReassign && isInchargedConfirmed && (
-                                <span className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 flex items-center gap-2">
-                                    <Clock size={16} />
-                                    Waiting For Feedback
-                                </span>
-                            )}
-
-                            {/* INCHARGE CONFIRMATION BADGE */}
                             {!isReassign && isInchargeConfirmation && !showFeedbackButtonFinal && (
                                 <span className="px-4 py-2 rounded-lg text-sm font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 flex items-center gap-2">
                                     <Clock size={16} />
@@ -951,7 +1082,6 @@ export const MessageDetailModal = ({
                                 </span>
                             )}
 
-                            {/* FEEDBACK SUBMITTED BADGE */}
                             {!isReassign && isFeedbackSubmitted && (
                                 <span className="px-4 py-2 rounded-lg text-sm font-medium bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 flex items-center gap-2">
                                     <Check size={16} />
@@ -959,7 +1089,6 @@ export const MessageDetailModal = ({
                                 </span>
                             )}
 
-                            {/* CLOSE BUTTON */}
                             <button
                                 onClick={onClose}
                                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg transition-colors"
@@ -971,9 +1100,7 @@ export const MessageDetailModal = ({
                 </div>
             </div>
 
-            {/* ========================================== */}
             {/* REMARKS POPUP MODAL */}
-            {/* ========================================== */}
             {showRemarksPopup && (
                 <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[300] animate-in fade-in duration-200 p-4"
@@ -984,7 +1111,6 @@ export const MessageDetailModal = ({
                     }}
                 >
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full animate-in slide-in-from-bottom-4 duration-300 border border-slate-200 dark:border-slate-700">
-                        {/* Popup Header */}
                         <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
@@ -1007,7 +1133,6 @@ export const MessageDetailModal = ({
                             </button>
                         </div>
 
-                        {/* Popup Body */}
                         <div className="px-6 py-4 space-y-4">
                             <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-600">
                                 <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -1052,7 +1177,6 @@ export const MessageDetailModal = ({
                             </div>
                         </div>
 
-                        {/* Popup Footer */}
                         <div className="border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex justify-end gap-3">
                             <button
                                 onClick={() => setShowRemarksPopup(false)}
@@ -1085,9 +1209,7 @@ export const MessageDetailModal = ({
                 </div>
             )}
 
-            {/* ========================================== */}
             {/* FEEDBACK POPUP MODAL */}
-            {/* ========================================== */}
             {showFeedbackPopup && (
                 <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[300] animate-in fade-in duration-200 p-4"
@@ -1098,7 +1220,6 @@ export const MessageDetailModal = ({
                     }}
                 >
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full animate-in slide-in-from-bottom-4 duration-300 border border-slate-200 dark:border-slate-700">
-                        {/* Popup Header */}
                         <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-full bg-indigo-100 dark:bg-indigo-900/30">
@@ -1121,7 +1242,6 @@ export const MessageDetailModal = ({
                             </button>
                         </div>
 
-                        {/* Popup Body */}
                         <div className="px-6 py-4 space-y-4">
                             <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-600">
                                 <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -1135,7 +1255,6 @@ export const MessageDetailModal = ({
                                 </p>
                             </div>
 
-                            {/* Feedback Type Selection */}
                             <div>
                                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
                                     How was your experience?
@@ -1169,7 +1288,6 @@ export const MessageDetailModal = ({
                                 </div>
                             </div>
 
-                            {/* Feedback Message */}
                             <div>
                                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
                                     Feedback Details
@@ -1196,7 +1314,6 @@ export const MessageDetailModal = ({
                             </div>
                         </div>
 
-                        {/* Popup Footer */}
                         <div className="border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex justify-end gap-3">
                             <button
                                 onClick={() => setShowFeedbackPopup(false)}
@@ -1221,6 +1338,119 @@ export const MessageDetailModal = ({
                                     <>
                                         <Send size={16} />
                                         Submit Feedback
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SET SCHEDULE CALENDAR POPUP */}
+            {showScheduleCalendar && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[400] animate-in fade-in duration-200 p-4"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget && !isSubmittingSchedule) {
+                            setShowScheduleCalendar(false);
+                        }
+                    }}
+                >
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full animate-in slide-in-from-bottom-4 duration-300 border border-slate-200 dark:border-slate-700">
+                        {/* Header */}
+                        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
+                                    <Calendar size={20} className="text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                                        Set Schedule & Confirm
+                                    </h3>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        Choose the scheduled date and time before approving this request
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => !isSubmittingSchedule && setShowScheduleCalendar(false)}
+                                disabled={isSubmittingSchedule}
+                                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 disabled:opacity-50"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="px-6 py-5 space-y-4">
+                            <div className="bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-600">
+                                <p className="text-sm text-slate-600 dark:text-slate-300">
+                                    <span className="font-medium">Request:</span> {getDisplayValue(selectedMessage.data?.RequestRef) || getDisplayValue(selectedMessage.data?.RequestID) || "N/A"}
+                                </p>
+                                <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                                    <span className="font-medium">Equipment:</span> {getDisplayValue(selectedMessage.data?.EquipmentBrand)} {getDisplayValue(selectedMessage.data?.EquipmentSpecification)}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                    Schedule Date & Time
+                                    <span className="text-red-500 text-xs">*Required</span>
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    value={scheduleValue}
+                                    onChange={(e) => {
+                                        setScheduleValue(e.target.value);
+                                        if (scheduleError) setScheduleError("");
+                                    }}
+                                    max="2026-12-31T23:59"
+                                    className="w-full mt-1 px-3 py-2.5 border-2 border-blue-300 dark:border-blue-600 rounded-lg bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                />
+                                {scheduleError && (
+                                    <div className="flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400 mt-1.5">
+                                        <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                                        <span>{scheduleError}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between mt-1">
+                                    <span className={`text-xs ${scheduleValue ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                                        {scheduleValue ? (
+                                            <><Check size={12} className="inline mr-1" /> Schedule selected</>
+                                        ) : (
+                                            <><AlertTriangle size={12} className="inline mr-1" /> Schedule required</>
+                                        )}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowScheduleCalendar(false)}
+                                disabled={isSubmittingSchedule}
+                                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-600 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSubmitScheduleApproval}
+                                disabled={isSubmittingSchedule || !scheduleValue}
+                                className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${isSubmittingSchedule || !scheduleValue
+                                    ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+                                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+                                    }`}
+                            >
+                                {isSubmittingSchedule ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check size={16} />
+                                        Confirm & Approve
                                     </>
                                 )}
                             </button>

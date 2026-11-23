@@ -189,6 +189,18 @@ function Equipment({
       return;
     }
 
+    // ✅ NEW: Validate DateAcquired year (prevent 2027 and above)
+    if (values.DateAcquired) {
+      const year = new Date(values.DateAcquired).getFullYear();
+      if (year >= 2027) {
+        setFeedback({
+          type: "error",
+          message: "Date Acquired cannot be in 2027 or later. Maximum allowed year is 2026.",
+        });
+        return;
+      }
+    }
+
     setIsLoading(true);
     setFeedback({ type: null, message: "" });
 
@@ -413,7 +425,7 @@ function Equipment({
                         name="DateAcquired"
                         value={values.DateAcquired}
                         onChange={handleInput}
-                        max={new Date().toISOString().split("T")[0]}
+                        max="2026-12-31"
                         className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-600/5 focus:border-[#1e3a8a] outline-none font-bold text-slate-700 text-sm transition-all"
                       />
                     </div>

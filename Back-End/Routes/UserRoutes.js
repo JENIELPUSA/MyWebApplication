@@ -4,19 +4,22 @@ const userController = require('./../Controller/userController')
 const authController = require('./../Controller/authController')
 
 router.route('/')
-    .get(authController.protect,userController.DisplayAll)
-    .post(authController.protect,userController.createUser)
+    .get(authController.protect, userController.DisplayAll)
+    .post(authController.protect, userController.createUser)
 
 router.route('/Technician')
-    .get(authController.protect,userController.DisplayAllTechnician)
-    
+    .get(authController.protect, userController.DisplayAllTechnician)
+
+router.route('/DisplayAllTypesOfTechnician')
+    .get(authController.protect, userController.DisplayAllTypesOfTechnician)
+
 router.route('/:id')
-    .delete(authController.protect,userController.deleteUser)
-    .patch(authController.protect,userController.Updateuser)
-    .get(authController.protect,userController.Getiduser)
+    .delete(authController.protect, userController.deleteUser)
+    .patch(authController.protect, userController.Updateuser)
+    .get(authController.protect, userController.Getiduser)
 router.route('/updatePassword').patch(
-        authController.protect,
-        userController.updatePassword
+    authController.protect,
+    userController.updatePassword
 )
-    
-module.exports=router
+
+module.exports = router

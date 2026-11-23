@@ -8,8 +8,12 @@ import { MessagePOSTcontext } from "../MessageContext/POSTmessage";
 
 export const MaintenanceRequestContext = createContext();
 
+const BASE_URL = import.meta.env.VITE_REACT_APP_BACKEND_BASEURL || "";
+
 export const MaintenanceRequestProvider = ({ children }) => {
   const { authToken, role, userId } = useContext(AuthContext);
+  const { fetchDisplayMessage } = useContext(MessagePOSTcontext);
+
   const [request, setRequest] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,24 +28,36 @@ export const MaintenanceRequestProvider = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalStatus, setModalStatus] = useState("success");
   const [customError, setCustomError] = useState("");
-  const { fetchDisplayMessage } = useContext(MessagePOSTcontext)
 
-  // ========== TECHNICIAN TASK STATES ==========
+  // ========== TECHNICIAN TASK & SCHEDULE STATES ==========
   const [technicianTasks, setTechnicianTasks] = useState([]);
   const [technicianTaskSummary, setTechnicianTaskSummary] = useState(null);
   const [technicianTaskLoading, setTechnicianTaskLoading] = useState(false);
   const [technicianTaskError, setTechnicianTaskError] = useState(null);
-  // ============================================
+  const [technicianSchedule, setTechnicianSchedule] = useState([]);
+
+  const getAuthConfig = (extraConfig = {}) => ({
+    withCredentials: true,
+    ...extraConfig,
+    headers: {
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(extraConfig.headers || {}),
+    },
+  });
 
   useEffect(() => {
     if (!authToken) {
       setRequest([]);
+      setTechnicianSchedule([]);
+      setTechnicianTasks([]);
       setLoading(false);
       return;
     }
+
     fetchRequestData();
+    fetchSchedule();
     fetchTechnicianTasks();
-  }, [authToken]);
+  }, [authToken, role, userId]);
 
   useEffect(() => {
     if (customError) {
@@ -56,36 +72,60 @@ export const MaintenanceRequestProvider = ({ children }) => {
   const fetchRequestData = async () => {
     if (!authToken) return;
     setLoading(true);
+    setError(null);
+
     try {
       const res = await axiosInstance.get(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest`,
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${authToken}` },
-        },
+        `${BASE_URL}/api/v1/MaintenanceRequest`,
+        getAuthConfig(),
       );
 
-      const requestData = res?.data.data || [];
+      const requestData = Array.isArray(res?.data?.data) ? res.data.data : [];
       setView(requestData);
-      if (role === "Admin") {
 
-        const specificAdminMsg = requestData?.filter(
+      if (role === "Admin") {
+        const specificAdminMsg = requestData.filter(
           (msg) => msg?.read === false,
         );
-
         setRequest(requestData);
-        setAdminMsg(specificAdminMsg?.length);
+        setAdminMsg(specificAdminMsg.length);
       } else if (role === "Technician" || role === "User") {
-        const specificMessages = requestData?.filter(
+        const specificMessages = requestData.filter(
           (msg) => msg.UserId === userId,
         );
-        const CountSpecifiData = requestData?.filter(
+        const CountSpecifiData = requestData.filter(
           (msg) => msg.Status === "Pending" && msg.UserId === userId,
         );
+        setCountSpecificData(CountSpecifiData);
         setRequest(specificMessages);
+      } else {
+        setRequest(requestData);
       }
-    } catch (error) {
-      setError("Failed to fetch data");
+    } catch (err) {
+      console.error("Failed to fetch maintenance requests:", err);
+      setError(err?.response?.data?.message || "Failed to fetch data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSchedule = async () => {
+    if (!authToken) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await axiosInstance.get(
+        `${BASE_URL}/api/v1/MaintenanceRequest/DisplayCalendarSchedules`,
+        getAuthConfig(),
+      );
+
+      const scheduleData = Array.isArray(res?.data?.data) ? res.data.data : [];
+      setView(scheduleData);
+      setTechnicianSchedule(scheduleData); // Inayos mula sa `setSchdeule` na nagka-ReferenceError
+    } catch (err) {
+      console.error("Failed to fetch schedule:", err);
+      setError(err?.response?.data?.message || "Failed to fetch data");
     } finally {
       setLoading(false);
     }
@@ -95,24 +135,23 @@ export const MaintenanceRequestProvider = ({ children }) => {
   const fetchTechnicianTasks = async () => {
     if (!authToken) return;
     setTechnicianTaskLoading(true);
+    setTechnicianTaskError(null);
+
     try {
       const res = await axiosInstance.get(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/MaintenanceTask`,
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${authToken}` },
-        },
+        `${BASE_URL}/api/v1/MaintenanceRequest/MaintenanceTask`,
+        getAuthConfig(),
       );
 
       const data = res?.data?.data || {};
       fetchDisplayMessage();
-      fetchRequestData();
-      setTechnicianTasks(data.technicians || []);
+      setTechnicianTasks(Array.isArray(data.technicians) ? data.technicians : []);
       setTechnicianTaskSummary(data.summary || null);
-      setTechnicianTaskError(null);
-    } catch (error) {
-      console.error("Failed to fetch technician tasks:", error);
-      setTechnicianTaskError("Failed to fetch technician tasks");
+    } catch (err) {
+      console.error("Failed to fetch technician tasks:", err);
+      setTechnicianTaskError(
+        err?.response?.data?.message || "Failed to fetch technician tasks",
+      );
       setTechnicianTasks([]);
       setTechnicianTaskSummary(null);
     } finally {
@@ -122,6 +161,30 @@ export const MaintenanceRequestProvider = ({ children }) => {
 
   const refreshTechnicianTasks = async () => {
     await fetchTechnicianTasks();
+  };
+
+  const fetchTechnicianSchedule = async () => {
+    if (!authToken) return;
+
+    setTechnicianTaskLoading(true);
+    setTechnicianTaskError(null);
+
+    try {
+      const res = await axiosInstance.get(
+        `${BASE_URL}/api/v1/MaintenanceRequest/DisplayCalendarSchedules`,
+        getAuthConfig(),
+      );
+
+      const scheduleData = Array.isArray(res?.data?.data) ? res.data.data : [];
+      setTechnicianSchedule(scheduleData);
+    } catch (err) {
+      console.error("Error fetching technician schedule:", err);
+      setTechnicianTaskError(
+        err?.response?.data?.message || "Failed to fetch technician schedule.",
+      );
+    } finally {
+      setTechnicianTaskLoading(false);
+    }
   };
   // ================================================
 
@@ -133,18 +196,15 @@ export const MaintenanceRequestProvider = ({ children }) => {
   ) => {
     try {
       const response = await axiosInstance.post(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest`,
+        `${BASE_URL}/api/v1/MaintenanceRequest`,
         {
-          Description: Description,
+          Description,
           Equipments: equipment,
           Department: department,
-          Laboratory: Laboratory,
+          Laboratory,
           Status: "Pending",
         },
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${authToken}` },
-        },
+        getAuthConfig(),
       );
 
       if (response.data && response.data.status === "success") {
@@ -154,29 +214,33 @@ export const MaintenanceRequestProvider = ({ children }) => {
         setShowModal(true);
         setNewData(response.data.data);
         return { success: true, data: response?.data.data };
-      } else {
-        setModalStatus("failed");
-        setShowModal(true);
-        return { success: false, error: "Unexpected response from server." };
       }
-    } catch (error) {
-      if (error.response && error.response.data) {
-        const errorData = error.response.data;
-        const message =
-          typeof errorData === "string"
-            ? errorData
-            : errorData.message || errorData.error || "Something went wrong.";
-        setCustomError(message);
-      } else if (error.request) {
-        setCustomError("No response from the server.");
-      } else {
-        setCustomError(error.message || "Unexpected error occurred.");
-      }
+
+      setModalStatus("failed");
+      setShowModal(true);
+      return { success: false, error: "Unexpected response from server." };
+    } catch (err) {
+      const message =
+        err?.response?.data && typeof err.response.data === "object"
+          ? err.response.data.message ||
+            err.response.data.error ||
+            "Something went wrong."
+          : typeof err?.response?.data === "string"
+            ? err.response.data
+            : err?.request
+              ? "No response from the server."
+              : err?.message || "Unexpected error occurred.";
+
+      setCustomError(message);
+      return { success: false, error: message };
     }
   };
 
   const downloadPMSreport = async (laboratoryId, title) => {
-    if (!laboratoryId) return console.error("Laboratory ID is required");
+    if (!laboratoryId) {
+      console.error("Laboratory ID is required");
+      return;
+    }
 
     const endpointMap = {
       "MAINTENANCE SCHEDULE": "DisplayRequestMaintenanceActvity",
@@ -196,12 +260,10 @@ export const MaintenanceRequestProvider = ({ children }) => {
     setLoading(true);
 
     try {
-      const response = await axios({
-        url: `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/MaintenanceRequest/${urlPath}?laboratory=${laboratoryId}`,
-        method: "GET",
-        responseType: "blob",
-        withCredentials: true,
-      });
+      const response = await axios.get(
+        `${BASE_URL}/api/v1/MaintenanceRequest/${urlPath}?laboratory=${laboratoryId}`,
+        getAuthConfig({ responseType: "blob" }),
+      );
 
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
@@ -216,10 +278,11 @@ export const MaintenanceRequestProvider = ({ children }) => {
 
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error("PDF Download Error:", error);
-      alert("Dili ma-download ang PDF. Siguruha nga naay data para niini nga laboratory.");
+    } catch (err) {
+      console.error("PDF Download Error:", err);
+      alert(
+        "Dili ma-download ang PDF. Siguruha nga naay data para niini nga laboratory.",
+      );
     } finally {
       setLoading(false);
     }
@@ -227,106 +290,125 @@ export const MaintenanceRequestProvider = ({ children }) => {
 
   const UpdateAssignTechnician = async ({
     technicianId,
-    RequestId, status, remarks, LaboratoryEnchargeId, feedback,action,
+    RequestId,
+    status,
+    remarks,
+    LaboratoryEnchargeId,
+    feedback,
+    action,
+    SetSchedule,
+    levelprioritized,
     MessageId = null,
   }) => {
-
-    console.log("Trigger Context", technicianId,
-      RequestId, status,
-      MessageId = null,)
     try {
-      const payload = {
-        status, remarks, LaboratoryEnchargeId, feedback,action,
-        technicianId,
-        ...(MessageId ? { MessageId } : {}),
-      };
+      if (status === "Approved") {
+        if (
+          SetSchedule === undefined ||
+          SetSchedule === null ||
+          String(SetSchedule).trim() === ""
+        ) {
+          const message = "Please set a schedule before approving this request.";
+          setModalStatus("failed");
+          setShowModal(true);
+          setCustomError(message);
+          return { success: false, error: message };
+        }
 
-      console.log("🔧 Assign Technician");
-      console.log("RequestId:", RequestId);
-      console.log("Payload:", payload);
-
-      const response = await axios.patch(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL
-        }/api/v1/MaintenanceRequest/updateDataAssignTechnician/${RequestId}`,
-        payload,
-        {
-          withCredentials: true,
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-          },
-        },
-      );
+        const parsed = new Date(SetSchedule);
+        if (isNaN(parsed.getTime())) {
+          const message =
+            "Invalid schedule date. Please provide a valid date.";
+          setModalStatus("failed");
+          setShowModal(true);
+          setCustomError(message);
+          return { success: false, error: message };
+        }
+      }
 
       if (
-        response.data?.success ||
-        response.data?.status === "success"
+        levelprioritized !== undefined &&
+        levelprioritized !== null &&
+        !["Low", "Medium", "High"].includes(levelprioritized)
       ) {
+        const message =
+          "Invalid priority level. Allowed values: Low, Medium, High.";
+        setModalStatus("failed");
+        setShowModal(true);
+        setCustomError(message);
+        return { success: false, error: message };
+      }
+
+      const payload = {
+        status,
+        remarks,
+        LaboratoryEnchargeId,
+        feedback,
+        action,
+        technicianId,
+        ...(MessageId ? { MessageId } : {}),
+        ...(SetSchedule !== undefined &&
+        SetSchedule !== null &&
+        String(SetSchedule).trim() !== ""
+          ? { SetSchedule }
+          : {}),
+        ...(levelprioritized !== undefined &&
+        levelprioritized !== null &&
+        String(levelprioritized).trim() !== ""
+          ? { levelprioritized }
+          : {}),
+      };
+
+      const response = await axios.patch(
+        `${BASE_URL}/api/v1/MaintenanceRequest/updateDataAssignTechnician/${RequestId}`,
+        payload,
+        getAuthConfig({
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      if (response.data?.success || response.data?.status === "success") {
         const updatedData = response.data.data;
+
         fetchRequestData();
         fetchDisplayMessage();
+        fetchTechnicianTasks();
+        fetchTechnicianSchedule();
+
         setModalStatus("success");
         setShowModal(true);
 
         setRequest((prev) =>
-          prev.map((item) =>
-            item._id === RequestId
-              ? updatedData
-              : item
-          )
+          Array.isArray(prev)
+            ? prev.map((item) => (item._id === RequestId ? updatedData : item))
+            : prev,
         );
 
         setView((prev) =>
           Array.isArray(prev)
-            ? prev.map((item) =>
-              item._id === RequestId
-                ? updatedData
-                : item
-            )
-            : prev
+            ? prev.map((item) => (item._id === RequestId ? updatedData : item))
+            : prev,
         );
 
-        // Refresh technician tasks after assignment
-        fetchTechnicianTasks();
-
-        return {
-          success: true,
-          data: updatedData,
-        };
+        return { success: true, data: updatedData };
       }
 
-      const message =
-        response.data?.message ||
-        "Failed to assign technician.";
-
+      const message = response.data?.message || "Failed to assign technician.";
       setModalStatus("failed");
       setShowModal(true);
       setCustomError(message);
-
-      return {
-        success: false,
-        error: message,
-      };
-    } catch (error) {
-      console.error(
-        "❌ UpdateAssignTechnician Error:",
-        error.response?.data || error
-      );
-
+      return { success: false, error: message };
+    } catch (err) {
+      console.error("UpdateAssignTechnician Error:", err.response?.data || err);
       const message =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
         "Unexpected error occurred.";
 
       setModalStatus("failed");
       setShowModal(true);
       setCustomError(message);
-
-      return {
-        success: false,
-        error: message,
-      };
+      return { success: false, error: message };
     }
   };
 
@@ -350,18 +432,21 @@ export const MaintenanceRequestProvider = ({ children }) => {
         setCurrentPage,
         setRequest,
         fetchRequestData,
+        fetchSchedule,
         unread,
         unreadcount,
         downloadPMSreport,
         UpdateAssignTechnician,
-        // ========== TECHNICIAN TASK EXPORTS ==========
+        // ========== TECHNICIAN TASK & SCHEDULE EXPORTS ==========
         technicianTasks,
         technicianTaskSummary,
         technicianTaskLoading,
         technicianTaskError,
         fetchTechnicianTasks,
         refreshTechnicianTasks,
-        // ============================================
+        technicianSchedule,
+        fetchTechnicianSchedule,
+        // ======================================================
       }}
     >
       {children}

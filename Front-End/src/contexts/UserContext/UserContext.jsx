@@ -40,6 +40,11 @@ export const UserProvider = ({ children }) => {
   const [techniciansError, setTechniciansError] = useState(null);
   const [totalTechnicians, setTotalTechnicians] = useState(0);
 
+
+  const [technicianTypes, setTechnicianTypes] = useState([]);
+  const [technicianTypesLoading, setTechnicianTypesLoading] = useState(false);
+  const [technicianTypesError, setTechnicianTypesError] = useState(null);
+
   // ============================================================
   // AUTO-CLEAR CUSTOM ERROR
   // ============================================================
@@ -138,19 +143,6 @@ export const UserProvider = ({ children }) => {
   );
 
   // ============================================================
-  // AUTO-FETCH WITH ABORT CONTROLLER
-  // ============================================================
-  useEffect(() => {
-    if (!authToken) return;
-
-    const controller = new AbortController();
-    fetchUserData(controller.signal);
-    fetchAllTechnicians();
-
-    return () => controller.abort();
-  }, [authToken, fetchUserData]);
-
-  // ============================================================
   // CLIENT-SIDE FILTER (Fallback lang)
   // ============================================================
   const filteredUsers = useMemo(() => {
@@ -179,33 +171,47 @@ export const UserProvider = ({ children }) => {
     return list;
   }, [users, roleFilter, statusFilter, debouncedSearch]);
 
+
   // ============================================================
   // USER CRUD
   // ============================================================
   const AddUser = async (values) => {
     try {
+      const userData = {
+        FirstName: values.FirstName,
+        Middle: values.Middle,
+        LastName: values.LastName,
+        email: values.email,
+        password: values.password,
+        role: values.role,
+
+        // Include only if role is Technician
+        ...(values.role === "Technician" && {
+          types_of_technician: values.types_of_technician,
+        }),
+      };
+
       const res = await axiosInstance.post(
         `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/authentication/signup`,
-        {
-          FirstName: values.FirstName,
-          Middle: values.Middle,
-          LastName: values.LastName,
-          email: values.email,
-          password: values.password,
-          role: values.role,
-        },
+        userData,
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
 
       if (res.data.status === "Success" || res.data.status === "success") {
         setModalStatus("success");
         setShowModal(true);
+
         await fetchUserData(new AbortController().signal);
-        return { success: true, data: res.data.data };
+
+        return { success: true, data: res.data.user || res.data.data };
       } else {
         setModalStatus("failed");
         setShowModal(true);
-        return { success: false, error: "Unexpected response from server." };
+
+        return {
+          success: false,
+          error: "Unexpected response from server.",
+        };
       }
     } catch (error) {
       const message =
@@ -213,12 +219,15 @@ export const UserProvider = ({ children }) => {
         error.response?.data?.error ||
         error.message ||
         "Something went wrong.";
+
       setCustomError(message);
       setModalStatus("failed");
       setShowModal(true);
+
       return { success: false, error: message };
     }
   };
+
 
   const UpdateUser = async (userId, values) => {
     try {
@@ -289,9 +298,7 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // ============================================================
-  // TECHNICIAN FUNCTIONS
-  // ============================================================
+
   const fetchAllTechnicians = async (queryParams = {}) => {
     if (!authToken) {
       setTechnicians([]);
@@ -343,6 +350,7 @@ export const UserProvider = ({ children }) => {
       setTechniciansLoading(false);
     }
   };
+
 
   const fetchTechniciansWithPagination = async (page = 1, limit = 6, filters = {}) => {
     return await fetchAllTechnicians({ page, limit, ...filters });
@@ -483,6 +491,76 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const fetchdisplayAllTypesTechnician = useCallback(async (queryParams = {}) => {
+    if (!authToken) {
+      setTechnicianTypes([]);
+      setTechnicianTypesLoading(false);
+      return { success: false, data: [] };
+    }
+
+    setTechnicianTypesLoading(true);
+    setTechnicianTypesError(null);
+
+    try {
+      let url = `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/users/DisplayAllTypesOfTechnician`;
+      const params = new URLSearchParams(queryParams);
+      if (params.toString()) url += `?${params.toString()}`;
+
+      const res = await axiosInstance.get(url, {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      if (res.data.status === "success") {
+        const list = res.data.data || [];
+        setTechnicianTypes(list);
+        setTechnicianTypesError(null);
+
+        return {
+          success: true,
+          data: list,
+          totalTechnicians: res.data.totalTechnicians ?? res.data.count ?? list.length,
+          status: res.data.status,
+        };
+      } else {
+        setTechnicianTypes([]);
+        const message = res.data.message || "No technician types found";
+        setTechnicianTypesError(message);
+
+        return {
+          success: false,
+          message,
+          status: res.data.status,
+        };
+      }
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message || "Failed to fetch technician types";
+      setTechnicianTypesError(errorMessage);
+      setTechnicianTypes([]);
+
+      return { success: false, message: errorMessage, error };
+    } finally {
+      setTechnicianTypesLoading(false);
+    }
+  }, [authToken]);
+
+
+
+  // ============================================================
+  // AUTO-FETCH WITH ABORT CONTROLLER
+  // ============================================================
+  useEffect(() => {
+    if (!authToken) return;
+
+    const controller = new AbortController();
+    fetchUserData(controller.signal);
+    fetchdisplayAllTypesTechnician();
+
+    return () => controller.abort();
+  }, [authToken, fetchUserData, fetchdisplayAllTypesTechnician]);
+
+
   // ============================================================
   // PROVIDER
   // ============================================================
@@ -517,15 +595,11 @@ export const UserProvider = ({ children }) => {
         setSortBy,
         sortOrder,
         setSortOrder,
-
-        // User CRUD
         setUsers,
         fetchUserData,
         AddUser,
         UpdateUser,
         DeleteUser,
-
-        // Technician
         technicians,
         techniciansLoading,
         techniciansError,
@@ -535,9 +609,7 @@ export const UserProvider = ({ children }) => {
         getTechnicianById,
         AddTechnician,
         UpdateTechnician,
-        DeleteTechnician,
-
-        // Modal / Error
+        DeleteTechnician, technicianTypes, technicianTypesLoading, technicianTypesError,
         customError,
         setCustomError,
       }}

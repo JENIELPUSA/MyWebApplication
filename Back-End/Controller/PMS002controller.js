@@ -2,9 +2,10 @@
 const AsyncErrorHandler = require("../Utils/AsyncErrorHandler");
 const mongoose = require("mongoose");
 const CustomError = require("../Utils/CustomError");
+const PMS002 = require("../Models/PMS002");
 const Equipment = require("../Models/Equipment");
 const Laboratory = require("../Models/Laboratory");
-const PMS002 = require("../Models/PMS002");
+const PMS001 = require("../Models/PMS001");
 
 // ============================================================
 // HELPER — Extract pms002 fields (kasama ang pmsNo)
@@ -90,13 +91,7 @@ const normalizeBooleans = (body) => {
     return normalized;
 };
 
-// ============================================================
-// src/Controllers/PMS002Controller.js
 
-// ============================================================
-// FIND BY EQUIPMENT — Isang row PER PMS002 RECORD
-// ✅ WALANG MERGE — bawat PMS002 record = sariling row
-// ============================================================
 exports.FindByEquipment = AsyncErrorHandler(async (req, res) => {
     try {
         // 1️⃣ User → Laboratory
@@ -357,10 +352,8 @@ exports.FindByEquipment = AsyncErrorHandler(async (req, res) => {
         });
     }
 });
-// ============================================================
-// CREATE — Add new PMS002 record (pmsNo auto-increment)
-// ✅ Normalize booleans (routineInspection included)
-// ============================================================
+
+
 exports.createPMS002 = AsyncErrorHandler(async (req, res, next) => {
     const { equipmentId, laboratoryId } = req.body;
 
@@ -411,36 +404,32 @@ exports.createPMS002 = AsyncErrorHandler(async (req, res, next) => {
         data: populated,
     });
 });
+
 // ============================================================
-// GET ALL PMS002 — with Encharge matching + optional date filter
-// + Admin: filter by laboratoryId from Frontend
+// GET ALL PMS002 — with Encharge matching + Admin lab filter
 // ============================================================
 exports.getAllPMS002 = AsyncErrorHandler(async (req, res, next) => {
     try {
         const userID = req.user._id;
         const role = req.user.role;
 
-        // Kunin ang laboratoryId + date filter mula sa frontend
-        const {
-            from,
-            to,
-            laboratoryId: frontendLaboratoryId,
-        } = req.query;
+        // ✅ Kunin ang laboratoryId mula sa frontend (para sa Admin)
+        const { laboratoryId: frontendLaboratoryId } = req.query;
 
         console.log("triggerrr____ getAllPMS002");
         console.log("role:", role);
         console.log("frontendLaboratoryId:", frontendLaboratoryId);
 
         // ============================================================
-        // STEP 1: Role-based logic — kunin ang laboratoryId
+        // STEP 1: Role-based — resolve laboratoryId
         // ============================================================
-        let laboratoryId = null;
+        let resolvedLaboratoryId = null;
 
         if (role === "User") {
             // ✅ User — auto-match sa Encharge lab
-            const laboratory = await Laboratory.findOne({ Encharge: userID })
-                .select("_id LaboratoryName")
-                .lean();
+            const laboratory = await Laboratory.findOne({
+                Encharge: userID,
+            });
 
             console.log("laboratory (User):", laboratory);
 
@@ -452,7 +441,7 @@ exports.getAllPMS002 = AsyncErrorHandler(async (req, res, next) => {
                 });
             }
 
-            laboratoryId = laboratory._id;
+            resolvedLaboratoryId = laboratory._id;
         } else if (role === "Admin") {
             // ✅ Admin — gamitin ang laboratoryId from query
             if (!frontendLaboratoryId) {
@@ -469,7 +458,9 @@ exports.getAllPMS002 = AsyncErrorHandler(async (req, res, next) => {
                 });
             }
 
-            laboratoryId = new mongoose.Types.ObjectId(frontendLaboratoryId);
+            resolvedLaboratoryId = new mongoose.Types.ObjectId(
+                frontendLaboratoryId
+            );
         } else {
             // ❌ Other roles — hindi allowed
             return res.status(403).json({
@@ -479,97 +470,93 @@ exports.getAllPMS002 = AsyncErrorHandler(async (req, res, next) => {
         }
 
         // ============================================================
-        // STEP 2: Kunin ang Laboratory details
+        // STEP 2: Kunin ang Laboratory details + performedBy (Encharge)
         // ============================================================
-        const laboratory = await Laboratory.findById(laboratoryId)
-            .select("_id LaboratoryName")
-            .lean();
+        const laboratory = await Laboratory.aggregate([
+            { $match: { _id: resolvedLaboratoryId } },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "Encharge",
+                    foreignField: "_id",
+                    as: "Encharge",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$Encharge",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $project: {
+                    _id: 1,
+                    LaboratoryName: {
+                        $ifNull: ["$LaboratoryName", "N/A"],
+                    },
+                    performedBy: {
+                        _id: "$Encharge._id",
+                        username: { $ifNull: ["$Encharge.username", ""] },
+                        FirstName: {
+                            $ifNull: ["$Encharge.FirstName", ""],
+                        },
+                        Middle: { $ifNull: ["$Encharge.Middle", ""] },
+                        LastName: {
+                            $ifNull: ["$Encharge.LastName", ""],
+                        },
+                        role: { $ifNull: ["$Encharge.role", ""] },
+                    },
+                },
+            },
+            { $limit: 1 },
+        ]);
 
-        if (!laboratory) {
+        if (!laboratory || laboratory.length === 0) {
             return res.status(404).json({
                 status: "fail",
                 message: "No laboratory found.",
             });
         }
 
-        // ============================================================
-        // STEP 3: Optional date filter
-        // ============================================================
-        const { dateFilter, error: dateError } = buildDateFilter(from, to);
-
-        if (dateError) {
-            return res.status(400).json({
-                status: "fail",
-                message: dateError,
-            });
-        }
-
-        // ✅ Extra check: from > to
-        if (
-            dateFilter?.createdAt?.$gte &&
-            dateFilter?.createdAt?.$lte &&
-            dateFilter.createdAt.$gte > dateFilter.createdAt.$lte
-        ) {
-            return res.status(400).json({
-                status: "fail",
-                message: "'from' date cannot be after 'to' date.",
-            });
-        }
+        const labData = laboratory[0];
+        const performedBy = labData.performedBy || null;
 
         // ============================================================
-        // STEP 4: Query — strict lab + valid equipment only
+        // STEP 3: Query — PMS002 records ng target lab
         // ============================================================
-        const pms002Query = {
-            laboratoryId,
-            // ✅ Filter sa DB level — walang equipment, walang record
-            equipmentId: { $ne: null, $exists: true },
-            ...dateFilter,
-        };
+        const pms002Query = { laboratoryId: resolvedLaboratoryId };
 
         console.log("🔍 [getAllPMS002]");
         console.log("  - role:", role);
-        console.log("  - laboratoryId:", laboratoryId);
+        console.log("  - laboratoryId:", resolvedLaboratoryId);
         console.log("  - query:", JSON.stringify(pms002Query));
 
-        // ✅ Populate with match — equipment ng target lab lang
-        const rawRecords = await PMS002.find(pms002Query)
-            .populate({
-                path: "equipmentId",
-                match: { laboratory: laboratoryId }, // ← i-adjust kung iba ang field name
-                select:
-                    "code Brand DateAcquired SerialNumber Specification status remarks Category laboratory",
-            })
+        const records = await PMS002.find(pms002Query)
+            .populate("equipmentId")
+            .populate("laboratoryId")
             .sort({ pmsNo: -1, createdAt: -1 })
             .lean();
 
-        // ============================================================
-        // STEP 5: Filter out null (ibang lab o deleted equipment)
-        // ============================================================
-        const validRecords = rawRecords.filter(
-            (r) => r.equipmentId && r.equipmentId._id
-        );
-
-        const invalidCount = rawRecords.length - validRecords.length;
-
-        console.log("🔍 PMS002 raw count:", rawRecords.length);
-        console.log("🔍 PMS002 valid count:", validRecords.length);
-        console.log("🔍 Filtered out (walang match):", invalidCount);
+        console.log("🔍 PMS002 count:", records.length);
 
         // ============================================================
-        // STEP 6: Response
+        // STEP 4: Response — with performedBy
         // ============================================================
-        return res.status(200).json({
+        res.status(200).json({
             status: "success",
             role: role,
-            totalRecords: validRecords.length,
-            data: validRecords.map((rec) => ({
+            totalRecords: records.length,
+            data: records.map((rec) => ({
                 ...rec,
                 pmsNo: rec.pmsNo || 0,
                 routineInspection: rec.routineInspection ?? false,
             })),
+            // ✅ performedBy para sa mini card header
+            performedBy,
             laboratory: {
-                _id: laboratory._id,
-                LaboratoryName: laboratory.LaboratoryName || "N/A",
+                _id: labData._id,
+                LaboratoryName: labData.LaboratoryName,
+                performedBy,
             },
         });
     } catch (err) {
@@ -743,67 +730,36 @@ exports.deletePMS002 = AsyncErrorHandler(async (req, res, next) => {
 });
 
 // ============================================================
-// DISPLAY ALL PMS002 — STRICT MATCH
-// Kung walang match (laboratory or equipment), walang return
+// DISPLAY ALL PMS002 — PMS002 records lang (walang merge)
 // ============================================================
 exports.DisplayAllPMS002 = AsyncErrorHandler(async (req, res) => {
     try {
         const userID = req.user._id;
         const role = req.user.role;
 
-        const { from, to, laboratoryId: frontendLaboratoryId } = req.query;
+        // STEP 1: Base match stage
+        let matchStage = {};
 
-        // Iwas 304 / stale cache sa browser
-        res.set("Cache-Control", "no-store");
-
-        console.log("triggerrr____ DisplayAllPMS002");
-        console.log("role:", role);
-        console.log("frontendLaboratoryId:", frontendLaboratoryId);
-
-        // ============================================================
-        // STEP 1: Role-based — resolve laboratoryId
-        // ============================================================
-        let laboratoryId = null;
-
+        // STEP 2: Kung role === "User", i-filter base sa Laboratory ng Encharge
         if (role === "User") {
             const laboratory = await Laboratory.findOne({ Encharge: userID });
+
+            console.log("laboratory", laboratory);
 
             if (!laboratory) {
                 return res.status(404).json({
                     status: "fail",
-                    message: "You are not assigned as Encharge to any laboratory.",
+                    message:
+                        "You are not assigned as Encharge to any laboratory.",
                 });
             }
 
-            laboratoryId = laboratory._id;
-        } else if (role === "Admin") {
-            if (!frontendLaboratoryId) {
-                return res.status(400).json({
-                    status: "fail",
-                    message: "laboratoryId is required for Admin role.",
-                });
-            }
-
-            if (!mongoose.Types.ObjectId.isValid(frontendLaboratoryId)) {
-                return res.status(400).json({
-                    status: "fail",
-                    message: "Invalid laboratoryId format.",
-                });
-            }
-
-            laboratoryId = new mongoose.Types.ObjectId(frontendLaboratoryId);
-        } else {
-            return res.status(403).json({
-                status: "fail",
-                message: `Role "${role}" is not allowed to access this resource.`,
-            });
+            matchStage._id = laboratory._id;
         }
 
-        // ============================================================
-        // STEP 2: Laboratory details + Encharge
-        // ============================================================
+        // STEP 3: Kunin ang Laboratory + populate Encharge
         const laboratory = await Laboratory.aggregate([
-            { $match: { _id: laboratoryId } },
+            { $match: matchStage },
             {
                 $lookup: {
                     from: "users",
@@ -842,13 +798,15 @@ exports.DisplayAllPMS002 = AsyncErrorHandler(async (req, res) => {
             });
         }
 
-        const resolvedLaboratoryId = laboratory[0]._id;
+        const laboratoryId = laboratory[0]._id;
         const performedBy = laboratory[0].performedBy || null;
 
-        // ============================================================
-        // STEP 3: Date filter
-        // ============================================================
-        const { dateFilter, error: dateError } = buildDateFilter(from, to);
+        // STEP 4: Date filter
+        const { from, to } = req.query;
+        const { dateFilter, error: dateError } = buildDateFilter(
+            from,
+            to
+        );
 
         if (dateError) {
             return res.status(400).json({
@@ -857,110 +815,34 @@ exports.DisplayAllPMS002 = AsyncErrorHandler(async (req, res) => {
             });
         }
 
-        if (
-            dateFilter?.createdAt?.$gte &&
-            dateFilter?.createdAt?.$lte &&
-            dateFilter.createdAt.$gte > dateFilter.createdAt.$lte
-        ) {
-            return res.status(400).json({
-                status: "fail",
-                message: "'from' date cannot be after 'to' date.",
-            });
+        // STEP 5: Matching — PMS002 records lang ng lab
+        const pms002Query = { ...dateFilter };
+
+        if (laboratoryId) {
+            pms002Query.laboratoryId = laboratoryId;
         }
 
-        // ============================================================
-        // STEP 4: Safety check — dapat existing ang field sa schema
-        // (kung wala, hindi mapagkakatiwalaan ang filter)
-        // ============================================================
-        if (!PMS002.schema.path("laboratoryId")) {
-            console.error("❌ PMS002 schema has NO 'laboratoryId' field!");
-            return res.status(500).json({
-                status: "fail",
-                message: "PMS002 schema is missing 'laboratoryId' field.",
-            });
-        }
+        const pmsRecords = await PMS002.find(pms002Query)
+            .populate(
+                "equipmentId",
+                "code Brand DateAcquired SerialNumber Specification status remarks Category"
+            )
+            .sort({ pmsNo: -1, createdAt: -1 })
+            .lean();
 
-        // ============================================================
-        // STEP 5: Aggregate — STRICT lab match + valid equipment only
-        // ============================================================
-        const labIdStr = resolvedLaboratoryId.toString();
+        console.log("🔍 PMS002 count:", pmsRecords);
 
-        const pipeline = [
-            {
-                // Type-safe: gumagana kahit ObjectId o String ang naka-save
-                $match: {
-                    $expr: {
-                        $eq: [{ $toString: "$laboratoryId" }, labIdStr],
-                    },
-                    ...dateFilter,
-                },
-            },
-            {
-                $lookup: {
-                    from: Equipment.collection.name, // awtomatikong tamang collection name
-                    let: { eqId: "$equipmentId" },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: {
-                                    $and: [
-                                        { $eq: ["$_id", "$$eqId"] },
-                                        {
-                                            $eq: [
-                                                { $toString: "$laboratory" },
-                                                labIdStr,
-                                            ],
-                                        },
-                                    ],
-                                },
-                            },
-                        },
-                        {
-                            $project: {
-                                code: 1,
-                                Brand: 1,
-                                DateAcquired: 1,
-                                SerialNumber: 1,
-                                Specification: 1,
-                                status: 1,
-                                remarks: 1,
-                                Category: 1,
-                                laboratory: 1,
-                            },
-                        },
-                    ],
-                    as: "equipmentId",
-                },
-            },
-            // Walang equipment sa lab = tanggal ang record
-            { $unwind: "$equipmentId" },
-            { $sort: { pmsNo: -1, createdAt: -1 } },
-        ];
-
-        const validRecords = await PMS002.aggregate(pipeline);
-
-        // Para sa debugging lang
-        const totalInLab = await PMS002.countDocuments({
-            $expr: { $eq: [{ $toString: "$laboratoryId" }, labIdStr] },
-        });
-
-        console.log("🔍 Lab:", labIdStr);
-        console.log("🔍 PMS002 in lab (walang date/equipment filter):", totalInLab);
-        console.log("🔍 PMS002 valid count:", validRecords.length);
-
-        // ============================================================
-        // STEP 6: Response — walang match, walang laman
-        // ============================================================
+        // STEP 6: Response
         return res.status(200).json({
             status: "success",
-            role,
-            pmsRecord002: validRecords.map((rec) => ({
+            role: role,
+            pmsRecord002: pmsRecords.map((rec) => ({
                 ...rec,
                 routineInspection: rec.routineInspection ?? false,
             })),
-            totalPMS002: validRecords.length,
+            totalPMS002: pmsRecords.length,
             data: {
-                _id: resolvedLaboratoryId,
+                _id: laboratoryId,
                 LaboratoryName: laboratory[0].LaboratoryName,
                 performedBy,
             },

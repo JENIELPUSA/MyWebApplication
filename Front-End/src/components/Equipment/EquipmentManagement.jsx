@@ -360,7 +360,7 @@ const EquipmentForm = () => {
                   <div className="flex items-center gap-2"><Tag size={12} /> Brand & Specs</div>
                 </th>
                 <th className="px-4 py-3">
-                  <div className="flex items-center gap-2"><ClipboardList size={12} /> Location & Encharge</div>
+                  <div className="flex items-center gap-2"><ClipboardList size={12} /> Location & Incharge</div>
                 </th>
                 <th className="px-4 py-3">
                   <div className="flex items-center gap-2"><Calendar size={12} /> Date Acquired</div>

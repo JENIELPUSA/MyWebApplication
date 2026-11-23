@@ -82,51 +82,44 @@ export const DepartmentDisplayProvider = ({ children }) => {
         return;
       }
 
-      try {
-        setLoading(true);
+      setLoading(true);
 
-        const response = await axiosInstance.get(
-          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
-          {
-            params: {
-              page: currentPage,
-              limit: departmentPerPage,
-              search: debouncedSearch,
-              sortBy,
-              sortOrder,
-              ...(statusFilter && statusFilter !== "All" && { status: statusFilter }),
-            },
-            withCredentials: true,
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-              "Cache-Control": "no-cache",
-            },
-            signal,
-          }
-        );
+      const response = await axiosInstance.get(
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
+        {
+          params: {
+            page: currentPage,
+            limit: departmentPerPage,
+            search: debouncedSearch,
+            sortBy,
+            sortOrder,
+            ...(statusFilter && statusFilter !== "All" && { status: statusFilter }),
+          },
+          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Cache-Control": "no-cache",
+          },
+          signal,
+        }
+      );
 
-        // Support both new (totalRecords) at old (totalDepartment) keys
-        const total =
-          response.data.totalRecords ??
-          response.data.totalDepartment ??
-          0;
-        const pages =
-          response.data.totalPages ??
-          Math.ceil(total / departmentPerPage);
+      // Support both new (totalRecords) at old (totalDepartment) keys
+      const total =
+        response.data.totalRecords ??
+        response.data.totalDepartment ??
+        0;
+      const pages =
+        response.data.totalPages ??
+        Math.ceil(total / departmentPerPage);
 
-        const departmentData = response.data.data || [];
+      const departmentData = response.data.data || [];
 
-        setDepartment(departmentData);
-        setTotalDepartments(total);
-        setTotalPages(pages);
-        setError(null);
-      } catch (error) {
-        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
-        console.error("Error fetching data:", error);
-        setError("Failed to fetch data");
-      } finally {
-        setLoading(false);
-      }
+      setDepartment(departmentData);
+      setTotalDepartments(total);
+      setTotalPages(pages);
+      setError(null);
+      setLoading(false);
     },
     [
       authToken,
@@ -150,30 +143,23 @@ export const DepartmentDisplayProvider = ({ children }) => {
         return;
       }
 
-      try {
-        setDropdownLoading(true);
+      setDropdownLoading(true);
 
-        const response = await axiosInstance.get(
-          `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/dropdown`,
-          {
-            withCredentials: true,
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-              "Cache-Control": "no-cache",
-            },
-            signal,
-          }
-        );
+      const response = await axiosInstance.get(
+        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/dropdown`,
+        {
+          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Cache-Control": "no-cache",
+          },
+          signal,
+        }
+      );
 
-        const dropdownData = response.data?.data || [];
-        setDepartmentDropdown(dropdownData);
-      } catch (error) {
-        if (error.name === "CanceledError" || error.code === "ERR_CANCELED") return;
-        console.error("Error fetching department dropdown:", error);
-        setDepartmentDropdown([]);
-      } finally {
-        setDropdownLoading(false);
-      }
+      const dropdownData = response.data?.data || [];
+      setDepartmentDropdown(dropdownData);
+      setDropdownLoading(false);
     },
     [authToken]
   );
@@ -238,42 +224,30 @@ export const DepartmentDisplayProvider = ({ children }) => {
   // CRUD — ADD
   // ============================================================
   const AddAcceptDepartment = async (values) => {
-    try {
-      const response = await axiosInstance.post(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
-        {
-          DepartmentName: values.DepartmentName,
-          DepartmentCode: values.DepartmentCode,
-          Description: values.Description,
-        },
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${authToken}` },
-        }
-      );
-
-      if (response.data && response.data.status === "success") {
-        setModalStatus("success");
-        setShowModal(true);
-        await fetchCategoryData(new AbortController().signal);
-        // 🆕 refresh din ang dropdown para updated agad
-        await fetchDepartmentDropdown(new AbortController().signal);
-        return { success: true, data: response.data.data };
-      } else {
-        setModalStatus("failed");
-        setShowModal(true);
-        return { success: false, error: "Unexpected response from server." };
+    const response = await axiosInstance.post(
+      `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments`,
+      {
+        DepartmentName: values.DepartmentName,
+        DepartmentCode: values.DepartmentCode,
+        Description: values.Description,
+      },
+      {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${authToken}` },
       }
-    } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        "Something went wrong.";
-      setCustomError(message);
+    );
+
+    if (response.data && response.data.status === "success") {
+      setModalStatus("success");
+      setShowModal(true);
+      await fetchCategoryData(new AbortController().signal);
+      // 🆕 refresh din ang dropdown para updated agad
+      await fetchDepartmentDropdown(new AbortController().signal);
+      return { success: true, data: response.data.data };
+    } else {
       setModalStatus("failed");
       setShowModal(true);
-      return { success: false, error: message };
+      return { success: false, error: "Unexpected response from server." };
     }
   };
 
@@ -281,44 +255,32 @@ export const DepartmentDisplayProvider = ({ children }) => {
   // CRUD — UPDATE
   // ============================================================
   const UpdateDepartment = async (departmentId, values) => {
-    try {
-      const dataToSend = {
-        DepartmentName: values.DepartmentName,
-        DepartmentCode: values.DepartmentCode,
-        Description: values.Description,
-      };
+    const dataToSend = {
+      DepartmentName: values.DepartmentName,
+      DepartmentCode: values.DepartmentCode,
+      Description: values.Description,
+    };
 
-      const response = await axiosInstance.patch(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${departmentId}`,
-        dataToSend,
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${authToken}` },
-        }
-      );
-
-      if (response.data && response.data.status === "success") {
-        setModalStatus("success");
-        setShowModal(true);
-        await fetchCategoryData(new AbortController().signal);
-        // 🆕 refresh din ang dropdown para updated agad
-        await fetchDepartmentDropdown(new AbortController().signal);
-        return { success: true, data: response.data.data };
-      } else {
-        setModalStatus("failed");
-        setShowModal(true);
-        return { success: false, error: "Unexpected response from server." };
+    const response = await axiosInstance.patch(
+      `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${departmentId}`,
+      dataToSend,
+      {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${authToken}` },
       }
-    } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        "Operation failed. Please try again.";
-      setCustomError(message);
+    );
+
+    if (response.data && response.data.status === "success") {
+      setModalStatus("success");
+      setShowModal(true);
+      await fetchCategoryData(new AbortController().signal);
+      // 🆕 refresh din ang dropdown para updated agad
+      await fetchDepartmentDropdown(new AbortController().signal);
+      return { success: true, data: response.data.data };
+    } else {
       setModalStatus("failed");
       setShowModal(true);
-      return { success: false, error: message };
+      return { success: false, error: "Unexpected response from server." };
     }
   };
 
@@ -326,35 +288,25 @@ export const DepartmentDisplayProvider = ({ children }) => {
   // CRUD — DELETE
   // ============================================================
   const DeleteDepartment = async (departmentId) => {
-    try {
-      const response = await axiosInstance.delete(
-        `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${departmentId}`,
-        {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${authToken}` },
-        }
-      );
-
-      if (response.data && response.data.status === "success") {
-        setModalStatus("success");
-        setShowModal(true);
-        await fetchCategoryData(new AbortController().signal);
-        // 🆕 refresh din ang dropdown para updated agad
-        await fetchDepartmentDropdown(new AbortController().signal);
-        return { success: true, data: response.data.data };
-      } else {
-        setModalStatus("failed");
-        setShowModal(true);
-        return { success: false, error: "Unexpected response from server." };
+    const response = await axiosInstance.delete(
+      `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/departments/${departmentId}`,
+      {
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${authToken}` },
       }
-    } catch (error) {
-      console.error("Error deleting department:", error);
+    );
+
+    if (response.data && response.data.status === "success") {
+      setModalStatus("success");
+      setShowModal(true);
+      await fetchCategoryData(new AbortController().signal);
+      // 🆕 refresh din ang dropdown para updated agad
+      await fetchDepartmentDropdown(new AbortController().signal);
+      return { success: true, data: response.data.data };
+    } else {
       setModalStatus("failed");
       setShowModal(true);
-      return {
-        success: false,
-        error: error.response?.data?.message || "Failed to delete department",
-      };
+      return { success: false, error: "Unexpected response from server." };
     }
   };
 

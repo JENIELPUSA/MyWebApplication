@@ -20,13 +20,6 @@ exports.DisplayMessage = AsyncErrorHandler(async (req, res) => {
   const userId = new mongoose.Types.ObjectId(req.user._id);
   const role = req.user.role;
 
-  console.log("role:", role);
-  console.log("userId (ObjectId):", userId);
-
-  // ==========================================
-  // BASE MATCH CONDITION
-  // Match lang sa viewers — kung nasa viewers, lalabas
-  // ==========================================
   const matchCondition = {
     "viewers.user": userId,
   };
@@ -168,6 +161,14 @@ exports.DisplayMessage = AsyncErrorHandler(async (req, res) => {
         To: 1,
         RequestID: 1,
         equipmentId: 1,
+
+        // 👇 Priority level (walang default)
+        levelprioritized: {
+          $ifNull: [
+            "$levelprioritized",
+            "$RequestMaintenanceInfo.levelprioritized",
+          ],
+        },
 
         departmentName: {
           $cond: {
@@ -332,8 +333,6 @@ exports.DisplayMessage = AsyncErrorHandler(async (req, res) => {
       $sort: { DateTime: -1 },
     },
   ]);
-
-  console.log("Messages found:", Messages.length);
 
   res.status(200).json({
     status: "success",

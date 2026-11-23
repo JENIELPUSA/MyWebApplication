@@ -26,6 +26,9 @@ const userSchema = new mongoose.Schema({
   isVerified: {
     type: Boolean, default: false
   },
+  types_of_technician: {
+    type:String
+  },
   theme: {
     type: String,
     enum: ["dark", "light"],

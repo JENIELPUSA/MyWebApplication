@@ -15,13 +15,21 @@ const signToken = (id, role) => {
   });
 };
 
+
 exports.signup = AsyncErrorHandler(async (req, res, next) => {
   try {
-    const { FirstName, LastName, Middle, email, role } = req.body;
+    const {
+      FirstName,
+      LastName,
+      Middle,
+      email,
+      role,
+      types_of_technician
+    } = req.body;
 
     console.log("req.body", req.body);
 
-    // 1️⃣ Validation
+    // 1. Required fields validation
     if (!FirstName || !LastName || !email || !role) {
       return res.status(400).json({
         status: "Fail",
@@ -29,7 +37,30 @@ exports.signup = AsyncErrorHandler(async (req, res, next) => {
       });
     }
 
+    // 2. Validate role
+    const allowedRoles = ["User", "Admin", "Technician", "Supply"];
+
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({
+        status: "Fail",
+        message: "Invalid role selected.",
+      });
+    }
+
+    // 3. Technician validation
+    if (
+      role === "Technician" &&
+      (!types_of_technician || !types_of_technician.trim())
+    ) {
+      return res.status(400).json({
+        status: "Fail",
+        message: "Please select a type of technician.",
+      });
+    }
+
+    // 4. Email validation
     const isValidEmail = /\S+@\S+\.\S+/.test(email);
+
     if (!isValidEmail) {
       return res.status(400).json({
         status: "Fail",
@@ -37,8 +68,11 @@ exports.signup = AsyncErrorHandler(async (req, res, next) => {
       });
     }
 
-    // 2️⃣ Check existing user
-    const existingUser = await UserLogin.findOne({ username: email });
+    // 5. Check existing user
+    const existingUser = await UserLogin.findOne({
+      username: email
+    });
+
     if (existingUser) {
       return res.status(400).json({
         status: "Fail",
@@ -46,16 +80,25 @@ exports.signup = AsyncErrorHandler(async (req, res, next) => {
       });
     }
 
-    // 3️⃣ Create user (NO MANUAL HASHING)
-    const newUser = await UserLogin.create({
+    // 6. Prepare user data
+    const userData = {
       username: email,
       FirstName,
       Middle: Middle || "",
       LastName,
-      password: "123456789", // plain password → auto hashed by pre-save
+      password: "123456789",
       role,
-    });
+    };
 
+    // 7. Include technician type only if role is Technician
+    if (role === "Technician") {
+      userData.types_of_technician = types_of_technician.trim();
+    }
+
+    // 8. Create user
+    const newUser = await UserLogin.create(userData);
+
+    // 9. Success response
     res.status(201).json({
       status: "Success",
       message: "User successfully created.",
@@ -64,14 +107,20 @@ exports.signup = AsyncErrorHandler(async (req, res, next) => {
         role: newUser.role,
         username: newUser.username,
         FirstName: newUser.FirstName,
+        Middle: newUser.Middle,
         LastName: newUser.LastName,
+        ...(newUser.role === "Technician" && {
+          types_of_technician: newUser.types_of_technician
+        }),
       },
     });
+
   } catch (error) {
     console.error("Signup Error:", error);
     return next(error);
   }
 });
+
 
 // --- PROTECT MIDDLEWARE ---
 exports.protect = AsyncErrorHandler(async (req, res, next) => {

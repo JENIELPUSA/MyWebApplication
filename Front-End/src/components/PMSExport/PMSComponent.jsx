@@ -21,6 +21,9 @@ import {
     ArrowLeft,
     Search,
     X,
+    Maximize2,
+    CheckCircle2,
+    CircleDashed,
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -57,7 +60,9 @@ const A4L_HEIGHT_MM = 210;
 
 const ROW_HEIGHT_PX = 32;
 const A4L_CONTENT_HEIGHT = A4L_HEIGHT_PX - 80;
+const A4P_CONTENT_HEIGHT = A4P_HEIGHT_PX - 80;
 const DEFAULT_ROWS_PER_PAGE = 10;
+const MIN_ROWS_PER_PAGE = 10;
 
 const DEFAULT_SIGNATURES = {
     prepared: "",
@@ -517,7 +522,7 @@ function AnimatedFolderCard({
     return (
         <div
             onClick={onClick}
-            className="group relative cursor-pointer flex flex-col items-center justify-end h-64 w-full p-4 transition-transform duration-300 hover:-translate-y-2 select-none"
+            className="group relative cursor-pointer flex flex-col items-center justify-end h-64 w-full max-w-[280px] p-4 transition-transform duration-300 hover:-translate-y-2 select-none"
         >
             <div className="relative w-full h-full max-w-[240px] flex items-end justify-center">
                 <div className="absolute inset-0 bg-blue-400 dark:bg-blue-700 rounded-2xl shadow-sm overflow-hidden">
@@ -571,6 +576,251 @@ function AnimatedFolderCard({
                     {title}
                 </h3>
                 <p className="text-xs text-slate-500">Click to open</p>
+            </div>
+        </div>
+    );
+}
+
+// ============================================================
+// SCALED DOCUMENT PAGE (full-page viewer)
+// ============================================================
+function ScaledPage({ widthPx, heightPx, children }) {
+    const wrapRef = useRef(null);
+    const [scale, setScale] = useState(1);
+
+    useEffect(() => {
+        const el = wrapRef.current;
+        if (!el) return;
+        const update = () => {
+            const w = el.clientWidth;
+            if (w > 0) setScale(Math.min(1, w / widthPx));
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [widthPx]);
+
+    return (
+        <div ref={wrapRef} className="w-full flex justify-center">
+            <div
+                className="bg-white shadow-lg ring-1 ring-slate-300 dark:ring-slate-600 overflow-hidden"
+                style={{ width: widthPx * scale, height: heightPx * scale }}
+            >
+                <div
+                    style={{
+                        width: widthPx,
+                        height: heightPx,
+                        transform: `scale(${scale})`,
+                        transformOrigin: "top left",
+                    }}
+                >
+                    {children}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ============================================================
+// SUMMARY TILE (lab page, isa bawat PMS form)
+// ============================================================
+function PMSStatTile({ code, label, count, loading, onClick }) {
+    const hasData = count > 0;
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="group text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition"
+        >
+            <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                    {code}
+                </span>
+                {loading ? (
+                    <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+                ) : hasData ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                ) : (
+                    <CircleDashed className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600" />
+                )}
+            </div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
+                    {loading ? "–" : count}
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {count === 1 ? "record" : "records"}
+                </span>
+            </div>
+            <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                {label}
+            </p>
+        </button>
+    );
+}
+
+// ============================================================
+// MODULE CARD (uniform shell para sa bawat Viewer)
+// ============================================================
+function PMSModuleCard({
+    id,
+    code,
+    subtitle,
+    count,
+    loading,
+    onOpen,
+    children,
+}) {
+    const hasData = count > 0;
+    return (
+        <article
+            id={id}
+            className="scroll-mt-24 min-w-0 flex flex-col bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden"
+        >
+            <header className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
+                        <Wrench className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                            {code}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                            {subtitle}
+                        </p>
+                    </div>
+                </div>
+                <span
+                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${
+                        hasData
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800"
+                            : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700/50 dark:text-slate-400 dark:border-slate-600"
+                    }`}
+                >
+                    {loading
+                        ? "Loading…"
+                        : `${count} ${count === 1 ? "record" : "records"}`}
+                </span>
+            </header>
+
+            <div className="relative h-[380px] overflow-hidden bg-slate-100/60 dark:bg-slate-900/40 p-3">
+                <div className="h-full overflow-auto pms-view-scroll">
+                    {children}
+                </div>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white/80 dark:from-slate-900/60 to-transparent" />
+            </div>
+
+            <footer className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-slate-200 dark:border-slate-700">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {hasData
+                        ? "Preview lang ito. Buksan ang full form."
+                        : "Walang data para sa form na ito."}
+                </span>
+                <button
+                    type="button"
+                    onClick={onOpen}
+                    disabled={!hasData}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 transition-colors"
+                >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                    View full
+                </button>
+            </footer>
+        </article>
+    );
+}
+
+// ============================================================
+// FULL PAGE FORM VIEW (replaces the old modal)
+// ============================================================
+function FullPageFormView({
+    activeSidebarKey,
+    activeMeta,
+    officeName,
+    activeRowsCount,
+    downloadingKey,
+    onDownload,
+    onBack,
+    renderModalPages,
+}) {
+    return (
+        <div className="flex-1 flex flex-col bg-slate-50 dark:bg-slate-900 min-h-screen">
+            {/* Sticky header */}
+            <div className="sticky top-0 z-30 flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-800/95 backdrop-blur flex-shrink-0 shadow-sm">
+                <div className="flex items-center gap-3 min-w-0">
+                    <button
+                        type="button"
+                        onClick={onBack}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 transition-colors flex-shrink-0"
+                        title="Back (Esc)"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        <span className="hidden sm:inline">Back</span>
+                    </button>
+
+                    <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">
+                        <Wrench className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
+                                {activeMeta?.title || "PMS"}
+                            </span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                                · {officeName}
+                            </span>
+                        </div>
+                        <h3 className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 truncate leading-tight">
+                            {activeMeta?.subtitle || "Full Form View"}
+                        </h3>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={onDownload}
+                    disabled={
+                        !activeSidebarKey ||
+                        activeRowsCount === 0 ||
+                        downloadingKey === activeSidebarKey
+                    }
+                    className="inline-flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 dark:disabled:text-slate-400 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors flex-shrink-0"
+                    title={
+                        activeRowsCount === 0
+                            ? "Walang records para i-download"
+                            : `Download ${activeSidebarKey} PDF`
+                    }
+                >
+                    {downloadingKey === activeSidebarKey ? (
+                        <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span className="hidden sm:inline">
+                                Generating...
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <Download className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Download</span>
+                            <span className="sm:hidden">DL</span>
+                        </>
+                    )}
+                </button>
+            </div>
+
+            {/* Scrollable document area */}
+            <div className="flex-1 modal-scroll p-3 sm:p-4">
+                <div className="flex flex-col items-center gap-6 py-2 max-w-[1200px] mx-auto">
+                    {activeRowsCount === 0 ? (
+                        <div className="text-center py-16 text-sm text-slate-500 dark:text-slate-400">
+                            Walang records na ipapakita.
+                        </div>
+                    ) : (
+                        renderModalPages()
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -690,10 +940,6 @@ export default function PMSComponent() {
     const fullForm007Ref = useRef(null);
     const topAnchorRef = useRef(null);
 
-    // Sidebar transition state
-    const [sidebarVisible, setSidebarVisible] = useState(false);
-    const [sidebarMounted, setSidebarMounted] = useState(false);
-
     useEffect(() => {
         fetchDepartmentsWithLabEquipments();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -743,21 +989,6 @@ export default function PMSComponent() {
         : null;
     const activeMeta = activeSidebarKey ? PMS_META[activeSidebarKey] : null;
 
-    // Sidebar mount/unmount + slide animation
-    useEffect(() => {
-        if (isAnyExpanded) {
-            setSidebarMounted(true);
-            const raf = requestAnimationFrame(() => {
-                requestAnimationFrame(() => setSidebarVisible(true));
-            });
-            return () => cancelAnimationFrame(raf);
-        } else {
-            setSidebarVisible(false);
-            const t = setTimeout(() => setSidebarMounted(false), 320);
-            return () => clearTimeout(t);
-        }
-    }, [isAnyExpanded]);
-
     // rows-per-page measurement
     useEffect(() => {
         const measure = () => {
@@ -795,7 +1026,7 @@ export default function PMSComponent() {
                 headerH + theadH + freqH + signatureH + 20 + 12 + 24;
             setComputedRowsPerPage(
                 Math.max(
-                    1,
+                    MIN_ROWS_PER_PAGE,
                     Math.floor((A4L_CONTENT_HEIGHT - totalFixed) / rowH)
                 )
             );
@@ -1008,7 +1239,7 @@ export default function PMSComponent() {
         setMiniExpanded005(false);
         setMiniExpanded006(false);
         setMiniExpanded007(false);
-        await Promise.all([
+        await Promise.allSettled([
             loadPms001(lab),
             loadPms002(lab),
             loadPms004(lab),
@@ -1027,30 +1258,16 @@ export default function PMSComponent() {
         setMiniExpanded007(false);
     };
 
-    const openOnly = (setter) => {
-        closeAllExpanded();
-        setter(true);
+    const clearLabRecords = () => {
+        setLabPmsRecords([]);
+        setLabPms002Records([]);
+        setLabPms004Records([]);
+        setLabPms005Records([]);
+        setLabPms006Records([]);
+        setLabPms007Records([]);
     };
 
-    const openFullForm = () => openOnly(setMiniExpanded);
-    const closeFullForm = () => setMiniExpanded(false);
-
-    const openFullForm002 = () => openOnly(setMiniExpanded002);
-    const closeFullForm002 = () => setMiniExpanded002(false);
-
-    const openFullForm004 = () => openOnly(setMiniExpanded004);
-    const closeFullForm004 = () => setMiniExpanded004(false);
-
-    const openFullForm005 = () => openOnly(setMiniExpanded005);
-    const closeFullForm005 = () => setMiniExpanded005(false);
-
-    const openFullForm006 = () => openOnly(setMiniExpanded006);
-    const closeFullForm006 = () => setMiniExpanded006(false);
-
-    const openFullForm007 = () => openOnly(setMiniExpanded007);
-    const closeFullForm007 = () => setMiniExpanded007(false);
-
-    // ESC key to close sidebar
+    // ESC key to go back from full-page view
     useEffect(() => {
         const onKey = (e) => {
             if (e.key === "Escape" && isAnyExpanded) closeAllExpanded();
@@ -1117,6 +1334,44 @@ export default function PMSComponent() {
     );
     const officeName = selectedLab?.LaboratoryName || "";
 
+    // ---------------- OPENERS (guarded — no navigation if empty) ----------------
+    const openOnly = useCallback(
+        (setter, rowsCount) => {
+            if (!rowsCount || rowsCount === 0) {
+                showToast("No data available to view.");
+                return;
+            }
+            closeAllExpanded();
+            setter(true);
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        []
+    );
+
+    const openFullForm = () => openOnly(setMiniExpanded, allRows.length);
+    const closeFullForm = () => setMiniExpanded(false);
+
+    const openFullForm002 = () =>
+        openOnly(setMiniExpanded002, allRows002.length);
+    const closeFullForm002 = () => setMiniExpanded002(false);
+
+    const openFullForm004 = () =>
+        openOnly(setMiniExpanded004, allRows004.length);
+    const closeFullForm004 = () => setMiniExpanded004(false);
+
+    const openFullForm005 = () =>
+        openOnly(setMiniExpanded005, allRows005.length);
+    const closeFullForm005 = () => setMiniExpanded005(false);
+
+    const openFullForm006 = () =>
+        openOnly(setMiniExpanded006, allRows006.length);
+    const closeFullForm006 = () => setMiniExpanded006(false);
+
+    const openFullForm007 = () =>
+        openOnly(setMiniExpanded007, allRows007.length);
+    const closeFullForm007 = () => setMiniExpanded007(false);
+
+    // ---------------- PDF PAGES ----------------
     const pdfPages = useMemo(
         () => chunkItemsIntoPages(allRows, computedRowsPerPage),
         [allRows, computedRowsPerPage]
@@ -1148,7 +1403,6 @@ export default function PMSComponent() {
     );
     const totalPdfPages007 = pdfPages007.length || 1;
 
-    // Active rows count (para sa download button sa sidebar)
     const activeRowsCount = useMemo(() => {
         if (!activeSidebarKey) return 0;
         switch (activeSidebarKey) {
@@ -1180,8 +1434,10 @@ export default function PMSComponent() {
     // ---------------- DOWNLOAD PDF (per PMS) ----------------
     const handleDownloadSingle = useCallback(
         async (formTag) => {
-            if (!pdfContainerRef.current)
-                return showToast("PDF container not found.");
+            if (!pdfContainerRef.current) {
+                showToast("PDF container not found.");
+                return;
+            }
 
             const isPMS002 = formTag === "PMS002";
             const isPMS004 = formTag === "PMS004";
@@ -1202,8 +1458,10 @@ export default function PMSComponent() {
                 : isPMS007
                 ? allRows007.length
                 : allRows.length;
-            if (rowsCount === 0)
-                return showToast(`Walang ${formTag} records para i-download.`);
+            if (rowsCount === 0) {
+                showToast(`Walang ${formTag} records para i-download.`);
+                return;
+            }
 
             setDownloadingKey(formTag);
             try {
@@ -1221,8 +1479,10 @@ export default function PMSComponent() {
                 const pageNodes = Array.from(
                     pdfContainerRef.current.querySelectorAll(selector)
                 );
-                if (pageNodes.length === 0)
-                    return showToast("No pages to export.");
+                if (pageNodes.length === 0) {
+                    showToast("No pages to export.");
+                    return;
+                }
                 if (document.fonts && document.fonts.ready)
                     await document.fonts.ready;
                 await waitForImages(pdfContainerRef.current);
@@ -1304,8 +1564,10 @@ export default function PMSComponent() {
 
     // ---------------- DOWNLOAD ALL ----------------
     const handleDownloadAll = useCallback(async () => {
-        if (!pdfContainerRef.current)
-            return showToast("PDF container not found.");
+        if (!pdfContainerRef.current) {
+            showToast("PDF container not found.");
+            return;
+        }
 
         const groups = [
             { code: "PMS001", selector: ".pdf-page-pms001", rows: allRows.length, landscape: false },
@@ -1316,8 +1578,10 @@ export default function PMSComponent() {
             { code: "PMS007", selector: ".pdf-page-pms007", rows: allRows007.length, landscape: true },
         ].filter((g) => g.rows > 0);
 
-        if (groups.length === 0)
-            return showToast("Walang records para i-download.");
+        if (groups.length === 0) {
+            showToast("Walang records para i-download.");
+            return;
+        }
 
         setDownloadingKey("ALL");
         try {
@@ -1329,7 +1593,6 @@ export default function PMSComponent() {
             );
 
             let pdf = null;
-            let firstAdded = false;
 
             for (const g of groups) {
                 const pageNodes = Array.from(
@@ -1373,11 +1636,10 @@ export default function PMSComponent() {
                     const x = (pageW - widthMm) / 2;
                     const y = (pageH - heightMm) / 2;
                     pdf.addImage(image, "PNG", x, y, widthMm, heightMm, undefined, "FAST");
-                    firstAdded = true;
                 }
             }
 
-            if (!pdf || !firstAdded) {
+            if (!pdf) {
                 showToast("Walang pages na na-generate.");
                 return;
             }
@@ -1434,20 +1696,68 @@ export default function PMSComponent() {
         );
     }
 
+    // ---------------- FULL PAGE DOCUMENT PAGES ----------------
+    const renderModalPages = () => {
+        const common = { officeName, signatures };
+        const empty = (n) => Math.max(0, computedRowsPerPage - n);
+        switch (activeSidebarKey) {
+            case "PMS001":
+                return pdfPages.map((items, i) => (
+                    <ScaledPage key={`m001-${i}`} widthPx={A4P_WIDTH_PX} heightPx={A4P_HEIGHT_PX}>
+                        <PMS001PdfPage {...common} pageItems={items} pageNumber={i + 1} totalPages={totalPdfPages} emptyRowCount={empty(items.length)} widthPx={A4P_WIDTH_PX} heightPx={A4P_HEIGHT_PX} />
+                    </ScaledPage>
+                ));
+            case "PMS002":
+                return pdfPages002.map((items, i) => (
+                    <ScaledPage key={`m002-${i}`} widthPx={A4L_WIDTH_PX} heightPx={A4L_HEIGHT_PX}>
+                        <PMS002PdfPage {...common} pageItems={items} pageNumber={i + 1} totalPages={totalPdfPages002} emptyRowCount={empty(items.length)} minRows={computedRowsPerPage} widthPx={A4L_WIDTH_PX} heightPx={A4L_HEIGHT_PX} checkboxFields={CHECKBOX_FIELDS} />
+                    </ScaledPage>
+                ));
+            case "PMS004":
+                return pdfPages004.map((items, i) => (
+                    <ScaledPage key={`m004-${i}`} widthPx={A4L_WIDTH_PX} heightPx={A4L_HEIGHT_PX}>
+                        <PMS004PdfPage {...common} pageItems={items} pageNumber={i + 1} totalPages={totalPdfPages004} emptyRowCount={empty(items.length)} minRows={computedRowsPerPage} widthPx={A4L_WIDTH_PX} heightPx={A4L_HEIGHT_PX} checkboxFields={CHECKBOX_FIELDS_004} />
+                    </ScaledPage>
+                ));
+            case "PMS005":
+                return pdfPages005.map((items, i) => (
+                    <ScaledPage key={`m005-${i}`} widthPx={A4P_WIDTH_PX} heightPx={A4P_HEIGHT_PX}>
+                        <PMS005PdfPage {...common} pageItems={items} pageNumber={i + 1} totalPages={totalPdfPages005} emptyRowCount={empty(items.length)} widthPx={A4P_WIDTH_PX} heightPx={A4P_HEIGHT_PX} />
+                    </ScaledPage>
+                ));
+            case "PMS006":
+                return pdfPages006.map((items, i) => (
+                    <ScaledPage key={`m006-${i}`} widthPx={A4L_WIDTH_PX} heightPx={A4L_HEIGHT_PX}>
+                        <PMS006PdfPage {...common} pageItems={items} pageNumber={i + 1} totalPages={totalPdfPages006} emptyRowCount={empty(items.length)} widthPx={A4L_WIDTH_PX} heightPx={A4L_HEIGHT_PX} />
+                    </ScaledPage>
+                ));
+            case "PMS007":
+                return pdfPages007.map((items, i) => (
+                    <ScaledPage key={`m007-${i}`} widthPx={A4L_WIDTH_PX} heightPx={A4L_HEIGHT_PX}>
+                        <PMS007PdfPage {...common} pageItems={items} pageNumber={i + 1} totalPages={totalPdfPages007} emptyRowCount={empty(items.length)} widthPx={A4L_WIDTH_PX} heightPx={A4L_HEIGHT_PX} />
+                    </ScaledPage>
+                ));
+            default:
+                return null;
+        }
+    };
+
     // ---------------- RENDER ----------------
     return (
         <>
             <style>{`
                 @keyframes slideUp { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+                @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
                 .animate-slide-up { animation: slideUp .3s ease-out; }
+                .animate-fade-in { animation: fadeIn .25s ease-out; }
                 .pdf-render-container { position:fixed; left:-10000px; top:0; pointer-events:none; z-index:-1; }
                 .pms-view-table { border-collapse:separate !important; border-spacing:0 !important; }
                 .pms-view-table th, .pms-view-table td { border:1px solid #000 !important; }
                 .pms-view-table thead th { background-color:#fff !important; position:sticky; z-index:20; }
                 .pms-view-table thead tr:first-child th { top:0; }
                 .pms-view-table thead tr:last-child th { top:26px; }
-                .pms-view-scroll { overflow-y:auto; overflow-x:hidden; }
-                .pms-view-scroll::-webkit-scrollbar { width:8px; }
+                .pms-view-scroll { overflow-y:auto; overflow-x:auto; }
+                .pms-view-scroll::-webkit-scrollbar { width:8px; height:8px; }
                 .pms-view-scroll::-webkit-scrollbar-track { background:#f1f5f9; border-radius:4px; }
                 .pms-view-scroll::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
                 .pms-view-scroll::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
@@ -1461,42 +1771,15 @@ export default function PMSComponent() {
                     content:''; position:absolute; left:4.5px; top:1px; width:4px; height:9px;
                     border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
                 }
-                .sidebar-scroll { overflow-y:auto; overflow-x:hidden; }
-                .sidebar-scroll::-webkit-scrollbar { width:8px; }
-                .sidebar-scroll::-webkit-scrollbar-track { background:#f1f5f9; border-radius:4px; }
-                .sidebar-scroll::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
-                .sidebar-scroll::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
-
-                /* ===== Sidebar slide transitions ===== */
-                .sidebar-backdrop {
-                    opacity: 0;
-                    transition: opacity 0.3s ease-out;
-                }
-                .sidebar-backdrop.open {
-                    opacity: 1;
-                }
-                .sidebar-panel {
-                    transform: translateX(100%);
-                    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
-                    will-change: transform;
-                }
-                .sidebar-panel.open {
-                    transform: translateX(0);
-                }
-                /* Inner content: subtle slide-up para sumabay sa drawer */
-                .sidebar-content {
-                    opacity: 0;
-                    transform: translateX(16px);
-                    transition: opacity 0.28s ease-out 0.08s, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.08s;
-                }
-                .sidebar-content.open {
-                    opacity: 1;
-                    transform: translateX(0);
-                }
+                .modal-scroll { overflow-y:auto; overflow-x:hidden; }
+                .modal-scroll::-webkit-scrollbar { width:8px; }
+                .modal-scroll::-webkit-scrollbar-track { background:#f1f5f9; border-radius:4px; }
+                .modal-scroll::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:4px; }
+                .modal-scroll::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
             `}</style>
 
             {notification && (
-                <div className="fixed top-5 right-5 z-[70] bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 animate-slide-up">
+                <div className="fixed top-5 right-5 z-[999] bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 animate-slide-up">
                     <AlertCircle className="w-5 h-5 text-blue-400" />
                     <span className="text-xs font-medium">{notification}</span>
                 </div>
@@ -1520,613 +1803,418 @@ export default function PMSComponent() {
                         heightPx={A4P_HEIGHT_PX}
                     />
                 ))}
-                {allRows002.length > 0 &&
-                    pdfPages002.map((pageItems, idx) => (
-                        <PMS002PdfPage
-                            key={`pdf-002-${idx}`}
-                            pageItems={pageItems}
-                            pageNumber={idx + 1}
-                            totalPages={totalPdfPages002}
-                            officeName={officeName}
-                            signatures={signatures}
-                            emptyRowCount={Math.max(
-                                0,
-                                computedRowsPerPage - pageItems.length
-                            )}
-                            widthPx={A4L_WIDTH_PX}
-                            heightPx={A4L_HEIGHT_PX}
-                            checkboxFields={CHECKBOX_FIELDS}
-                        />
-                    ))}
-                {allRows004.length > 0 &&
-                    pdfPages004.map((pageItems, idx) => (
-                        <PMS004PdfPage
-                            key={`pdf-004-${idx}`}
-                            pageItems={pageItems}
-                            pageNumber={idx + 1}
-                            totalPages={totalPdfPages004}
-                            officeName={officeName}
-                            signatures={signatures}
-                            emptyRowCount={Math.max(
-                                0,
-                                computedRowsPerPage - pageItems.length
-                            )}
-                            widthPx={A4L_WIDTH_PX}
-                            heightPx={A4L_HEIGHT_PX}
-                            checkboxFields={CHECKBOX_FIELDS_004}
-                        />
-                    ))}
-                {allRows005.length > 0 &&
-                    pdfPages005.map((pageItems, idx) => (
-                        <PMS005PdfPage
-                            key={`pdf-005-${idx}`}
-                            pageItems={pageItems}
-                            pageNumber={idx + 1}
-                            totalPages={totalPdfPages005}
-                            officeName={officeName}
-                            signatures={signatures}
-                            emptyRowCount={Math.max(
-                                0,
-                                computedRowsPerPage - pageItems.length
-                            )}
-                            widthPx={A4P_WIDTH_PX}
-                            heightPx={A4P_HEIGHT_PX}
-                        />
-                    ))}
-                {allRows006.length > 0 &&
-                    pdfPages006.map((pageItems, idx) => (
-                        <PMS006PdfPage
-                            key={`pdf-006-${idx}`}
-                            pageItems={pageItems}
-                            pageNumber={idx + 1}
-                            totalPages={totalPdfPages006}
-                            officeName={officeName}
-                            signatures={signatures}
-                            emptyRowCount={Math.max(
-                                0,
-                                computedRowsPerPage - pageItems.length
-                            )}
-                            widthPx={A4L_WIDTH_PX}
-                            heightPx={A4L_HEIGHT_PX}
-                        />
-                    ))}
-                {allRows007.length > 0 &&
-                    pdfPages007.map((pageItems, idx) => (
-                        <PMS007PdfPage
-                            key={`pdf-007-${idx}`}
-                            pageItems={pageItems}
-                            pageNumber={idx + 1}
-                            totalPages={totalPdfPages007}
-                            officeName={officeName}
-                            signatures={signatures}
-                            emptyRowCount={Math.max(
-                                0,
-                                computedRowsPerPage - pageItems.length
-                            )}
-                            widthPx={A4L_WIDTH_PX}
-                            heightPx={A4L_HEIGHT_PX}
-                        />
-                    ))}
+                {pdfPages002.map((pageItems, idx) => (
+                    <PMS002PdfPage
+                        key={`pdf-002-${idx}`}
+                        pageItems={pageItems}
+                        pageNumber={idx + 1}
+                        totalPages={totalPdfPages002}
+                        officeName={officeName}
+                        signatures={signatures}
+                        emptyRowCount={Math.max(
+                            0,
+                            computedRowsPerPage - pageItems.length
+                        )}
+                        minRows={computedRowsPerPage}
+                        widthPx={A4L_WIDTH_PX}
+                        heightPx={A4L_HEIGHT_PX}
+                        checkboxFields={CHECKBOX_FIELDS}
+                    />
+                ))}
+                {pdfPages004.map((pageItems, idx) => (
+                    <PMS004PdfPage
+                        key={`pdf-004-${idx}`}
+                        pageItems={pageItems}
+                        pageNumber={idx + 1}
+                        totalPages={totalPdfPages004}
+                        officeName={officeName}
+                        signatures={signatures}
+                        emptyRowCount={Math.max(
+                            0,
+                            computedRowsPerPage - pageItems.length
+                        )}
+                        minRows={computedRowsPerPage}
+                        widthPx={A4L_WIDTH_PX}
+                        heightPx={A4L_HEIGHT_PX}
+                        checkboxFields={CHECKBOX_FIELDS_004}
+                    />
+                ))}
+                {pdfPages005.map((pageItems, idx) => (
+                    <PMS005PdfPage
+                        key={`pdf-005-${idx}`}
+                        pageItems={pageItems}
+                        pageNumber={idx + 1}
+                        totalPages={totalPdfPages005}
+                        officeName={officeName}
+                        signatures={signatures}
+                        emptyRowCount={Math.max(
+                            0,
+                            computedRowsPerPage - pageItems.length
+                        )}
+                        widthPx={A4P_WIDTH_PX}
+                        heightPx={A4P_HEIGHT_PX}
+                    />
+                ))}
+                {pdfPages006.map((pageItems, idx) => (
+                    <PMS006PdfPage
+                        key={`pdf-006-${idx}`}
+                        pageItems={pageItems}
+                        pageNumber={idx + 1}
+                        totalPages={totalPdfPages006}
+                        officeName={officeName}
+                        signatures={signatures}
+                        emptyRowCount={Math.max(
+                            0,
+                            computedRowsPerPage - pageItems.length
+                        )}
+                        widthPx={A4L_WIDTH_PX}
+                        heightPx={A4L_HEIGHT_PX}
+                    />
+                ))}
+                {pdfPages007.map((pageItems, idx) => (
+                    <PMS007PdfPage
+                        key={`pdf-007-${idx}`}
+                        pageItems={pageItems}
+                        pageNumber={idx + 1}
+                        totalPages={totalPdfPages007}
+                        officeName={officeName}
+                        signatures={signatures}
+                        emptyRowCount={Math.max(
+                            0,
+                            computedRowsPerPage - pageItems.length
+                        )}
+                        widthPx={A4L_WIDTH_PX}
+                        heightPx={A4L_HEIGHT_PX}
+                    />
+                ))}
             </div>
 
             <div className="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300">
-                <main
-                    ref={topAnchorRef}
-                    className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8"
-                >
-                    {/* Breadcrumb */}
-                    <nav className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-8 flex-wrap">
-                        <button
-                            onClick={() => {
-                                setSelectedDept(null);
-                                setSelectedLab(null);
-                                setLabPmsRecords([]);
-                                setLabPms002Records([]);
-                                setLabPms004Records([]);
-                                setLabPms005Records([]);
-                                setLabPms006Records([]);
-                                setLabPms007Records([]);
-                                closeAllExpanded();
-                            }}
-                            className={`flex items-center gap-1.5 hover:text-blue-500 transition-colors ${
-                                !selectedDept
-                                    ? "font-semibold text-slate-900 dark:text-white"
-                                    : ""
-                            }`}
-                        >
-                            <FolderOpen className="w-4 h-4 text-blue-500" />
-                            <span>Department Folders</span>
-                        </button>
-                        {selectedDept && (
-                            <>
-                                <ChevronRight className="w-4 h-4 text-slate-400" />
-                                <button
-                                    onClick={() => {
-                                        setSelectedLab(null);
-                                        setLabPmsRecords([]);
-                                        setLabPms002Records([]);
-                                        setLabPms004Records([]);
-                                        setLabPms005Records([]);
-                                        setLabPms006Records([]);
-                                        setLabPms007Records([]);
-                                        closeAllExpanded();
-                                    }}
-                                    className={`hover:text-blue-500 transition-colors ${
-                                        !selectedLab
-                                            ? "font-semibold text-slate-900 dark:text-white"
-                                            : ""
-                                    }`}
-                                >
-                                    {selectedDept.DepartmentName}
-                                </button>
-                            </>
-                        )}
-                        {selectedLab && (
-                            <>
-                                <ChevronRight className="w-4 h-4 text-slate-400" />
-                                <span className="font-semibold text-slate-900 dark:text-white">
-                                    {selectedLab.LaboratoryName}
-                                </span>
-                            </>
-                        )}
-                    </nav>
+                {/* ============================================================
+                    NORMAL VIEW — hidden when a full-page form is open
+                   ============================================================ */}
+                {!isAnyExpanded && (
+                    <main
+                        ref={topAnchorRef}
+                        className="flex-1 max-w-[1800px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in"
+                    >
+                        {/* Breadcrumb */}
+                        <nav className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-8 flex-wrap">
+                            <button
+                                onClick={() => {
+                                    setSelectedDept(null);
+                                    setSelectedLab(null);
+                                    clearLabRecords();
+                                    closeAllExpanded();
+                                }}
+                                className={`flex items-center gap-1.5 hover:text-blue-500 transition-colors ${
+                                    !selectedDept
+                                        ? "font-semibold text-slate-900 dark:text-white"
+                                        : ""
+                                }`}
+                            >
+                                <FolderOpen className="w-4 h-4 text-blue-500" />
+                                <span>Department Folders</span>
+                            </button>
+                            {selectedDept && (
+                                <>
+                                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                                    <button
+                                        onClick={() => {
+                                            setSelectedLab(null);
+                                            clearLabRecords();
+                                            closeAllExpanded();
+                                        }}
+                                        className={`hover:text-blue-500 transition-colors ${
+                                            !selectedLab
+                                                ? "font-semibold text-slate-900 dark:text-white"
+                                                : ""
+                                        }`}
+                                    >
+                                        {selectedDept.DepartmentName}
+                                    </button>
+                                </>
+                            )}
+                            {selectedLab && (
+                                <>
+                                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                                    <span className="font-semibold text-slate-900 dark:text-white">
+                                        {selectedLab.LaboratoryName}
+                                    </span>
+                                </>
+                            )}
+                        </nav>
 
-                    {/* STEP 1: DEPARTMENTS */}
-                    {!selectedDept && (
-                        <section className="space-y-8">
-                            <div className="border-b border-slate-200 dark:border-slate-700 pb-4">
-                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                                    Select a Department Folder
-                                </h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                    Hover over a folder to reveal the
-                                    department details.
-                                </p>
-                            </div>
-                            {departmentsWithLabs.length === 0 ? (
-                                <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-                                    <FolderOpen className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                                    <p className="text-slate-500 dark:text-slate-400 font-medium">
-                                        No departments found.
+                        {/* STEP 1: DEPARTMENTS */}
+                        {!selectedDept && (
+                            <section className="space-y-8">
+                                <div className="border-b border-slate-200 dark:border-slate-700 pb-4">
+                                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                                        Select a Department Folder
+                                    </h2>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                        Hover over a folder to reveal the
+                                        department details.
                                     </p>
                                 </div>
-                            ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 pt-4">
-                                    {departmentsWithLabs.map((dept) => {
-                                        const totalPms = (
-                                            dept.laboratories || []
-                                        ).reduce(
-                                            (s, lab) =>
-                                                s +
-                                                (lab.pmsRecords?.length ||
-                                                    0),
-                                            0
-                                        );
-                                        return (
-                                            <AnimatedFolderCard
-                                                key={dept._id}
-                                                title={dept.DepartmentName}
-                                                code={
-                                                    dept.DepartmentName?.split(
-                                                        " "
-                                                    )[0] || "DEPT"
-                                                }
-                                                count={totalPms}
-                                                icon={getDeptIcon(
-                                                    dept.DepartmentName
-                                                )}
-                                                textColor={getDeptTextColor(
-                                                    dept.DepartmentName
-                                                )}
-                                                desc={`${
-                                                    dept.laboratories
-                                                        ?.length || 0
-                                                } Laboratories`}
-                                                onClick={() =>
-                                                    setSelectedDept(dept)
-                                                }
-                                            />
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </section>
-                    )}
-
-                    {/* STEP 2: LABS */}
-                    {selectedDept && !selectedLab && (
-                        <section className="space-y-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <div className="flex items-center gap-4">
-                                    <button
-                                        onClick={() => setSelectedDept(null)}
-                                        className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 transition-colors"
-                                    >
-                                        <ArrowLeft className="w-5 h-5" />
-                                    </button>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <FlaskConical className="w-6 h-6 text-blue-500" />
-                                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                                                {selectedDept.DepartmentName}
-                                            </h2>
-                                        </div>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                                            Click a laboratory folder to view
-                                            ALL PMS records.
+                                {departmentsWithLabs.length === 0 ? (
+                                    <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                        <FolderOpen className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                                        <p className="text-slate-500 dark:text-slate-400 font-medium">
+                                            No departments found.
                                         </p>
                                     </div>
+                                ) : (
+                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-10 pt-4 justify-items-center">
+                                        {departmentsWithLabs.map((dept) => {
+                                            const totalPms = (
+                                                dept.laboratories || []
+                                            ).reduce(
+                                                (s, lab) =>
+                                                    s +
+                                                    (lab.pmsRecords?.length ||
+                                                        0),
+                                                0
+                                            );
+                                            return (
+                                                <AnimatedFolderCard
+                                                    key={dept._id}
+                                                    title={dept.DepartmentName}
+                                                    code={
+                                                        dept.DepartmentName?.split(
+                                                            " "
+                                                        )[0] || "DEPT"
+                                                    }
+                                                    count={totalPms}
+                                                    icon={getDeptIcon(
+                                                        dept.DepartmentName
+                                                    )}
+                                                    textColor={getDeptTextColor(
+                                                        dept.DepartmentName
+                                                    )}
+                                                    desc={`${
+                                                        dept.laboratories
+                                                            ?.length || 0
+                                                    } Laboratories`}
+                                                    onClick={() =>
+                                                        setSelectedDept(dept)
+                                                    }
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
+                        )}
+
+                        {/* STEP 2: LABS */}
+                        {selectedDept && !selectedLab && (
+                            <section className="space-y-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                    <div className="flex items-center gap-4">
+                                        <button
+                                            onClick={() => setSelectedDept(null)}
+                                            aria-label="Back to departments"
+                                            className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 transition-colors"
+                                        >
+                                            <ArrowLeft className="w-5 h-5" />
+                                        </button>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <FlaskConical className="w-6 h-6 text-blue-500" />
+                                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                                                    {selectedDept.DepartmentName}
+                                                </h2>
+                                            </div>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                                                Click a laboratory folder to view
+                                                ALL PMS records.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-bold px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 self-start sm:self-auto">
+                                        {selectedDeptLabs.length} Laboratories
+                                    </span>
                                 </div>
-                                <span className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-bold px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 self-start sm:self-auto">
-                                    {selectedDeptLabs.length} Laboratories
-                                </span>
-                            </div>
-                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                                <div className="relative w-full md:w-80">
-                                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search Laboratory..."
-                                        value={searchQuery}
-                                        onChange={(e) =>
-                                            setSearchQuery(e.target.value)
+                                <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                                    <div className="relative w-full md:w-80">
+                                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search Laboratory..."
+                                            value={searchQuery}
+                                            onChange={(e) =>
+                                                setSearchQuery(e.target.value)
+                                            }
+                                            className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+                                        />
+                                    </div>
+                                </div>
+                                {filteredLabs.length === 0 ? (
+                                    <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                        <FlaskConical className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                                        <p className="text-slate-500 dark:text-slate-400 font-medium">
+                                            No laboratories found.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-6 gap-y-10 pt-4 justify-items-center">
+                                        {filteredLabs.map((lab) => (
+                                            <AnimatedFolderCard
+                                                key={lab._id}
+                                                title={lab.LaboratoryName}
+                                                code={
+                                                    lab.LaboratoryName?.split(
+                                                        " "
+                                                    )
+                                                        .slice(0, 2)
+                                                        .join(" ") || "LAB"
+                                                }
+                                                count={
+                                                    lab.pmsRecords?.length || 0
+                                                }
+                                                icon={Wrench}
+                                                textColor="text-blue-600"
+                                                desc={
+                                                    lab.Encharge?.FullName ||
+                                                    "No Encharge"
+                                                }
+                                                onClick={() =>
+                                                    handleLabClick(lab)
+                                                }
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        )}
+
+                        {/* STEP 3: PROFESSIONAL GRID */}
+                        {selectedLab && (
+                            <section className="space-y-6">
+                                {/* Lab header */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                    <div className="flex items-center gap-4 min-w-0">
+                                        <button
+                                            onClick={() => {
+                                                setSelectedLab(null);
+                                                clearLabRecords();
+                                                closeAllExpanded();
+                                            }}
+                                            aria-label="Back to laboratories"
+                                            className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 transition-colors flex-shrink-0"
+                                        >
+                                            <ArrowLeft className="w-5 h-5" />
+                                        </button>
+                                        <div className="min-w-0">
+                                            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
+                                                {selectedLab.LaboratoryName}
+                                            </h2>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                                                Encharge:{" "}
+                                                {selectedLab.Encharge?.FullName ||
+                                                    "N/A"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadAll}
+                                        disabled={
+                                            downloadingKey === "ALL" ||
+                                            (!allRows.length &&
+                                                !allRows002.length &&
+                                                !allRows004.length &&
+                                                !allRows005.length &&
+                                                !allRows006.length &&
+                                                !allRows007.length)
                                         }
-                                        className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
-                                    />
+                                        className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2.5 rounded-lg text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors self-start sm:self-auto flex-shrink-0"
+                                    >
+                                        {downloadingKey === "ALL" ? (
+                                            <>
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                Generating ALL...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="w-3.5 h-3.5" />
+                                                Download ALL PMS
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
-                            </div>
-                            {filteredLabs.length === 0 ? (
-                                <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
-                                    <FlaskConical className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                                    <p className="text-slate-500 dark:text-slate-400 font-medium">
-                                        No laboratories found.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 pt-4">
-                                    {filteredLabs.map((lab) => (
-                                        <AnimatedFolderCard
-                                            key={lab._id}
-                                            title={lab.LaboratoryName}
-                                            code={
-                                                lab.LaboratoryName?.split(
-                                                    " "
-                                                )
-                                                    .slice(0, 2)
-                                                    .join(" ") || "LAB"
-                                            }
-                                            count={
-                                                lab.pmsRecords?.length || 0
-                                            }
-                                            icon={Wrench}
-                                            textColor="text-blue-600"
-                                            desc={
-                                                lab.Encharge?.FullName ||
-                                                "No Encharge"
-                                            }
+
+                                {/* Summary tiles — click para mag-scroll sa card */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                                    {[
+                                        { k: "001", code: "PMS001", rows: allRows.length, loading: labPmsLoading },
+                                        { k: "002", code: "PMS002", rows: allRows002.length, loading: labPms002Loading || pms002Loading },
+                                        { k: "004", code: "PMS004", rows: allRows004.length, loading: labPms004Loading || pms004Loading },
+                                        { k: "005", code: "PMS005", rows: allRows005.length, loading: labPms005Loading || pms005Loading },
+                                        { k: "006", code: "PMS006", rows: allRows006.length, loading: labPms006Loading || pms006Loading },
+                                        { k: "007", code: "PMS007", rows: allRows007.length, loading: labPms007Loading || pms007Loading },
+                                    ].map((t) => (
+                                        <PMSStatTile
+                                            key={t.code}
+                                            code={t.code}
+                                            label={PMS_META[t.code].subtitle}
+                                            count={t.rows}
+                                            loading={t.loading}
                                             onClick={() =>
-                                                handleLabClick(lab)
+                                                document
+                                                    .getElementById(`pms-${t.k}`)
+                                                    ?.scrollIntoView({
+                                                        behavior: "smooth",
+                                                        block: "start",
+                                                    })
                                             }
                                         />
                                     ))}
                                 </div>
-                            )}
-                        </section>
-                    )}
 
-                    {/* STEP 3: MINI GRID */}
-                    {selectedLab && (
-                        <section className="space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <div className="flex items-center gap-4">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedLab(null);
-                                            setLabPmsRecords([]);
-                                            setLabPms002Records([]);
-                                            setLabPms004Records([]);
-                                            setLabPms005Records([]);
-                                            setLabPms006Records([]);
-                                            setLabPms007Records([]);
-                                            closeAllExpanded();
-                                        }}
-                                        className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 transition-colors"
-                                    >
-                                        <ArrowLeft className="w-5 h-5" />
-                                    </button>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <Wrench className="w-6 h-6 text-blue-500" />
-                                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                                                {selectedLab.LaboratoryName}
-                                            </h2>
-                                        </div>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                                            Encharge:{" "}
-                                            {selectedLab.Encharge?.FullName ||
-                                                "N/A"}{" "}
-                                            · Click any card to open sidebar
-                                            view
-                                        </p>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={handleDownloadAll}
-                                    disabled={
-                                        downloadingKey === "ALL" ||
-                                        (!allRows.length &&
-                                            !allRows002.length &&
-                                            !allRows004.length &&
-                                            !allRows005.length &&
-                                            !allRows006.length &&
-                                            !allRows007.length)
-                                    }
-                                    className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 transition-colors self-start sm:self-auto"
-                                >
-                                    {downloadingKey === "ALL" ? (
-                                        <>
-                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                            Generating ALL...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Download className="w-3.5 h-3.5" />
-                                            Download ALL PMS
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-
-                            {/* MINI GRID */}
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
-                                <div id="pms-001" className="scroll-mt-24 min-w-0 xl:col-span-1">
-                                    <PMS001Viewer
-                                        allRows={allRows}
-                                        officeName={officeName}
-                                        performedBy={pms001PerformedBy}
+                                {/* Card grid: 1 col mobile → 2 col laptop → 3 col wide */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-5 items-stretch">
+                                    <PMSModuleCard
+                                        id="pms-001"
+                                        code="PMS001"
+                                        subtitle={PMS_META.PMS001.subtitle}
+                                        count={allRows.length}
                                         loading={labPmsLoading}
-                                        miniExpanded={false}
-                                        onOpenFull={openFullForm}
-                                        onCloseFull={closeFullForm}
-                                        fullFormRef={fullFormRef}
-                                        totalPdfPages={totalPdfPages}
-                                        signatures={signatures}
-                                        onSignatureChange={handleSignatureChange}
-                                    />
-                                </div>
-
-                                <div id="pms-005" className="scroll-mt-24 min-w-0 xl:col-span-1">
-                                    <PMS005Viewer
-                                        allRows005={allRows005}
-                                        officeName={officeName}
-                                        performedBy={pms005PerformedBy}
-                                        loading={labPms005Loading || pms005Loading}
-                                        error={pms005Error}
-                                        miniExpanded={false}
-                                        onOpenFull={openFullForm005}
-                                        onCloseFull={closeFullForm005}
-                                        fullFormRef={fullForm005Ref}
-                                        totalPdfPages={totalPdfPages005}
-                                        onRetry={() => loadPms005(selectedLab)}
-                                        signatures={signatures}
-                                        onSignatureChange={handleSignatureChange}
-                                    />
-                                </div>
-
-                                <div id="pms-002" className="scroll-mt-24 min-w-0 xl:col-span-2">
-                                    <PMS002Viewer
-                                        allRows002={allRows002}
-                                        officeName={officeName}
-                                        performedBy={pms002PerformedBy}
-                                        loading={labPms002Loading || pms002Loading}
-                                        error={pms002Error}
-                                        miniExpanded={false}
-                                        onOpenFull={openFullForm002}
-                                        onCloseFull={closeFullForm002}
-                                        fullFormRef={fullForm002Ref}
-                                        totalPdfPages={totalPdfPages002}
-                                        onRetry={() => loadPms002(selectedLab)}
-                                        signatures={signatures}
-                                        onSignatureChange={handleSignatureChange}
-                                    />
-                                </div>
-
-                                <div id="pms-004" className="scroll-mt-24 min-w-0 xl:col-span-2">
-                                    <PMS004Viewer
-                                        allRows004={allRows004}
-                                        officeName={officeName}
-                                        performedBy={pms004PerformedBy}
-                                        loading={labPms004Loading || pms004Loading}
-                                        error={pms004Error}
-                                        miniExpanded={false}
-                                        onOpenFull={openFullForm004}
-                                        onCloseFull={closeFullForm004}
-                                        fullFormRef={fullForm004Ref}
-                                        totalPdfPages={totalPdfPages004}
-                                        onRetry={() => loadPms004(selectedLab)}
-                                        signatures={signatures}
-                                        onSignatureChange={handleSignatureChange}
-                                    />
-                                </div>
-
-                                <div id="pms-006" className="scroll-mt-24 min-w-0 xl:col-span-2">
-                                    <PMS006Viewer
-                                        allRows006={allRows006}
-                                        officeName={officeName}
-                                        performedBy={pms006PerformedBy}
-                                        loading={labPms006Loading || pms006Loading}
-                                        error={pms006Error}
-                                        miniExpanded={false}
-                                        onOpenFull={openFullForm006}
-                                        onCloseFull={closeFullForm006}
-                                        fullFormRef={fullForm006Ref}
-                                        totalPdfPages={totalPdfPages006}
-                                        onRetry={() => loadPms006(selectedLab)}
-                                        signatures={signatures}
-                                        onSignatureChange={handleSignatureChange}
-                                    />
-                                </div>
-
-                                <div id="pms-007" className="scroll-mt-24 min-w-0 xl:col-span-2">
-                                    <PMS007Viewer
-                                        allRows007={allRows007}
-                                        officeName={officeName}
-                                        performedBy={pms007PerformedBy}
-                                        loading={labPms007Loading || pms007Loading}
-                                        error={pms007Error}
-                                        miniExpanded={false}
-                                        onOpenFull={openFullForm007}
-                                        onCloseFull={closeFullForm007}
-                                        fullFormRef={fullForm007Ref}
-                                        totalPdfPages={totalPdfPages007}
-                                        onRetry={() => loadPms007(selectedLab)}
-                                        signatures={signatures}
-                                        onSignatureChange={handleSignatureChange}
-                                    />
-                                </div>
-                            </div>
-                        </section>
-                    )}
-                </main>
-            </div>
-
-            {/* ================================================================
-                SIDEBAR DRAWER — with DOWNLOAD button sa header
-               ================================================================ */}
-            {sidebarMounted && (
-                <div className="fixed inset-0 z-[60] flex">
-                    {/* Backdrop — fade in/out */}
-                    <div
-                        className={`flex-1 bg-slate-900/50 backdrop-blur-[2px] sidebar-backdrop ${
-                            sidebarVisible ? "open" : ""
-                        }`}
-                        onClick={closeAllExpanded}
-                        aria-hidden="true"
-                    />
-
-                    {/* Drawer — slide in/out */}
-                    <aside
-                        className={`relative w-full sm:w-[92vw] lg:w-[75vw] xl:w-[68vw] max-w-[1400px] h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-700 sidebar-panel ${
-                            sidebarVisible ? "open" : ""
-                        }`}
-                        role="dialog"
-                        aria-modal="true"
-                        aria-label={
-                            activeMeta
-                                ? `${activeMeta.title} — ${activeMeta.subtitle}`
-                                : "PMS Full View"
-                        }
-                    >
-                        {/* Sidebar Header */}
-                        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0">
-                            <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">
-                                    <Wrench className="w-4.5 h-4.5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
-                                            {activeMeta?.title || "PMS"}
-                                        </span>
-                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
-                                            · {officeName}
-                                        </span>
-                                    </div>
-                                    <h3 className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 truncate leading-tight">
-                                        {activeMeta?.subtitle || "Full Form View"}
-                                    </h3>
-                                </div>
-                            </div>
-
-                            {/* === Action buttons: DOWNLOAD + CLOSE === */}
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                                {/* DOWNLOAD BUTTON */}
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        activeSidebarKey &&
-                                        handleDownloadSingle(activeSidebarKey)
-                                    }
-                                    disabled={
-                                        !activeSidebarKey ||
-                                        activeRowsCount === 0 ||
-                                        downloadingKey === activeSidebarKey
-                                    }
-                                    className="inline-flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 dark:disabled:text-slate-400 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors"
-                                    title={
-                                        activeRowsCount === 0
-                                            ? "Walang records para i-download"
-                                            : `Download ${activeSidebarKey} PDF`
-                                    }
-                                >
-                                    {downloadingKey === activeSidebarKey ? (
-                                        <>
-                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                            <span className="hidden sm:inline">
-                                                Generating...
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Download className="w-3.5 h-3.5" />
-                                            <span className="hidden sm:inline">
-                                                Download
-                                            </span>
-                                            <span className="sm:hidden">
-                                                DL
-                                            </span>
-                                        </>
-                                    )}
-                                </button>
-
-                                {/* CLOSE BUTTON */}
-                                <button
-                                    type="button"
-                                    onClick={closeAllExpanded}
-                                    className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
-                                    aria-label="Close sidebar"
-                                    title="Close (Esc)"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Sidebar Body — content slides in too */}
-                        <div className="flex-1 sidebar-scroll p-3 sm:p-4 bg-slate-50 dark:bg-slate-900">
-                            <div
-                                className={`sidebar-content ${
-                                    sidebarVisible ? "open" : ""
-                                }`}
-                            >
-                                {miniExpanded && (
-                                    <div ref={fullFormRef} className="scroll-mt-24">
+                                        onOpen={openFullForm}
+                                    >
                                         <PMS001Viewer
                                             allRows={allRows}
                                             officeName={officeName}
                                             performedBy={pms001PerformedBy}
                                             loading={labPmsLoading}
-                                            miniExpanded={true}
+                                            error={pms001Error}
+                                            miniExpanded={false}
                                             onOpenFull={openFullForm}
                                             onCloseFull={closeFullForm}
                                             fullFormRef={fullFormRef}
                                             totalPdfPages={totalPdfPages}
+                                            onRetry={() => loadPms001(selectedLab)}
                                             signatures={signatures}
                                             onSignatureChange={handleSignatureChange}
                                         />
-                                    </div>
-                                )}
+                                    </PMSModuleCard>
 
-                                {miniExpanded002 && (
-                                    <div ref={fullForm002Ref} className="scroll-mt-24">
+                                    <PMSModuleCard
+                                        id="pms-002"
+                                        code="PMS002"
+                                        subtitle={PMS_META.PMS002.subtitle}
+                                        count={allRows002.length}
+                                        loading={labPms002Loading || pms002Loading}
+                                        onOpen={openFullForm002}
+                                    >
                                         <PMS002Viewer
                                             allRows002={allRows002}
                                             officeName={officeName}
                                             performedBy={pms002PerformedBy}
                                             loading={labPms002Loading || pms002Loading}
                                             error={pms002Error}
-                                            miniExpanded={true}
+                                            miniExpanded={false}
                                             onOpenFull={openFullForm002}
                                             onCloseFull={closeFullForm002}
                                             fullFormRef={fullForm002Ref}
@@ -2134,19 +2222,25 @@ export default function PMSComponent() {
                                             onRetry={() => loadPms002(selectedLab)}
                                             signatures={signatures}
                                             onSignatureChange={handleSignatureChange}
+                                            minRows={computedRowsPerPage}
                                         />
-                                    </div>
-                                )}
+                                    </PMSModuleCard>
 
-                                {miniExpanded004 && (
-                                    <div ref={fullForm004Ref} className="scroll-mt-24">
+                                    <PMSModuleCard
+                                        id="pms-004"
+                                        code="PMS004"
+                                        subtitle={PMS_META.PMS004.subtitle}
+                                        count={allRows004.length}
+                                        loading={labPms004Loading || pms004Loading}
+                                        onOpen={openFullForm004}
+                                    >
                                         <PMS004Viewer
                                             allRows004={allRows004}
                                             officeName={officeName}
                                             performedBy={pms004PerformedBy}
                                             loading={labPms004Loading || pms004Loading}
                                             error={pms004Error}
-                                            miniExpanded={true}
+                                            miniExpanded={false}
                                             onOpenFull={openFullForm004}
                                             onCloseFull={closeFullForm004}
                                             fullFormRef={fullForm004Ref}
@@ -2154,19 +2248,25 @@ export default function PMSComponent() {
                                             onRetry={() => loadPms004(selectedLab)}
                                             signatures={signatures}
                                             onSignatureChange={handleSignatureChange}
+                                            minRows={computedRowsPerPage}
                                         />
-                                    </div>
-                                )}
+                                    </PMSModuleCard>
 
-                                {miniExpanded005 && (
-                                    <div ref={fullForm005Ref} className="scroll-mt-24">
+                                    <PMSModuleCard
+                                        id="pms-005"
+                                        code="PMS005"
+                                        subtitle={PMS_META.PMS005.subtitle}
+                                        count={allRows005.length}
+                                        loading={labPms005Loading || pms005Loading}
+                                        onOpen={openFullForm005}
+                                    >
                                         <PMS005Viewer
                                             allRows005={allRows005}
                                             officeName={officeName}
                                             performedBy={pms005PerformedBy}
                                             loading={labPms005Loading || pms005Loading}
                                             error={pms005Error}
-                                            miniExpanded={true}
+                                            miniExpanded={false}
                                             onOpenFull={openFullForm005}
                                             onCloseFull={closeFullForm005}
                                             fullFormRef={fullForm005Ref}
@@ -2175,18 +2275,23 @@ export default function PMSComponent() {
                                             signatures={signatures}
                                             onSignatureChange={handleSignatureChange}
                                         />
-                                    </div>
-                                )}
+                                    </PMSModuleCard>
 
-                                {miniExpanded006 && (
-                                    <div ref={fullForm006Ref} className="scroll-mt-24">
+                                    <PMSModuleCard
+                                        id="pms-006"
+                                        code="PMS006"
+                                        subtitle={PMS_META.PMS006.subtitle}
+                                        count={allRows006.length}
+                                        loading={labPms006Loading || pms006Loading}
+                                        onOpen={openFullForm006}
+                                    >
                                         <PMS006Viewer
                                             allRows006={allRows006}
                                             officeName={officeName}
                                             performedBy={pms006PerformedBy}
                                             loading={labPms006Loading || pms006Loading}
                                             error={pms006Error}
-                                            miniExpanded={true}
+                                            miniExpanded={false}
                                             onOpenFull={openFullForm006}
                                             onCloseFull={closeFullForm006}
                                             fullFormRef={fullForm006Ref}
@@ -2195,18 +2300,23 @@ export default function PMSComponent() {
                                             signatures={signatures}
                                             onSignatureChange={handleSignatureChange}
                                         />
-                                    </div>
-                                )}
+                                    </PMSModuleCard>
 
-                                {miniExpanded007 && (
-                                    <div ref={fullForm007Ref} className="scroll-mt-24">
+                                    <PMSModuleCard
+                                        id="pms-007"
+                                        code="PMS007"
+                                        subtitle={PMS_META.PMS007.subtitle}
+                                        count={allRows007.length}
+                                        loading={labPms007Loading || pms007Loading}
+                                        onOpen={openFullForm007}
+                                    >
                                         <PMS007Viewer
                                             allRows007={allRows007}
                                             officeName={officeName}
                                             performedBy={pms007PerformedBy}
                                             loading={labPms007Loading || pms007Loading}
                                             error={pms007Error}
-                                            miniExpanded={true}
+                                            miniExpanded={false}
                                             onOpenFull={openFullForm007}
                                             onCloseFull={closeFullForm007}
                                             fullFormRef={fullForm007Ref}
@@ -2215,13 +2325,34 @@ export default function PMSComponent() {
                                             signatures={signatures}
                                             onSignatureChange={handleSignatureChange}
                                         />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </aside>
-                </div>
-            )}
+                                    </PMSModuleCard>
+                                </div>
+                            </section>
+                        )}
+                    </main>
+                )}
+
+                {/* ============================================================
+                    FULL PAGE FORM VIEW — replaces the old modal
+                   ============================================================ */}
+                {isAnyExpanded && (
+                    <div className="animate-fade-in">
+                        <FullPageFormView
+                            activeSidebarKey={activeSidebarKey}
+                            activeMeta={activeMeta}
+                            officeName={officeName}
+                            activeRowsCount={activeRowsCount}
+                            downloadingKey={downloadingKey}
+                            onDownload={() =>
+                                activeSidebarKey &&
+                                handleDownloadSingle(activeSidebarKey)
+                            }
+                            onBack={closeAllExpanded}
+                            renderModalPages={renderModalPages}
+                        />
+                    </div>
+                )}
+            </div>
         </>
     );
 }

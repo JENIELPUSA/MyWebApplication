@@ -11,7 +11,7 @@ import LaboratoryHome from "./components/LaboratoryHome/LaboratoryHome";
 import RequestMaintenance from "./components/RequestMaintenance/RequestMaintenance";
 import UserList from "./components/UserComponent/UserList";
 import EquipmentForm from "./components/Equipment/EquipmentManagement";
-import DepartmentContent from "./components/Department/DepartmentContent";
+import DepartmentContent from "./components/Department/DepartmentTables";
 import LaboratoryContent from "./components/Laboratories/LaboratoryContent";
 import AssignLab from "./components/Assign/AssignLab";
 import ModalReport from "./components/Report/ModalReport";

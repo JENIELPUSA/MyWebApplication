@@ -35,7 +35,7 @@ import SupplyDashboard from "./dashboardRole/SupplyDashboard";
 import ReassignModal from './dashboardRole/ReassignModal';
 
 // ============================================================
-// ✅ SKELETON COMPONENTS (Reusable)
+//  SKELETON COMPONENTS (Reusable)
 // ============================================================
 const SkeletonPulse = ({ className = "" }) => (
     <div className={`animate-pulse bg-gray-200 dark:bg-slate-700 rounded ${className}`} />
@@ -91,7 +91,7 @@ const PieChartSkeleton = () => (
 );
 
 // ============================================================
-// ✅ BANNER SKELETON
+//  BANNER SKELETON
 // ============================================================
 const DashboardBannerSkeleton = () => (
     <div className="w-full bg-gradient-to-r from-blue-700 to-blue-800 dark:from-slate-800 dark:to-slate-900 rounded-[2rem] shadow-lg p-6 sm:p-8 relative overflow-hidden">
@@ -112,7 +112,7 @@ const DashboardBannerSkeleton = () => (
 );
 
 // ============================================================
-// ✅ DASHBOARD CARD SKELETON (4-card stat row)
+//  DASHBOARD CARD SKELETON (4-card stat row)
 // ============================================================
 const DashboardCardSkeleton = () => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
@@ -133,7 +133,7 @@ const DashboardCardSkeleton = () => (
 );
 
 // ============================================================
-// ✅ LABORATORY SKELETON
+//  LABORATORY SKELETON
 // ============================================================
 const LaboratorySkeleton = () => (
     <div className="space-y-6">
@@ -167,7 +167,7 @@ const LaboratorySkeleton = () => (
 );
 
 // ============================================================
-// ✅ ADMIN DASHBOARD SKELETON
+//  ADMIN DASHBOARD SKELETON
 // ============================================================
 const AdminDashboardSkeleton = () => (
     <div className="space-y-8">
@@ -254,7 +254,7 @@ function Dashboard() {
     const { theme } = useTheme();
     const isDark = theme === "dark";
 
-    // ✅ Loading state para sa statistics
+    //  Loading state para sa statistics
     const [statisticsLoading, setStatisticsLoading] = useState(false);
 
     // ==========================================
@@ -293,7 +293,7 @@ function Dashboard() {
 
         const fetchStatistics = async () => {
             try {
-                setStatisticsLoading(true);   // ✅ START loading
+                setStatisticsLoading(true);   //  START loading
 
                 if (role === "Admin") {
                     console.log("📊 Fetching Admin Statistics...");
@@ -316,7 +316,7 @@ function Dashboard() {
                 console.error(`❌ Error fetching ${role} statistics:`, error);
             } finally {
                 if (isMounted) {
-                    setStatisticsLoading(false);   // ✅ STOP loading
+                    setStatisticsLoading(false);   //  STOP loading
                 }
             }
         };
@@ -324,7 +324,7 @@ function Dashboard() {
         // Reset fetch flag kapag nagbago ang role
         if (role) {
             hasFetchedRef.current = false;
-            setStatisticsLoading(true);           // ✅ Loading agad pagpalit ng role
+            setStatisticsLoading(true);           //  Loading agad pagpalit ng role
         }
 
         timeoutId = setTimeout(() => {
@@ -339,7 +339,7 @@ function Dashboard() {
                 clearTimeout(timeoutId);
             }
         };
-    }, [role]); // ✅ role LANG ang dependency
+    }, [role]); //  role LANG ang dependency
 
     // ==========================================
     // ADMIN - Fetch Incoming Data - FIXED
@@ -363,7 +363,7 @@ function Dashboard() {
                 clearTimeout(timeoutId);
             }
         };
-    }, [role]); // ✅ role LANG ang dependency
+    }, [role]); //  role LANG ang dependency
 
     return (
         <div className="flex h-screen w-full bg-white dark:bg-slate-900 overflow-hidden font-poppins">
@@ -376,7 +376,7 @@ function Dashboard() {
                         transition={{ duration: 0.5 }}
                         className="p-4 sm:p-6 lg:p-8"
                     >
-                        {/* ✅ BANNER — Skeleton habang loading */}
+                        {/*  BANNER — Skeleton habang loading */}
                         {statisticsLoading ? (
                             <DashboardBannerSkeleton />
                         ) : (
@@ -406,7 +406,7 @@ function Dashboard() {
                                         exit={{ opacity: 0 }}
                                         className="space-y-1"
                                     >
-                                        {/* ✅ CARDS — Skeleton habang loading */}
+                                        {/*  CARDS — Skeleton habang loading */}
                                         {statisticsLoading ? (
                                             <DashboardCardSkeleton />
                                         ) : (
@@ -420,7 +420,7 @@ function Dashboard() {
                                             </div>
                                         )}
 
-                                        {/* ✅ ADMIN — Skeleton or Actual Dashboard */}
+                                        {/*  ADMIN — Skeleton or Actual Dashboard */}
                                         {role === "Admin" && (
                                             statisticsLoading ? (
                                                 <AdminDashboardSkeleton />

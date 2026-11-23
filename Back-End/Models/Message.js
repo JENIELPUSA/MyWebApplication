@@ -17,7 +17,7 @@ const messageSchema = new mongoose.Schema({
       'Rejected',
       'TaskCompleted',
       'Pending',
-      'UnderMaintenance', 'TechnicianConfirmed', 'InchargeConfirmation','ReAssignedTechnician',
+      'UnderMaintenance', 'TechnicianConfirmed', 'InchargeConfirmation', 'ReAssignedTechnician', 'RequestApproved',
       'NewMessage',
       'StatusUpdate',
       'Reminder',

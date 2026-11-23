@@ -109,7 +109,7 @@ const PopupModal = ({
   const getSelectedLaboratory = () =>
     filteredLaboratories.find((lab) => lab._id === values.Laboratory);
 
-  // Handle department change and filter laboratories based on department selection
+  // ✅ FIXED: Auto-advance papuntang Laboratory step pagkatapos pumili ng department
   const handleDepartmentChange = (e) => {
     const selectedDepartment = e.target.value;
     setValues((prev) => ({
@@ -123,10 +123,14 @@ const PopupModal = ({
     );
     setFilteredLaboratories(filtered);
     setIsBothSelected(!!selectedDepartment && !!values.Laboratory);
-    handleNext();
+
+    // Auto-advance sa Step 2 (Laboratory) kapag may napiling department
+    if (selectedDepartment) {
+      setActiveStep(1);
+    }
   };
 
-  // Handle laboratory change
+  // ✅ FIXED: Walang auto-advance — kailangan i-review muna bago mag-submit
   const handleLaboratoryChange = (e) => {
     const selectedLabId = e.target.value;
     setValues((prev) => ({
@@ -135,7 +139,6 @@ const PopupModal = ({
     }));
 
     setIsBothSelected(!!values.department && !!selectedLabId);
-    handleNext();
   };
 
   // Move to the next step in the stepper
@@ -191,7 +194,6 @@ const PopupModal = ({
     try {
       const selectedLab = getSelectedLaboratory();
 
-      // Prepare data for assignment (includes Encharge info)
       const assignData = {
         id: values.id,
         Laboratory: values.Laboratory,
@@ -201,15 +203,12 @@ const PopupModal = ({
         EnchargeName: selectedLab?.EnchargeName || "",
       };
 
-      // Call the function from context
       await addAssignEquipment(assignData);
 
-      // Call onAssignSuccess if provided
       if (onAssignSuccess) {
         onAssignSuccess(assignData);
       }
 
-      // Close modal after successful assignment
       setTimeout(() => {
         onClose();
       }, 1000);
@@ -238,7 +237,9 @@ const PopupModal = ({
           exit={{ opacity: 0, y: -50 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
         >
+          {/* ✅ FIXED: type="button" para hindi mag-submit ang form */}
           <motion.button
+            type="button"
             className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
             aria-label="Close"
             whileTap={{ scale: 0.8 }}
@@ -258,7 +259,6 @@ const PopupModal = ({
               : "Assign Equipment"}
           </h2>
 
-          {/* Display error if any */}
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
               <AlertCircle size={16} className="inline mr-2" />
@@ -268,7 +268,6 @@ const PopupModal = ({
 
           {/* Custom Stepper */}
           <div className="relative">
-            {/* Step Indicators */}
             <div className="flex items-center justify-between mb-6">
               {steps.map((label, index) => (
                 <div key={index} className="flex items-center flex-1">
@@ -297,7 +296,6 @@ const PopupModal = ({
               ))}
             </div>
 
-            {/* Step Content */}
             <div className="mt-4">
               {/* Step 1: Department Selection */}
               {activeStep === 0 && (
@@ -378,74 +376,91 @@ const PopupModal = ({
                   <label className="block mb-1 text-sm font-medium text-slate-600">
                     Laboratory
                   </label>
-                  <div
-                    className="w-full bg-white placeholder:text-slate-400 text-slate-700 text-sm border border-slate-300 rounded-lg px-3 py-2.5 cursor-pointer flex justify-between items-center hover:border-indigo-400 transition-colors"
-                    onClick={() =>
-                      setLaboratoryDropdownOpen(!LaboratoryDropdownOpen)
-                    }
-                  >
-                    <span className="truncate">
-                      {values.Laboratory
-                        ? (() => {
-                            const lab = getSelectedLaboratory();
-                            return lab
-                              ? `${lab.LaboratoryName} — ${
-                                  lab.EnchargeName || "N/A"
-                                }`
-                              : "Select Laboratory";
-                          })()
-                        : "Select Laboratory"}
-                    </span>
-                    {LaboratoryDropdownOpen ? (
-                      <ChevronUp
-                        size={16}
-                        className="text-gray-500 flex-shrink-0 ml-2"
-                      />
-                    ) : (
-                      <ChevronDown
-                        size={16}
-                        className="text-gray-500 flex-shrink-0 ml-2"
-                      />
-                    )}
-                  </div>
 
-                  {LaboratoryDropdownOpen && (
-                    <ul className="absolute z-10 mt-1 bg-white border border-slate-300 rounded-lg w-full max-h-40 overflow-y-auto shadow-lg">
-                      <li
-                        className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-600 transition-colors"
-                        onClick={() => {
-                          handleLaboratoryChange({
-                            target: { name: "Laboratory", value: "" },
-                          });
-                          setLaboratoryDropdownOpen(false);
-                        }}
+                  {/* ✅ FIXED: Fallback kapag walang napiling department pa */}
+                  {!values.department ? (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-center gap-2">
+                      <AlertCircle size={16} />
+                      Please select a department first.
+                    </div>
+                  ) : filteredLaboratories.length === 0 ? (
+                    /* ✅ FIXED: Fallback kapag walang laboratory sa napiling department */
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-center gap-2">
+                      <AlertCircle size={16} />
+                      No laboratories available for this department.
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        className="w-full bg-white placeholder:text-slate-400 text-slate-700 text-sm border border-slate-300 rounded-lg px-3 py-2.5 cursor-pointer flex justify-between items-center hover:border-indigo-400 transition-colors"
+                        onClick={() =>
+                          setLaboratoryDropdownOpen(!LaboratoryDropdownOpen)
+                        }
                       >
-                        Select Laboratory
-                      </li>
-                      {filteredLaboratories.map((lab) => (
-                        <li
-                          key={lab._id}
-                          className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-700 transition-colors"
-                          onClick={() => {
-                            handleLaboratoryChange({
-                              target: {
-                                name: "Laboratory",
-                                value: lab._id,
-                              },
-                            });
-                            setLaboratoryDropdownOpen(false);
-                          }}
-                        >
-                          <div className="font-medium">
-                            {lab.LaboratoryName}
-                          </div>
-                          <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                            <User size={12} />
-                            Encharge: {lab.EnchargeName || "N/A"}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                        <span className="truncate">
+                          {values.Laboratory
+                            ? (() => {
+                                const lab = getSelectedLaboratory();
+                                return lab
+                                  ? `${lab.LaboratoryName} — ${
+                                      lab.EnchargeName || "N/A"
+                                    }`
+                                  : "Select Laboratory";
+                              })()
+                            : "Select Laboratory"}
+                        </span>
+                        {LaboratoryDropdownOpen ? (
+                          <ChevronUp
+                            size={16}
+                            className="text-gray-500 flex-shrink-0 ml-2"
+                          />
+                        ) : (
+                          <ChevronDown
+                            size={16}
+                            className="text-gray-500 flex-shrink-0 ml-2"
+                          />
+                        )}
+                      </div>
+
+                      {LaboratoryDropdownOpen && (
+                        <ul className="absolute z-10 mt-1 bg-white border border-slate-300 rounded-lg w-full max-h-40 overflow-y-auto shadow-lg">
+                          <li
+                            className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-600 transition-colors"
+                            onClick={() => {
+                              handleLaboratoryChange({
+                                target: { name: "Laboratory", value: "" },
+                              });
+                              setLaboratoryDropdownOpen(false);
+                            }}
+                          >
+                            Select Laboratory
+                          </li>
+                          {filteredLaboratories.map((lab) => (
+                            <li
+                              key={lab._id}
+                              className="px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-700 transition-colors"
+                              onClick={() => {
+                                handleLaboratoryChange({
+                                  target: {
+                                    name: "Laboratory",
+                                    value: lab._id,
+                                  },
+                                });
+                                setLaboratoryDropdownOpen(false);
+                              }}
+                            >
+                              <div className="font-medium">
+                                {lab.LaboratoryName}
+                              </div>
+                              <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                <User size={12} />
+                                Incharge: {lab.EnchargeName || "N/A"}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -482,6 +497,7 @@ const PopupModal = ({
 
             {/* Navigation Buttons */}
             <div className="flex justify-end mt-6 space-x-2">
+              {/* ✅ FIXED: type="button" para hindi mag-submit */}
               <button
                 type="button"
                 onClick={() => setActiveStep((prev) => Math.max(prev - 1, 0))}
@@ -494,7 +510,9 @@ const PopupModal = ({
               >
                 Back
               </button>
+
               {activeStep < steps.length - 1 ? (
+                /* ✅ FIXED: type="button" para hindi mag-submit */
                 <button
                   type="button"
                   onClick={() => setActiveStep((prev) => prev + 1)}
@@ -503,6 +521,7 @@ const PopupModal = ({
                   Next
                 </button>
               ) : (
+                /* ✅ Ito lang ang type="submit" — tama lang */
                 <button
                   type="submit"
                   disabled={isLoading}

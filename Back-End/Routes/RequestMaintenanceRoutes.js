@@ -60,6 +60,10 @@ router
   .get(authController.protect, MaintenanceRoute.getMonthlyMaintenanceGraph);
 
 router
+  .route("/DisplayCalendarSchedules")
+  .get(authController.protect, MaintenanceRoute.DisplayCalendarSchedules);
+
+router
   .route("/updateDataAssignTechnician/:RequestId")
   .patch(authController.protect, MaintenanceRoute.updateDataAssignTechnician);
 

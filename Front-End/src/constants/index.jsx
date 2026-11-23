@@ -82,13 +82,14 @@ export const navbarLinks = [
                 path: "/dashboard/problem",
             },
             {
+                label: "PMS",
+                icon: Wrench,
+                path: "/dashboard/pmsmain",
+            },
+            {
                 label: "Update Password",
                 icon: KeyRound,
                 path: "/dashboard/updatepassword",
-            }, {
-                label: "PMS",
-                icon: KeyRound,
-                path: "/dashboard/pmsmain",
             },
         ],
     },

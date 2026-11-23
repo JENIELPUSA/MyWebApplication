@@ -4,7 +4,6 @@ import React, {
     useState,
     useContext,
     useMemo,
-    useCallback,
 } from "react";
 import { AuthContext } from "../AuthContext";
 import StatusModal from "../../components/ReusableComponent/SuccessandFailedModal";
@@ -17,11 +16,34 @@ export const PMS002Context = createContext();
 // ============================================================
 const PMS002_BASE = `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/api/v1/Pms002`;
 
+// ============================================================
+// 🔧 HELPER — Build query params
+// ============================================================
+const buildQueryParams = (filters = {}) => {
+    const params = {};
+
+    // ✅ all → override lahat ng filters
+    if (filters.all) {
+        params.all = "true";
+        return params;
+    }
+
+    if (filters.laboratoryId) params.laboratoryId = filters.laboratoryId;
+    if (filters.from) params.from = filters.from;
+    if (filters.to) params.to = filters.to;
+
+    return params;
+};
+
 export const PMS002Provider = ({ children }) => {
     // ---------------- STATE ----------------
     const [pms002Records, setPms002Records] = useState([]);
     const [pms002Record, setPms002Record] = useState(null);
     const [myLaboratory, setMyLaboratory] = useState(null);
+    const [performedBy, setPerformedBy] = useState(null);
+
+    // ✅ total from backend (kung available) — fallback sa records.length
+    const [serverTotal, setServerTotal] = useState(0);
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -30,8 +52,7 @@ export const PMS002Provider = ({ children }) => {
     const [showModal, setShowModal] = useState(false);
     const [modalStatus, setModalStatus] = useState("success");
 
-    // ✅ FIX: kunin din ang `user` mula sa AuthContext
-    const { authToken, user } = useContext(AuthContext);
+    const { authToken } = useContext(AuthContext);
 
     // ---------------- HELPERS ----------------
     const handleApiError = (error) => {
@@ -41,8 +62,8 @@ export const PMS002Provider = ({ children }) => {
                 typeof errorData === "string"
                     ? errorData
                     : errorData?.message ||
-                    errorData.error ||
-                    "Something went wrong.";
+                      errorData.error ||
+                      "Something went wrong.";
             setCustomError(message);
             return message;
         } else if (error.request) {
@@ -61,33 +82,34 @@ export const PMS002Provider = ({ children }) => {
     // POST /api/v1/Pms002
     // ============================================================
     const createPMS002 = async (values) => {
-        if (!authToken) return { success: false, error: "Not authenticated." };
+        if (!authToken)
+            return { success: false, error: "Not authenticated." };
         setLoading(true);
         try {
-            console.log("📤 createPMS002 payload:", values);
+            const payload = {
+                equipmentId: values.equipmentId,
+                laboratoryId: values.laboratoryId,
+                routineInspection: values.routineInspection,
+                lubrication: values.lubrication,
+                overhauling: values.overhauling,
+                minorAdjustment: values.minorAdjustment,
+                replaceWornOutParts: values.replaceWornOutParts,
+                repair: values.repair,
+                generalRecondition: values.generalRecondition,
+                repairPart: values.repairPart,
+                remarks: values.remarks,
+            };
+
+            console.log("📤 createPMS002 payload:", payload);
 
             const response = await axiosInstance.post(
                 `${PMS002_BASE}`,
-                {
-                    equipmentId: values.equipmentId,
-                    laboratoryId: values.laboratoryId,
-                    routineInspection: values.routineInspection,
-                    lubrication: values.lubrication,
-                    overhauling: values.overhauling,
-                    minorAdjustment: values.minorAdjustment,
-                    replaceWornOutParts: values.replaceWornOutParts,
-                    repair: values.repair,
-                    generalRecondition: values.generalRecondition,
-                    repairPart: values.repairPart,
-                    remarks: values.remarks,
-                },
+                payload,
                 {
                     withCredentials: true,
                     headers: { Authorization: `Bearer ${authToken}` },
                 }
             );
-
-            console.log("response",response)
 
             if (response?.data?.status === "success") {
                 setModalStatus("success");
@@ -113,83 +135,78 @@ export const PMS002Provider = ({ children }) => {
     };
 
     // ============================================================
-    // GET ALL PMS002
+    // GET ALL — supports ?laboratoryId, ?from, ?to, ?all
     // GET /api/v1/Pms002
     // ============================================================
-    const fetchAllPMS002 = useCallback(
-        async (options = {}) => {
-            const {
-                laboratoryId: explicitLaboratoryId,
-                from,
-                to,
-                forceLaboratoryId,
-            } = options;
+    const fetchAllPMS002 = async (filters = {}) => {
+        if (!authToken) return null;
+        setLoading(true);
+        try {
+            const params = buildQueryParams(filters);
 
-            if (!authToken) return null;
+            const res = await axiosInstance.get(`${PMS002_BASE}`, {
+                params,
+                withCredentials: true,
+                headers: { Authorization: `Bearer ${authToken}` },
+            });
 
-            const role = user?.role;
+            // ✅ Suportahan lahat ng possible response keys
+            const records = Array.isArray(res?.data?.pmsRecord002)
+                ? res.data.pmsRecord002
+                : Array.isArray(res?.data?.pmsRecord)
+                ? res.data.pmsRecord
+                : Array.isArray(res?.data?.data)
+                ? res.data.data
+                : [];
 
-            // ✅ Resolve laboratoryId — mula sa explicit, force, o wala
-            const resolvedLaboratoryId =
-                explicitLaboratoryId || forceLaboratoryId || null;
+            // ✅ Total — server total kung available
+            const total =
+                typeof res?.data?.totalPMS002 === "number"
+                    ? res.data.totalPMS002
+                    : typeof res?.data?.total === "number"
+                    ? res.data.total
+                    : records.length;
 
-            // ✅ Admin must pass laboratoryId
-            if (role === "Admin" && !resolvedLaboratoryId) {
-                const message = "laboratoryId is required for Admin role.";
-                setError(message);
-                setCustomError(message);
-                return { success: false, error: message };
-            }
+            // ✅ Lab data (kung object, hindi array)
+            const labData =
+                res?.data?.data && !Array.isArray(res.data.data)
+                    ? res.data.data
+                    : null;
 
-            setLoading(true);
+            // ✅ Encharge / performedBy
+            const encharge =
+                res?.data?.performedBy ||
+                res?.data?.laboratory?.performedBy ||
+                labData?.performedBy ||
+                null;
 
-            try {
-                const params = {};
+            setPms002Records(records);
+            setServerTotal(total);
+            setPerformedBy(encharge);
+            if (labData) setMyLaboratory(labData);
+            setError(null);
 
-                if (from) params.from = from;
-                if (to) params.to = to;
+            return {
+                success: true,
+                data: records,
+                pmsRecord002: records,
+                pmsRecord: records,
+                total,
+                performedBy: encharge,
+                laboratory: labData,
+            };
+        } catch (error) {
+            const message = handleApiError(error);
+            setError(message);
+            setPms002Records([]);
+            setServerTotal(0);
+            setPerformedBy(null);
+            return { success: false, error: message };
+        } finally {
+            setLoading(false);
+        }
+    };
 
-                // ✅ PALAGING ipasa ang laboratoryId kung may value
-                // (safe kahit User — backend ang mag-o-override gamit ang Encharge)
-                if (resolvedLaboratoryId) {
-                    params.laboratoryId = resolvedLaboratoryId;
-                }
-
-                const res = await axiosInstance.get(`${PMS002_BASE}`, {
-                    params,
-                    withCredentials: true,
-                    headers: { Authorization: `Bearer ${authToken}` },
-                });
-
-                // ✅ Tamang response shape:
-                // { status, role, pmsRecord002, totalPMS002, data }
-                const records = res?.data?.pmsRecord002 || [];
-                const total = res?.data?.totalPMS002 ?? records.length;
-                const laboratoryInfo = res?.data?.data || null;
-
-                setPms002Records(records);
-                setMyLaboratory(laboratoryInfo);
-                setError(null);
-                setCustomError("");
-
-                return {
-                    success: true,
-                    data: records,
-                    total,
-                    laboratory: laboratoryInfo,
-                    role: res?.data?.role,
-                };
-            } catch (error) {
-                const message = handleApiError(error);
-                setError(message);
-                setPms002Records([]);
-                return { success: false, error: message };
-            } finally {
-                setLoading(false);
-            }
-        },
-        [authToken, user?.role]
-    );
     // ============================================================
     // GET BY ID
     // GET /api/v1/Pms002/:id
@@ -208,6 +225,7 @@ export const PMS002Provider = ({ children }) => {
             return { success: true, data };
         } catch (error) {
             const message = handleApiError(error);
+            setPms002Record(null);
             return { success: false, error: message };
         } finally {
             setLoading(false);
@@ -242,21 +260,13 @@ export const PMS002Provider = ({ children }) => {
 
     // ============================================================
     // FETCH MY LABORATORY
-    // GET /api/v1/Pms002/FindByEquipment?from=&to=&all=
+    // GET /api/v1/Pms002/FindByEquipment?from=&to=&all=&laboratoryId=
     // ============================================================
     const fetchMyLaboratory = async (filters = {}) => {
         if (!authToken) return null;
         setLoading(true);
         try {
-            // ✅ Buuin ang query params
-            const params = {};
-
-            if (filters.all) {
-                params.all = "true";
-            } else {
-                if (filters.from) params.from = filters.from;
-                if (filters.to) params.to = filters.to;
-            }
+            const params = buildQueryParams(filters);
 
             const res = await axiosInstance.get(
                 `${PMS002_BASE}/FindByEquipment`,
@@ -268,26 +278,50 @@ export const PMS002Provider = ({ children }) => {
             );
 
             if (res?.data?.status === "success") {
+                // ✅ Lab info (object, hindi array)
                 const labData = Array.isArray(res.data.data)
                     ? res.data.data[0]
                     : res.data.data || null;
 
+                // ✅ PMS002 records (top-level array)
                 const pmsRecords = Array.isArray(res.data.pmsRecord)
                     ? res.data.pmsRecord
+                    : Array.isArray(res.data.pmsRecord002)
+                    ? res.data.pmsRecord002
                     : [];
+
+                // ✅ Total
+                const total =
+                    typeof res.data.total === "number"
+                        ? res.data.total
+                        : typeof res.data.totalPMS002 === "number"
+                        ? res.data.totalPMS002
+                        : pmsRecords.length;
+
+                // ✅ Encharge
+                const encharge =
+                    labData?.performedBy ||
+                    res?.data?.performedBy ||
+                    null;
 
                 setMyLaboratory(labData);
                 setPms002Records(pmsRecords);
-                setError(null);
+                setServerTotal(total);
+                setPerformedBy(encharge);
 
                 return {
                     success: true,
                     data: labData,
                     pmsRecord: pmsRecords,
+                    pmsRecord002: pmsRecords,
+                    performedBy: encharge,
+                    total,
                 };
             } else {
                 setMyLaboratory(null);
                 setPms002Records([]);
+                setServerTotal(0);
+                setPerformedBy(null);
                 return {
                     success: false,
                     error: res?.data?.message || "No laboratory found.",
@@ -297,6 +331,8 @@ export const PMS002Provider = ({ children }) => {
             const message = handleApiError(error);
             setMyLaboratory(null);
             setPms002Records([]);
+            setServerTotal(0);
+            setPerformedBy(null);
             return { success: false, error: message };
         } finally {
             setLoading(false);
@@ -312,23 +348,25 @@ export const PMS002Provider = ({ children }) => {
             return { success: false, error: "Not authenticated." };
         setLoading(true);
         try {
-            console.log("📤 updatePMS002 payload:", { id, values });
+            const payload = {
+                equipmentId: values.equipmentId,
+                laboratoryId: values.laboratoryId,
+                routineInspection: values.routineInspection,
+                lubrication: values.lubrication,
+                overhauling: values.overhauling,
+                minorAdjustment: values.minorAdjustment,
+                replaceWornOutParts: values.replaceWornOutParts,
+                repair: values.repair,
+                generalRecondition: values.generalRecondition,
+                repairPart: values.repairPart,
+                remarks: values.remarks,
+            };
+
+            console.log("📤 updatePMS002 payload:", { id, payload });
 
             const response = await axiosInstance.put(
                 `${PMS002_BASE}/${id}`,
-                {
-                    equipmentId: values.equipmentId,
-                    laboratoryId: values.laboratoryId,
-                    routineInspection: values.routineInspection,
-                    lubrication: values.lubrication,
-                    overhauling: values.overhauling,
-                    minorAdjustment: values.minorAdjustment,
-                    replaceWornOutParts: values.replaceWornOutParts,
-                    repair: values.repair,
-                    generalRecondition: values.generalRecondition,
-                    repairPart: values.repairPart,
-                    remarks: values.remarks,
-                },
+                payload,
                 {
                     withCredentials: true,
                     headers: { Authorization: `Bearer ${authToken}` },
@@ -405,12 +443,30 @@ export const PMS002Provider = ({ children }) => {
     };
 
     // ============================================================
-    // DERIVED — total records
+    // DERIVED — total records (server total kung available)
     // ============================================================
     const totalPMS002 = useMemo(
-        () => pms002Records?.length || 0,
-        [pms002Records]
+        () =>
+            typeof serverTotal === "number" && serverTotal >= 0
+                ? serverTotal
+                : pms002Records?.length || 0,
+        [serverTotal, pms002Records]
     );
+
+    // ============================================================
+    // DERIVED — full name ng performedBy (Encharge)
+    // ============================================================
+    const performedByFullName = useMemo(() => {
+        if (!performedBy) return "";
+        return [
+            performedBy.FirstName,
+            performedBy.Middle,
+            performedBy.LastName,
+        ]
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+    }, [performedBy]);
 
     // ============================================================
     // PROVIDER VALUE
@@ -425,15 +481,15 @@ export const PMS002Provider = ({ children }) => {
                 setPms002Record,
                 myLaboratory,
                 setMyLaboratory,
+                performedBy,
+                setPerformedBy,
+                performedByFullName,
 
                 loading,
                 error,
                 customError,
                 setCustomError,
                 totalPMS002,
-
-                // ✅ user (role) — para sa role checks sa component
-                user,
 
                 // methods
                 createPMS002,
