@@ -49,9 +49,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { StatisticsContext } from "../../contexts/StatisticContext/statisticalContext.jsx";
 
 function DashboardCard({ statisticsData, technicianStats, supplyStatistics }) {
-
-  console.log("supplyStatistics", supplyStatistics);
-
   // Extract summary data from statisticsData
   const summary = statisticsData?.summary || {};
   const technicianCard = technicianStats?.dashboardCards || {};
@@ -61,9 +58,6 @@ function DashboardCard({ statisticsData, technicianStats, supplyStatistics }) {
   // ✨ Incharge Statistics from Context
   const {
     inchargeStats,
-    inchargeLaboratories,
-    inchargeCount,
-    fetchInchargeStatistics,
     refreshInchargeData
   } = useContext(StatisticsContext)
 

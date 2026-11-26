@@ -4,7 +4,6 @@ import { useTheme } from "@/hooks/use-theme";
 import { Footer } from "../../layouts/footer";
 import { FaChartLine, FaChartBar, FaStar } from "react-icons/fa";
 import DashboardCard from "../../components/Card/DashboardCard";
-import TechnicianTable from "../../components/Technician/TechnicianTable";
 import Laboratory from "../../components/Assign/Laboratory";
 
 // Contexts

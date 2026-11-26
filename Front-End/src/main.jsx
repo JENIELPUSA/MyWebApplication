@@ -31,11 +31,6 @@ import PMS005Provider from './contexts/PMS/pmsContext005.jsx'
 import { CategoryProvider } from './contexts/CategoryContext/categoryContext.jsx'
 import { UpdateDisplayProvider } from './contexts/UpdateContext/updateContext.jsx'
 
-// ✅ Idagdag ang missing providers (kung meron):
-// import { NotificationDisplayProvider } from './contexts/NotificationContext/NotificationContext.jsx'
-// import { EmployeeProvider } from './contexts/EmployeeContext/EmployeeContext.jsx'
-// import { WellnessLeaveProvider } from './contexts/WellnessLeave/wellnessleave.jsx'
-
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>

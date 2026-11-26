@@ -24,6 +24,7 @@ import {
     MessageSquare,
     Info,
     AlertTriangle,
+    Zap,
 } from "lucide-react";
 import PropTypes from "prop-types";
 import { MessagePOSTcontext } from "../contexts/MessageContext/POSTmessage";
@@ -145,12 +146,11 @@ const getNotificationLabel = (type) =>
     NOTIFICATION_LABELS[type] || DEFAULT_NOTIFICATION_LABEL;
 
 // ==========================================
-// ✅ PRIORITY STYLES — mas prominenteng colors
+// ✅ PRIORITY STYLES — more prominent colors
 // ==========================================
 const getPriorityStyles = (priority) => {
     if (priority === "High") {
         return {
-            // solid red badge
             badge: "bg-red-500 text-white border-red-600 dark:bg-red-600 dark:border-red-500",
             dot: "bg-white",
             icon: "text-white",
@@ -159,7 +159,6 @@ const getPriorityStyles = (priority) => {
     }
     if (priority === "Medium") {
         return {
-            // solid amber badge
             badge: "bg-amber-500 text-white border-amber-600 dark:bg-amber-500 dark:border-amber-400",
             dot: "bg-white",
             icon: "text-white",
@@ -168,7 +167,6 @@ const getPriorityStyles = (priority) => {
     }
     if (priority === "Low") {
         return {
-            // solid green badge
             badge: "bg-emerald-500 text-white border-emerald-600 dark:bg-emerald-600 dark:border-emerald-400",
             dot: "bg-white",
             icon: "text-white",
@@ -176,6 +174,19 @@ const getPriorityStyles = (priority) => {
         };
     }
     return null;
+};
+
+// ==========================================
+// ✅ URGENT ACTION NOTE — for High priority only
+// ==========================================
+const getUrgentActionNote = (priority) => {
+    if (priority !== "High") return null;
+    return {
+        title: "Urgent Action Required",
+        message:
+            "This request has a high priority level. Immediate action and attention are required now.",
+        icon: Zap,
+    };
 };
 
 // ✅ Theme validation helper
@@ -209,7 +220,6 @@ export const Header = ({ collapsed, setCollapsed }) => {
     const activeTheme = resolveTheme(theme);
     const isDark = activeTheme === "dark";
 
-    // ✅ UPDATED: Changed "Welcome Back User" to "Welcome Back Incharge"
     const getGreeting = () => {
         if (!role) return "Welcome Back";
         const normalizedRole = role.toLowerCase();
@@ -217,7 +227,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
         if (normalizedRole === "technician") return "Welcome Back Technician";
         if (normalizedRole === "supply") return "Welcome Back Supply";
         if (normalizedRole === "user") return "Welcome Back Incharge";
-        return "Welcome Back Incharge"; // Fallback to Incharge
+        return "Welcome Back Incharge";
     };
 
     const isEmptyOrWhitespace = (str) => {
@@ -560,6 +570,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                             const priorityStyle = notif.levelprioritized
                                                 ? getPriorityStyles(notif.levelprioritized)
                                                 : null;
+                                            const urgentNote = getUrgentActionNote(notif.levelprioritized);
 
                                             return (
                                                 <button
@@ -575,6 +586,10 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                                         ${notif.unread
                                                             ? "bg-blue-50/40 dark:bg-blue-900/10"
                                                             : "bg-white dark:bg-slate-900"
+                                                        }
+                                                        ${notif.levelprioritized === "High"
+                                                            ? "border-l-4 border-l-red-500"
+                                                            : ""
                                                         }
                                                     `}
                                                 >
@@ -621,7 +636,7 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                                                         </span>
                                                                     )}
 
-                                                                    {/* 👇 PRIORITY BADGE — solid color (High/Medium/Low) */}
+                                                                    {/* 👇 PRIORITY BADGE */}
                                                                     {notif.levelprioritized && priorityStyle && (
                                                                         <span
                                                                             className={`
@@ -645,6 +660,25 @@ export const Header = ({ collapsed, setCollapsed }) => {
                                                                 <p className="mt-2 text-[13px] leading-6 text-slate-600 dark:text-slate-400 whitespace-pre-wrap break-words">
                                                                     {notif.desc}
                                                                 </p>
+                                                            )}
+
+                                                            {/* ========================================== */}
+                                                            {/* ✅ URGENT ACTION NOTE — High priority only */}
+                                                            {/* ========================================== */}
+                                                            {urgentNote && (
+                                                                <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-red-300 bg-red-50 dark:border-red-500/40 dark:bg-red-950/40 px-3 py-2.5">
+                                                                    <div className="shrink-0 mt-0.5 size-6 rounded-md bg-red-500 text-white flex items-center justify-center">
+                                                                        <urgentNote.icon size={14} />
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <p className="text-[11px] font-bold uppercase tracking-wider text-red-700 dark:text-red-300">
+                                                                            ⚠ {urgentNote.title}
+                                                                        </p>
+                                                                        <p className="text-[11px] leading-relaxed text-red-600 dark:text-red-300/90 mt-0.5">
+                                                                            {urgentNote.message}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
                                                             )}
 
                                                             <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">

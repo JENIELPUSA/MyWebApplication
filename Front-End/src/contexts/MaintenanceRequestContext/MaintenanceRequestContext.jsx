@@ -188,22 +188,31 @@ export const MaintenanceRequestProvider = ({ children }) => {
   };
   // ================================================
 
-  const addDescription = async (
-    Description,
-    equipment,
-    Laboratory,
-    department,
-  ) => {
+  const addDescription = async (formValues) => {
     try {
+
+      console.log("formValues",formValues)
+      const payload = {
+        Description: formValues.Description,
+        Equipments: formValues.Equipments,
+        Department: formValues.Department,
+        Laboratory: formValues.Laboratory,
+        Status: "Pending",
+
+        DepartmentHead: formValues.DepartmentHead?.trim() || "",
+        ContactPerson: formValues.ContactPerson?.trim() || "",
+        ContactEmail: formValues.ContactEmail?.trim().toLowerCase() || "",
+        ContactPhone: formValues.ContactPhone?.trim() || "",
+        location_areas: formValues.location_areas?.trim() || "",
+        type_works: formValues.type_works?.trim() || "",
+        Printed_name_requestor:
+          formValues.Printed_name_requestor?.trim() || "",
+        isConfirmed: false,
+      };
+
       const response = await axiosInstance.post(
         `${BASE_URL}/api/v1/MaintenanceRequest`,
-        {
-          Description,
-          Equipments: equipment,
-          Department: department,
-          Laboratory,
-          Status: "Pending",
-        },
+        payload,
         getAuthConfig(),
       );
 
@@ -223,8 +232,8 @@ export const MaintenanceRequestProvider = ({ children }) => {
       const message =
         err?.response?.data && typeof err.response.data === "object"
           ? err.response.data.message ||
-            err.response.data.error ||
-            "Something went wrong."
+          err.response.data.error ||
+          "Something went wrong."
           : typeof err?.response?.data === "string"
             ? err.response.data
             : err?.request
@@ -347,13 +356,13 @@ export const MaintenanceRequestProvider = ({ children }) => {
         technicianId,
         ...(MessageId ? { MessageId } : {}),
         ...(SetSchedule !== undefined &&
-        SetSchedule !== null &&
-        String(SetSchedule).trim() !== ""
+          SetSchedule !== null &&
+          String(SetSchedule).trim() !== ""
           ? { SetSchedule }
           : {}),
         ...(levelprioritized !== undefined &&
-        levelprioritized !== null &&
-        String(levelprioritized).trim() !== ""
+          levelprioritized !== null &&
+          String(levelprioritized).trim() !== ""
           ? { levelprioritized }
           : {}),
       };

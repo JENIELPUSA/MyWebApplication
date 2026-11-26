@@ -45,6 +45,38 @@ const MaintenanceRequestSchema = new mongoose.Schema(
       ref: "Equipment", // Reference to the Equipment model
     },
 
+    
+    DepartmentHead: {
+      type: String,
+      default: ""
+    },
+    ContactPerson: {
+      type: String,
+      default: ""
+    },
+    ContactEmail: {
+      type: String,
+      default: ""
+    },
+    ContactPhone: {
+      type: String,
+      default: ""
+    },
+    location_areas: {
+      type: String,
+      default: ""
+    },
+    type_works: {
+      type: String,
+      default: ""
+    },
+    Printed_name_requestor: {
+      type: String,
+      default: ""
+    },
+    isConfirmed: {type:Boolean, default: false},
+
+
     Department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
@@ -59,6 +91,7 @@ const MaintenanceRequestSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
     levelprioritized: {
       type: String,
       enum: ["Low", "Medium", "High"]

@@ -97,7 +97,17 @@ exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
 
   console.log("userId", userId);
 
-  const { Equipments } = req.body;
+  const {
+    Equipments,
+    // ✅ NEW FIELDS — destructure para ma-normalize
+    DepartmentHead,
+    ContactPerson,
+    ContactEmail,
+    ContactPhone,
+    location_areas,
+    type_works,
+    Printed_name_requestor,
+  } = req.body;
 
   console.log("BODYYYY", req.body);
 
@@ -135,9 +145,40 @@ exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
   const laboratoryId = laboratory?._id ?? null;
   console.log("Resolved Laboratory:", laboratory?.LaboratoryName, laboratoryId);
 
+  // ✅ NEW FIELDS — normalize bago i-save
   const maintenance = await requestmaintenance.create({
     ...req.body,
     Laboratory: laboratoryId,
+    DepartmentHead:
+      DepartmentHead !== undefined && DepartmentHead !== null
+        ? String(DepartmentHead).trim()
+        : "",
+    ContactPerson:
+      ContactPerson !== undefined && ContactPerson !== null
+        ? String(ContactPerson).trim()
+        : "",
+    ContactEmail:
+      ContactEmail !== undefined && ContactEmail !== null
+        ? String(ContactEmail).trim().toLowerCase()
+        : "",
+    ContactPhone:
+      ContactPhone !== undefined && ContactPhone !== null
+        ? String(ContactPhone).trim()
+        : "",
+    location_areas:
+      location_areas !== undefined && location_areas !== null
+        ? String(location_areas).trim()
+        : "",
+    type_works:
+      type_works !== undefined && type_works !== null
+        ? String(type_works).trim()
+        : "",
+    Printed_name_requestor:
+      Printed_name_requestor !== undefined &&
+        Printed_name_requestor !== null
+        ? String(Printed_name_requestor).trim()
+        : "",
+    isConfirmed: false, // bagong request — hindi pa confirmed
   });
 
   // -------------------- CREATE MESSAGE --------------------
@@ -160,12 +201,22 @@ exports.RequestMaintenance = AsyncErrorHandler(async (req, res) => {
     equipmentId: Equipments,
     typesNotification: "MaintenanceRequest",
     Status: "Pending",
-    Laboratory: laboratoryId,   // ✅ ObjectId
+    Laboratory: laboratoryId,
     To: "Admin",
-    Encharge: userId,           // ✅ optional: ilagay ang userId
+    Encharge: userId,
     role: "Admin",
     RequestID: maintenance._id,
     viewers,
+
+    // ✅ NEW FIELDS — snapshot sa notification para visible sa admin/tech list
+    DepartmentHead: maintenance.DepartmentHead || "",
+    ContactPerson: maintenance.ContactPerson || "",
+    ContactEmail: maintenance.ContactEmail || "",
+    ContactPhone: maintenance.ContactPhone || "",
+    location_areas: maintenance.location_areas || "",
+    type_works: maintenance.type_works || "",
+    Printed_name_requestor: maintenance.Printed_name_requestor || "",
+    isConfirmed: maintenance.isConfirmed || false,
   };
 
   await Message.create(messageData);
@@ -384,6 +435,28 @@ exports.DisplayRequest = AsyncErrorHandler(async (req, res) => {
         Description: 1,
         Remarks: 1,
         remarksread: 1,
+
+        DepartmentHead: {
+          $ifNull: ["$DepartmentHead", ""],
+        },
+        ContactPerson: {
+          $ifNull: ["$ContactPerson", ""],
+        },
+        ContactEmail: {
+          $ifNull: ["$ContactEmail", ""],
+        },
+        ContactPhone: {
+          $ifNull: ["$ContactPhone", ""],
+        },
+        location_areas: {
+          $ifNull: ["$location_areas", ""],
+        },
+        type_works: {
+          $ifNull: ["$type_works", ""],
+        },
+        Printed_name_requestor: {
+          $ifNull: ["$Printed_name_requestor", ""],
+        },
 
         // Equipment
         EquipmentId: {
